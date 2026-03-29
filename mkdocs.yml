@@ -1,8 +1,8 @@
-site_name: ARIEL Network
+site_name: ARIEL
 site_description: Adventist Repository for Institutional and Educational Literature — Red Científica Adventista
-site_url: https://upeu-infra.github.io/ariel-network
-repo_url: https://github.com/UPeU-Infra/ariel-network
-repo_name: UPeU-Infra/ariel-network
+site_url: https://upeu-infra.github.io/ariel
+repo_url: https://github.com/UPeU-Infra/ariel
+repo_name: UPeU-Infra/ariel
 edit_uri: edit/main/docs/
 
 theme:
@@ -52,13 +52,13 @@ plugins:
           default: true
           name: Español
           build: true
-          site_name: ARIEL Network
+          site_name: ARIEL
           nav_translations:
             Home: Inicio
         - locale: en
           name: English
           build: true
-          site_name: ARIEL Network
+          site_name: ARIEL
 
 markdown_extensions:
   - admonition
@@ -88,17 +88,14 @@ markdown_extensions:
 extra:
   alternate:
     - name: Español
-      link: /ariel-network/
+      link: /ariel/
       lang: es
     - name: English
-      link: /ariel-network/en/
+      link: /ariel/en/
       lang: en
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/UPeU-Infra/ariel-network
-  analytics:
-    provider: google
-    property: G-XXXXXXXXXX
+      link: https://github.com/UPeU-Infra/ariel
 
 nav:
   - Inicio: index.md
