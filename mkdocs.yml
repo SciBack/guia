@@ -1,5 +1,5 @@
-site_name: ARIEL
-site_description: Adventist Repository for Institutional and Educational Literature — Red Científica Adventista
+site_name: GUIA
+site_description: Gateway Universitario de Información y Asistencia — Plataforma AI-native para universidades
 site_url: https://upeu-infra.github.io/ariel
 repo_url: https://github.com/UPeU-Infra/ariel
 repo_name: UPeU-Infra/ariel
@@ -8,8 +8,6 @@ edit_uri: edit/main/docs/
 theme:
   name: material
   language: es
-  logo: assets/images/ariel-logo.svg
-  favicon: assets/images/ariel-logo.svg
   font:
     text: Inter
     code: JetBrains Mono
@@ -52,13 +50,13 @@ plugins:
           default: true
           name: Español
           build: true
-          site_name: ARIEL
+          site_name: GUIA
           nav_translations:
             Home: Inicio
         - locale: en
           name: English
           build: true
-          site_name: ARIEL
+          site_name: GUIA
 
 markdown_extensions:
   - admonition
@@ -99,10 +97,7 @@ extra:
 
 nav:
   - Inicio: index.md
-  - Propuesta Ejecutiva: propuesta-ejecutiva.md
-  - Plan Operativo: plan-operativo.md
   - Arquitectura: arquitectura.md
-  - Implementación AWS: implementacion-aws.md
-  - Financiamiento: financiamiento.md
-  - Literatura: literatura.md
-  - Contexto: contexto.md
+  - Modelo Comercial: modelo-comercial.md
+  - Conectores: conectores.md
+  - Roadmap: roadmap.md

@@ -1,123 +1,131 @@
-# ARIEL
+# GUIA
 
 <div class="hero" markdown>
 
-## Adventist Repository for Institutional and Educational Literature
+## Gateway Universitario de Informacion y Asistencia
 
-*Red global de repositorios científicos de las universidades e institutos de la Iglesia Adventista del Séptimo Día*
-
-> **ARIEL** es un nombre propio — no se traduce. En español puede leerse como *"Repositorio Adventista de Investigación y Educación en Literatura"*, aunque el significado varía según el idioma de cada región. Como ocurre con OpenAIRE o ALICIA, el acrónimo es universal.
+*Plataforma open-source AI-native que unifica toda la informacion universitaria en un solo chat*
 
 </div>
 
 ---
 
-!!! quote "Isaías 29:18"
-    *"En aquel día los sordos oirán las palabras del libro, y los ojos de los ciegos verán desde la oscuridad y las tinieblas."*
+## El problema
 
-    Este versículo es el corazón de ARIEL. Un repositorio académico cuya función es hacer accesible el conocimiento que antes estaba sellado o invisible — **es exactamente esa imagen**.
-
----
-
-## ¿Qué es ARIEL?
-
-**ARIEL** es una red federada de repositorios institucionales de las universidades y centros de investigación de la Iglesia Adventista del Séptimo Día, iniciando con la **División Sudamericana (SAD)** y expandiéndose progresivamente a todas las divisiones del mundo.
-
-Es el equivalente adventista de lo que hace [OpenAIRE](https://openaire.eu) para Europa o [LA Referencia](https://lareferencia.info) para América Latina: **agregar, unificar y dar visibilidad global a la producción científica adventista**.
-
----
-
-## El problema que resuelve
+Cada universidad tiene 10+ sistemas desconectados. Los estudiantes no saben donde buscar.
 
 ```mermaid
 graph TD
-    A["🏛️ 118+ universidades adventistas\nen 50+ países"] --> B["⚠️ Problema"]
-    B --> C["< 5% tiene repositorio\ninstitucional operativo"]
-    B --> D["Cero red federada\nentre instituciones"]
-    B --> E["5,000–15,000 publicaciones/año\ninvisibles globalmente"]
-    B --> F["Sin política denominacional\nde acceso abierto"]
+    A["Estudiante con una pregunta"] --> B["Donde busco?"]
+    B --> C["DSpace\nTesis y articulos"]
+    B --> D["OJS\nRevistas"]
+    B --> E["Koha\nBiblioteca"]
+    B --> F["SIS\nMatricula y notas"]
+    B --> G["Moodle\nTareas"]
+    B --> H["ERP\nPagos"]
+    B --> I["Correo\nUsuario y clave"]
 
     style A fill:#1e3a5f,color:#fff
     style B fill:#c0392b,color:#fff
-    style C fill:#e74c3c,color:#fff
-    style D fill:#e74c3c,color:#fff
-    style E fill:#e74c3c,color:#fff
-    style F fill:#e74c3c,color:#fff
 ```
+
+**Resultado:** frustacion, llamadas al helpdesk, informacion perdida, plataformas subutilizadas.
 
 ---
 
-## La solución: pirámide de agregación ARIEL
+## La solucion: GUIA
+
+Un solo chat que conecta todos los sistemas. El estudiante pregunta en lenguaje natural y GUIA responde.
 
 ```mermaid
-graph BT
-    A["🏛️ DSpace / OJS\nen cada universidad adventista"] --> B["🌎 Redes nacionales\nALICIA · BDTD · SNRD · RRAAE"]
-    B --> C["⭐ HUB ARIEL\nariel.sciback.com"]
-    C --> D["🌍 LA Referencia\nRed LATAM"]
-    D --> E["🌐 OpenAIRE · BASE · CORE\nOpenAlex · Google Scholar"]
+graph TD
+    A["Estudiante pregunta\nen chat"] --> GUIA["GUIA Node\nAI + RAG + Conectores"]
+    GUIA --> C["DSpace"]
+    GUIA --> D["OJS"]
+    GUIA --> E["Koha"]
+    GUIA --> F["SIS"]
+    GUIA --> G["Moodle"]
+    GUIA --> H["ERP"]
+    GUIA --> I["LDAP"]
 
-    style C fill:#1e3a5f,color:#fff,stroke:#f39c12,stroke-width:3px
-    style A fill:#2980b9,color:#fff
-    style B fill:#27ae60,color:#fff
-    style D fill:#8e44ad,color:#fff
-    style E fill:#2c3e50,color:#fff
+    style A fill:#1e3a5f,color:#fff
+    style GUIA fill:#27ae60,color:#fff,stroke:#f39c12,stroke-width:3px
 ```
 
 ---
 
-## Escala del sistema educativo adventista
+## Ejemplos de uso
 
 <div class="grid cards" markdown>
 
--   :fontawesome-solid-university: **118+ universidades**
+-   :fontawesome-solid-search: **Investigacion**
 
-    En 50+ países — segundo sistema educativo privado del mundo
+    "Que tesis hay sobre inteligencia artificial en educacion?"
+    "En que estado esta la publicacion de mi articulo en la revista?"
 
--   :fontawesome-solid-users: **163,312 estudiantes**
+-   :fontawesome-solid-book: **Biblioteca**
 
-    Nivel terciario generando tesis e investigación continuamente
+    "Tengo algun libro pendiente de devolver?"
+    "Hay disponible el libro de Sampieri?"
 
--   :fontawesome-solid-chalkboard-teacher: **14,206 docentes**
+-   :fontawesome-solid-graduation-cap: **Academico**
 
-    Potenciales investigadores y autores
+    "Cual es mi horario de clases?"
+    "Ya salieron mis notas del parcial?"
 
--   :fontawesome-solid-file-alt: **5,000–15,000 publicaciones/año**
+-   :fontawesome-solid-credit-card: **Financiero**
 
-    Estimación conservadora — actualmente invisibles
+    "Cuanto debo de matricula?"
+    "Cual es la fecha limite de pago?"
+
+-   :fontawesome-solid-envelope: **Institucional**
+
+    "Cual es mi correo institucional?"
+    "Como cambio mi contrasena?"
+
+-   :fontawesome-solid-calendar: **Eventos**
+
+    "Que congresos hay este mes?"
+    "Donde me inscribo al simposio de investigacion?"
 
 </div>
 
 ---
 
-## Fases de expansión
+## Dos productos, un ecosistema
+
+| Producto | Para quien | Que hace |
+|----------|-----------|----------|
+| **GUIA Node** | Cualquier universidad | Asistente AI que conecta todos los sistemas locales |
+| **GUIA Hub** | Consorcios, redes, denominaciones | Federa nodos para busqueda unificada de investigacion |
 
 ```mermaid
-timeline
-    title Hoja de ruta ARIEL
-    2026 : Piloto SAD
-         : 5-10 universidades sudamericanas
-         : DSpace + OJS federados
-         : Registro OpenDOAR
-    2027 : SAD completa + IAD
-         : 20+ instituciones
-         : Integración LA Referencia
-         : Política OA denominacional
-    2028 : Expansión global
-         : Todas las divisiones
-         : DSpace-CRIS / CERIF
-         : OpenAIRE Guidelines v4
-    2030 : Red madura
-         : 100+ instituciones
-         : 500,000+ registros
-         : Hub global adventista
+graph BT
+    N1["GUIA Node\nUniversidad A"] --> HUB["GUIA Hub\nConsorcio / Red"]
+    N2["GUIA Node\nUniversidad B"] --> HUB
+    N3["GUIA Node\nUniversidad C"] --> HUB
+    HUB --> LA["Redes nacionales\nALICIA, BDTD, SNRD"]
+    HUB --> GLOBAL["Indexadores globales\nOpenAIRE, OpenAlex, BASE"]
+
+    style HUB fill:#1e3a5f,color:#fff,stroke:#f39c12,stroke-width:3px
+    style N1 fill:#27ae60,color:#fff
+    style N2 fill:#27ae60,color:#fff
+    style N3 fill:#27ae60,color:#fff
 ```
+
+!!! info "Separacion de datos"
+    Los datos de campus (notas, pagos, prestamos) son **privados** y nunca salen del Node.
+    Solo los datos de investigacion (tesis, articulos) federan hacia el Hub.
 
 ---
 
-## Institución promotora
+## Open source
 
-**Universidad Peruana Unión (UPeU)** — Lima, Perú
-División Sudamericana de la Iglesia Adventista del Séptimo Día
+GUIA es open-core:
 
-[:fontawesome-solid-arrow-right: Ver Propuesta Ejecutiva](propuesta-ejecutiva.md){ .md-button .md-button--primary }
-[:fontawesome-solid-arrow-right: Arquitectura Técnica](arquitectura.md){ .md-button }
+- **Core (Research):** Apache 2.0 — gratuito para siempre
+- **Conectores Campus:** Licencia comercial SciBack
+- **Soporte gestionado:** Suscripcion mensual
+
+[:fontawesome-solid-arrow-right: Arquitectura](arquitectura.md){ .md-button .md-button--primary }
+[:fontawesome-solid-arrow-right: Modelo Comercial](modelo-comercial.md){ .md-button }

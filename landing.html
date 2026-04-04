@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARIEL — Red Científica Adventista</title>
+<title>GUIA — Gateway Universitario de Informacion y Asistencia</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
@@ -22,6 +22,8 @@
     --text-dim: rgba(200,196,188,0.5);
     --border: rgba(201,168,76,0.18);
     --border-dim: rgba(255,255,255,0.07);
+    --green: #27ae60;
+    --green-dim: rgba(39,174,96,0.15);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
@@ -33,8 +35,6 @@
     line-height: 1.7;
     overflow-x: hidden;
   }
-
-  /* ── NOISE TEXTURE OVERLAY ── */
   body::before {
     content: '';
     position: fixed; inset: 0;
@@ -42,7 +42,7 @@
     pointer-events: none; z-index: 0; opacity: 0.4;
   }
 
-  /* ── NAV ── */
+  /* NAV */
   nav {
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
     padding: 1.25rem 4rem;
@@ -51,15 +51,16 @@
     background: rgba(10,15,30,0.8);
     border-bottom: 1px solid var(--border-dim);
   }
-  .nav-brand {
-    display: flex; align-items: center; gap: 0.75rem;
-    text-decoration: none;
-  }
+  .nav-brand { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; }
   .nav-name {
     font-family: 'Cormorant Garamond', serif;
     font-size: 1.4rem; font-weight: 500;
-    color: var(--gold-light);
-    letter-spacing: 0.08em;
+    color: var(--gold-light); letter-spacing: 0.08em;
+  }
+  .nav-tag {
+    font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--green); background: var(--green-dim);
+    padding: 0.15rem 0.5rem; border: 1px solid rgba(39,174,96,0.3);
   }
   .nav-links { display: flex; gap: 2.5rem; }
   .nav-links a {
@@ -69,12 +70,10 @@
   }
   .nav-links a:hover { color: var(--gold-light); }
 
-  /* ── HERO ── */
+  /* HERO */
   .hero {
-    min-height: 100vh;
-    display: flex; align-items: center;
-    position: relative; overflow: hidden;
-    padding: 8rem 4rem 6rem;
+    min-height: 100vh; display: flex; align-items: center;
+    position: relative; overflow: hidden; padding: 8rem 4rem 6rem;
   }
   .hero-bg {
     position: absolute; inset: 0;
@@ -84,24 +83,16 @@
   }
   .hero-grid {
     position: absolute; inset: 0;
-    background-image:
-      linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
     background-size: 60px 60px;
     mask-image: radial-gradient(ellipse 70% 70% at 60% 40%, black 0%, transparent 70%);
   }
   .hero-content {
-    position: relative; z-index: 1;
-    max-width: 680px;
+    position: relative; z-index: 1; max-width: 680px;
     animation: fadeUp 1.2s ease both;
   }
-  .hero-eyebrow {
-    display: flex; align-items: center; gap: 0.75rem;
-    margin-bottom: 2rem;
-  }
-  .hero-eyebrow-line {
-    width: 40px; height: 1px; background: var(--gold); opacity: 0.6;
-  }
+  .hero-eyebrow { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
+  .hero-eyebrow-line { width: 40px; height: 1px; background: var(--gold); opacity: 0.6; }
   .hero-eyebrow-text {
     font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase;
     color: var(--gold); font-weight: 400;
@@ -109,91 +100,78 @@
   .hero-title {
     font-family: 'Cormorant Garamond', serif;
     font-size: clamp(3.2rem, 7vw, 5.5rem);
-    font-weight: 300; line-height: 1.05;
-    color: var(--white);
-    margin-bottom: 1rem;
-    letter-spacing: -0.01em;
+    font-weight: 300; line-height: 1.05; color: var(--white);
+    margin-bottom: 1rem; letter-spacing: -0.01em;
   }
-  .hero-title em {
-    font-style: italic; color: var(--gold-light);
-  }
+  .hero-title em { font-style: italic; color: var(--gold-light); }
   .hero-subtitle {
     font-family: 'Cormorant Garamond', serif;
     font-size: 1.05rem; font-weight: 300; font-style: italic;
-    color: var(--text-dim); margin-bottom: 2rem;
-    letter-spacing: 0.02em;
+    color: var(--text-dim); margin-bottom: 2rem; letter-spacing: 0.02em;
   }
   .hero-desc {
     font-size: 0.95rem; color: var(--text);
-    max-width: 520px; margin-bottom: 3rem;
-    line-height: 1.8;
+    max-width: 520px; margin-bottom: 3rem; line-height: 1.8;
   }
-  .hero-cta {
-    display: flex; gap: 1rem; flex-wrap: wrap;
-  }
+  .hero-cta { display: flex; gap: 1rem; flex-wrap: wrap; }
   .btn-primary {
-    padding: 0.85rem 2rem;
-    background: var(--gold);
-    color: var(--midnight);
+    padding: 0.85rem 2rem; background: var(--gold); color: var(--midnight);
     font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase;
-    font-weight: 500; text-decoration: none;
-    transition: all 0.2s; border: 1px solid var(--gold);
-    font-family: 'DM Sans', sans-serif;
+    font-weight: 500; text-decoration: none; transition: all 0.2s;
+    border: 1px solid var(--gold); font-family: 'DM Sans', sans-serif;
   }
   .btn-primary:hover { background: var(--gold-light); border-color: var(--gold-light); }
   .btn-secondary {
-    padding: 0.85rem 2rem;
-    background: transparent; color: var(--cream);
+    padding: 0.85rem 2rem; background: transparent; color: var(--cream);
     font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase;
-    font-weight: 400; text-decoration: none;
-    border: 1px solid var(--border);
+    font-weight: 400; text-decoration: none; border: 1px solid var(--border);
     transition: all 0.2s; font-family: 'DM Sans', sans-serif;
   }
   .btn-secondary:hover { border-color: var(--gold); color: var(--gold-light); }
 
-  /* Hero right — verse */
-  .hero-verse {
-    position: absolute; right: 4rem; top: 50%;
-    transform: translateY(-50%);
-    max-width: 340px;
-    border-left: 2px solid var(--gold);
-    padding-left: 2rem;
-    animation: fadeUp 1.4s 0.3s ease both;
-    opacity: 0;
-    animation-fill-mode: forwards;
+  /* CHAT DEMO */
+  .hero-chat {
+    position: absolute; right: 4rem; top: 50%; transform: translateY(-50%);
+    max-width: 380px; width: 100%;
+    border: 1px solid var(--border); background: rgba(10,15,30,0.9);
+    padding: 1.5rem; animation: fadeUp 1.4s 0.3s ease both;
+    opacity: 0; animation-fill-mode: forwards;
   }
-  .hero-verse blockquote {
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic; font-size: 1.15rem; font-weight: 300;
-    color: var(--cream); line-height: 1.6; margin-bottom: 1rem;
+  .chat-header {
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-bottom: 1.25rem; padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-dim);
   }
-  .hero-verse cite {
-    font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase;
-    color: var(--gold); font-style: normal;
+  .chat-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .chat-label { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
+  .chat-msg {
+    padding: 0.75rem 1rem; margin-bottom: 0.5rem;
+    font-size: 0.82rem; line-height: 1.6;
+  }
+  .chat-user {
+    background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.15);
+    color: var(--cream); margin-left: 2rem;
+  }
+  .chat-bot {
+    background: rgba(39,174,96,0.08); border: 1px solid rgba(39,174,96,0.15);
+    color: var(--text); margin-right: 2rem;
   }
 
-  /* ── STATS BAR ── */
+  /* STATS */
   .stats-bar {
     background: var(--deep);
-    border-top: 1px solid var(--border-dim);
-    border-bottom: 1px solid var(--border-dim);
+    border-top: 1px solid var(--border-dim); border-bottom: 1px solid var(--border-dim);
     padding: 3rem 4rem;
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 2rem;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem;
   }
   .stat-item { text-align: center; }
   .stat-number {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 2.8rem; font-weight: 300;
-    color: var(--gold-light); line-height: 1;
-    margin-bottom: 0.4rem;
+    font-size: 2.8rem; font-weight: 300; color: var(--gold-light); line-height: 1; margin-bottom: 0.4rem;
   }
-  .stat-label {
-    font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase;
-    color: var(--text-dim);
-  }
+  .stat-label { font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-dim); }
 
-  /* ── SECTION COMMON ── */
+  /* SECTIONS */
   section { padding: 7rem 4rem; position: relative; }
   .section-header { margin-bottom: 4rem; }
   .section-tag {
@@ -201,388 +179,119 @@
     font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
     color: var(--gold); margin-bottom: 1rem;
   }
-  .section-tag::before {
-    content: ''; display: block; width: 24px; height: 1px; background: var(--gold);
-  }
+  .section-tag::before { content: ''; display: block; width: 24px; height: 1px; background: var(--gold); }
   .section-title {
     font-family: 'Cormorant Garamond', serif;
     font-size: clamp(2.2rem, 4vw, 3.2rem);
-    font-weight: 300; color: var(--white);
-    line-height: 1.15; letter-spacing: -0.01em;
+    font-weight: 300; color: var(--white); line-height: 1.15; letter-spacing: -0.01em;
   }
   .section-title em { font-style: italic; color: var(--gold-light); }
 
-  /* ── THE PROBLEM ── */
+  /* PROBLEM */
   .problem { background: var(--midnight); }
-  .problem-grid {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 4rem; align-items: start;
-  }
-  .problem-text p {
-    font-size: 1rem; line-height: 1.85;
-    color: var(--text); margin-bottom: 1.5rem;
-  }
+  .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
+  .problem-text p { font-size: 1rem; line-height: 1.85; color: var(--text); margin-bottom: 1.5rem; }
   .problem-text p strong { color: var(--cream); font-weight: 500; }
-  .danger-box {
-    border: 1px solid rgba(220,60,60,0.3);
-    background: rgba(220,60,60,0.05);
-    padding: 1.5rem 1.75rem; margin-top: 2rem;
+  .systems-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;
   }
-  .danger-box .danger-label {
-    font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase;
-    color: #e05050; margin-bottom: 0.75rem;
-    display: flex; align-items: center; gap: 0.5rem;
-  }
-  .danger-box p { font-size: 0.9rem; color: var(--text); }
-
-  .gap-visual {
-    position: relative;
-    display: flex; flex-direction: column; gap: 1.25rem;
-  }
-  .gap-bar-item { display: flex; align-items: center; gap: 1rem; }
-  .gap-bar-label {
-    font-size: 0.78rem; color: var(--text-dim);
-    width: 180px; flex-shrink: 0; text-align: right;
-  }
-  .gap-bar-track {
-    flex: 1; height: 8px; background: rgba(255,255,255,0.06);
-    position: relative; overflow: hidden;
-  }
-  .gap-bar-fill {
-    height: 100%; position: relative;
-    animation: barGrow 1.5s ease both;
-    animation-play-state: paused;
-  }
-  .gap-bar-fill.gold { background: var(--gold); }
-  .gap-bar-fill.red { background: #e05050; }
-  .gap-bar-value {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.75rem; color: var(--text-dim); width: 48px;
-  }
-
-  /* ── SOLUTION / PYRAMID ── */
-  .solution { background: var(--navy); }
-  .pyramid-container {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 5rem; align-items: center;
-  }
-  .pyramid {
-    display: flex; flex-direction: column; gap: 0.5rem;
-    align-items: center;
-  }
-  .pyramid-layer {
-    border: 1px solid var(--border);
-    padding: 1rem 2rem;
-    text-align: center;
-    transition: all 0.25s;
-    cursor: default; position: relative;
-  }
-  .pyramid-layer:hover { border-color: var(--gold); background: var(--gold-dim); }
-  .pyramid-layer.hub {
-    border-color: var(--gold);
-    background: rgba(201,168,76,0.1);
-    width: 100%;
-  }
-  .pyramid-layer.level-1 { width: 80%; }
-  .pyramid-layer.level-2 { width: 60%; }
-  .pyramid-layer.level-3 { width: 40%; border-color: rgba(255,255,255,0.2); }
-  .pyramid-layer-label {
-    font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--text-dim); margin-bottom: 0.25rem;
-  }
-  .pyramid-layer-name {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.1rem; color: var(--white);
-  }
-  .pyramid-layer.hub .pyramid-layer-name { color: var(--gold-light); font-size: 1.25rem; }
-  .pyramid-connector {
-    width: 1px; height: 12px; background: var(--border); margin: 0 auto;
-  }
-
-  .solution-features { display: flex; flex-direction: column; gap: 1.5rem; }
-  .feature-item {
-    display: flex; gap: 1.25rem;
-    padding: 1.25rem; border: 1px solid var(--border-dim);
+  .system-card {
+    border: 1px solid var(--border-dim); padding: 1.25rem; text-align: center;
     transition: all 0.2s;
+  }
+  .system-card:hover { border-color: var(--border); background: var(--cream-dim); }
+  .system-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+  .system-name { font-size: 0.82rem; color: var(--cream); margin-bottom: 0.25rem; font-weight: 500; }
+  .system-desc { font-size: 0.7rem; color: var(--text-dim); }
+
+  /* SOLUTION */
+  .solution { background: var(--navy); }
+  .solution-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: center; }
+  .feature-item {
+    display: flex; gap: 1.25rem; padding: 1.25rem;
+    border: 1px solid var(--border-dim); transition: all 0.2s;
   }
   .feature-item:hover { border-color: var(--border); background: var(--cream-dim); }
   .feature-icon {
     width: 40px; height: 40px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    border: 1px solid var(--border);
-    font-size: 1.1rem;
+    border: 1px solid var(--border); font-size: 1.1rem;
   }
-  .feature-content h4 {
-    font-size: 0.85rem; letter-spacing: 0.05em;
-    color: var(--cream); margin-bottom: 0.3rem; font-weight: 500;
-  }
+  .feature-content h4 { font-size: 0.85rem; letter-spacing: 0.05em; color: var(--cream); margin-bottom: 0.3rem; font-weight: 500; }
   .feature-content p { font-size: 0.82rem; color: var(--text-dim); line-height: 1.6; }
 
-  /* ── ROADMAP ── */
-  .roadmap { background: var(--midnight); }
-  .timeline {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 0; position: relative;
-  }
-  .timeline::before {
-    content: ''; position: absolute;
-    top: 2.5rem; left: 2.5rem; right: 2.5rem; height: 1px;
-    background: linear-gradient(90deg, var(--gold) 0%, rgba(201,168,76,0.3) 100%);
-  }
-  .timeline-item { padding: 0 1.5rem; padding-top: 5rem; position: relative; }
-  .timeline-dot {
-    position: absolute; top: 2rem; left: 2.5rem;
-    width: 1.25rem; height: 1.25rem;
-    border: 2px solid var(--gold);
-    background: var(--midnight);
-    transform: translateX(-50%) rotate(45deg);
-  }
-  .timeline-item.active .timeline-dot { background: var(--gold); }
-  .timeline-year {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.72rem; color: var(--gold);
-    letter-spacing: 0.1em; margin-bottom: 0.75rem;
-  }
-  .timeline-phase {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.3rem; color: var(--white);
-    margin-bottom: 0.75rem;
-  }
-  .timeline-items {
-    list-style: none; display: flex; flex-direction: column; gap: 0.4rem;
-  }
-  .timeline-items li {
-    font-size: 0.78rem; color: var(--text-dim);
-    padding-left: 1rem; position: relative;
-  }
-  .timeline-items li::before {
-    content: '—'; position: absolute; left: 0;
-    color: var(--gold); opacity: 0.4;
-  }
-
-  /* ── ARCHITECTURE ── */
-  .architecture { background: var(--deep); }
-  .phase-cards {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 1px; background: var(--border-dim);
-  }
-  .phase-card {
-    background: var(--deep);
-    padding: 2.5rem 2rem;
-    transition: background 0.2s;
-  }
-  .phase-card:hover { background: rgba(201,168,76,0.04); }
-  .phase-number {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 4rem; font-weight: 300; line-height: 1;
-    color: rgba(201,168,76,0.15); margin-bottom: 0.5rem;
-  }
-  .phase-year {
+  /* PRICING */
+  .pricing { background: var(--midnight); }
+  .pricing-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border-dim); }
+  .pricing-card { background: var(--midnight); padding: 2.5rem 2rem; transition: background 0.2s; }
+  .pricing-card:hover { background: rgba(201,168,76,0.04); }
+  .pricing-card.featured { border-top: 2px solid var(--gold); }
+  .pricing-tier {
     font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase;
     color: var(--gold); margin-bottom: 0.75rem;
   }
-  .phase-name {
+  .pricing-price {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 1.5rem; color: var(--white); margin-bottom: 1rem;
+    font-size: 2.2rem; font-weight: 300; color: var(--gold-light); margin-bottom: 0.25rem;
   }
-  .phase-tech {
-    display: inline-block;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.72rem;
-    color: var(--gold); background: var(--gold-dim);
-    padding: 0.25rem 0.6rem; margin-bottom: 1rem;
+  .pricing-period { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 1.5rem; }
+  .pricing-features { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .pricing-features li {
+    font-size: 0.78rem; color: var(--text-dim); padding-left: 1rem; position: relative;
   }
-  .phase-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.7; }
+  .pricing-features li::before { content: '+'; position: absolute; left: 0; color: var(--gold); }
 
-  /* ── FUNDING ── */
-  .funding { background: var(--navy); }
-  .funding-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem; margin-bottom: 3rem;
+  /* ARCHITECTURE */
+  .architecture { background: var(--deep); }
+  .arch-visual {
+    display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+    max-width: 700px; margin: 0 auto;
   }
-  .funding-card {
-    border: 1px solid var(--border-dim);
-    padding: 2rem;
-    transition: all 0.2s; position: relative; overflow: hidden;
+  .arch-layer {
+    border: 1px solid var(--border); padding: 1rem 2rem; text-align: center;
+    transition: all 0.25s; cursor: default; position: relative;
   }
-  .funding-card::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0;
-    height: 2px; background: var(--gold); opacity: 0;
-    transition: opacity 0.2s;
-  }
-  .funding-card:hover { border-color: var(--border); }
-  .funding-card:hover::before { opacity: 1; }
-  .funding-amount {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.8rem; font-weight: 300;
-    color: var(--gold-light); margin-bottom: 0.25rem;
-  }
-  .funding-source {
-    font-size: 0.8rem; color: var(--cream); margin-bottom: 0.5rem; font-weight: 500;
-  }
-  .funding-type {
-    font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--text-dim); margin-bottom: 0.75rem;
-  }
-  .funding-status {
-    display: inline-block;
-    font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 0.2rem 0.6rem; border: 1px solid;
-  }
-  .funding-status.open { color: #5ec970; border-color: rgba(94,201,112,0.3); background: rgba(94,201,112,0.05); }
-  .funding-status.pending { color: #e0a030; border-color: rgba(224,160,48,0.3); background: rgba(224,160,48,0.05); }
-  .funding-status.future { color: var(--text-dim); border-color: var(--border-dim); }
+  .arch-layer:hover { border-color: var(--gold); background: var(--gold-dim); }
+  .arch-layer.hub { border-color: var(--gold); background: rgba(201,168,76,0.1); width: 100%; }
+  .arch-layer.node { width: 80%; border-color: var(--green); background: var(--green-dim); }
+  .arch-layer.wide { width: 60%; }
+  .arch-layer.narrow { width: 40%; border-color: rgba(255,255,255,0.2); }
+  .arch-label { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.25rem; }
+  .arch-name { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; color: var(--white); }
+  .arch-layer.hub .arch-name { color: var(--gold-light); font-size: 1.25rem; }
+  .arch-layer.node .arch-name { color: var(--green); }
+  .arch-connector { width: 1px; height: 12px; background: var(--border); margin: 0 auto; }
 
-  /* ── ACTORS ── */
-  .actors { background: var(--midnight); }
-  .actors-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
-  }
-  .actor-card {
-    border: 1px solid var(--border-dim);
-    padding: 2rem 1.5rem; text-align: center;
-    transition: all 0.25s;
-  }
-  .actor-card:hover { border-color: var(--border); transform: translateY(-4px); }
-  .actor-icon { font-size: 1.8rem; margin-bottom: 1rem; }
-  .actor-role {
-    font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--gold); margin-bottom: 0.5rem;
-  }
-  .actor-name {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.1rem; color: var(--white); margin-bottom: 0.5rem;
-  }
-  .actor-desc { font-size: 0.78rem; color: var(--text-dim); line-height: 1.6; }
-
-  /* ── NEXT STEPS ── */
-  .nextsteps { background: var(--deep); }
-  .steps-grid {
-    display: grid; grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
-  }
-  .step-item {
-    display: flex; gap: 1rem; align-items: flex-start;
-    padding: 1.25rem; border: 1px solid var(--border-dim);
-    transition: border-color 0.2s;
-  }
-  .step-item:hover { border-color: var(--border); }
-  .step-check {
-    width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px;
-    border: 1px solid; display: flex; align-items: center; justify-content: center;
-    font-size: 0.65rem;
-  }
-  .step-check.done { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
-  .step-check.todo { border-color: var(--border-dim); color: transparent; }
-  .step-text { font-size: 0.85rem; color: var(--text); }
-  .step-text strong { color: var(--cream); font-weight: 500; }
-
-  /* ── FOOTER ── */
+  /* FOOTER */
   footer {
-    background: var(--midnight);
-    border-top: 1px solid var(--border-dim);
-    padding: 3rem 4rem;
-    display: flex; justify-content: space-between; align-items: center;
+    background: var(--midnight); border-top: 1px solid var(--border-dim);
+    padding: 3rem 4rem; display: flex; justify-content: space-between; align-items: center;
   }
   .footer-brand {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 1.5rem; font-weight: 300; color: var(--gold-light);
-    letter-spacing: 0.08em;
+    font-size: 1.5rem; font-weight: 300; color: var(--gold-light); letter-spacing: 0.08em;
   }
-  .footer-tagline {
-    font-style: italic; font-size: 0.85rem;
-    color: var(--text-dim); margin-top: 0.25rem;
-  }
-  .footer-info {
-    text-align: right; font-size: 0.78rem; color: var(--text-dim); line-height: 1.8;
-  }
+  .footer-tagline { font-style: italic; font-size: 0.85rem; color: var(--text-dim); margin-top: 0.25rem; }
+  .footer-info { text-align: right; font-size: 0.78rem; color: var(--text-dim); line-height: 1.8; }
   .footer-info a { color: var(--gold); text-decoration: none; }
 
-  /* ── ANIMATIONS ── */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes barGrow {
-    from { width: 0; }
-    to { width: var(--target-width); }
-  }
-  .reveal {
-    opacity: 0; transform: translateY(20px);
-    transition: opacity 0.7s ease, transform 0.7s ease;
-  }
+  /* ANIMATIONS */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+  .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease, transform 0.7s ease; }
   .reveal.visible { opacity: 1; transform: none; }
   .reveal-delay-1 { transition-delay: 0.1s; }
   .reveal-delay-2 { transition-delay: 0.2s; }
   .reveal-delay-3 { transition-delay: 0.3s; }
 
-  /* ── DIVIDER ── */
-  .divider {
-    width: 60px; height: 1px; background: var(--gold);
-    opacity: 0.4; margin: 2rem 0;
-  }
-
-  /* ── REFERENCES ── */
-  .ref {
-    display: inline-block;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.6rem;
-    color: var(--gold);
-    background: var(--gold-dim);
-    border: 1px solid rgba(201,168,76,0.3);
-    border-radius: 2px;
-    padding: 0 0.3rem;
-    vertical-align: super;
-    text-decoration: none;
-    margin-left: 2px;
-    transition: background 0.15s;
-    cursor: pointer;
-  }
-  .ref:hover { background: rgba(201,168,76,0.28); }
-  .ref-list {
-    margin-top: 3rem; padding-top: 2rem;
-    border-top: 1px solid var(--border-dim);
-  }
-  .ref-list-title {
-    font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--gold); margin-bottom: 1rem;
-    display: flex; align-items: center; gap: 0.5rem;
-  }
-  .ref-list-title::before { content:''; display:block; width:18px; height:1px; background:var(--gold); }
-  .ref-entries { display: flex; flex-direction: column; gap: 0.5rem; }
-  .ref-entry {
-    font-size: 0.75rem; color: var(--text-dim);
-    display: flex; gap: 0.75rem; line-height: 1.5;
-  }
-  .ref-entry .ref-num {
-    font-family: 'DM Mono', monospace;
-    color: var(--gold); flex-shrink: 0; font-size: 0.68rem;
-  }
-  .ref-entry a { color: var(--gold); text-decoration: none; }
-  .ref-entry a:hover { text-decoration: underline; }
-  .funding-link {
-    display: block; margin-top: 0.75rem;
-    font-size: 0.72rem; color: var(--gold);
-    text-decoration: none; letter-spacing: 0.04em;
-    opacity: 0.8; transition: opacity 0.15s;
-    font-family: 'DM Mono', monospace;
-  }
-  .funding-link:hover { opacity: 1; text-decoration: underline; }
-  .funding-link::before { content: '↗ '; }
-
   @media (max-width: 1100px) {
     nav { padding: 1.25rem 2rem; }
     .hero { padding: 8rem 2rem 6rem; }
-    .hero-verse { display: none; }
+    .hero-chat { display: none; }
     section { padding: 5rem 2rem; }
     .stats-bar { padding: 2rem; grid-template-columns: repeat(2, 1fr); }
-    .problem-grid, .pyramid-container { grid-template-columns: 1fr; gap: 3rem; }
-    .phase-cards { grid-template-columns: 1fr; }
-    .funding-grid { grid-template-columns: repeat(2, 1fr); }
-    .actors-grid { grid-template-columns: repeat(2, 1fr); }
-    .steps-grid { grid-template-columns: 1fr; }
-    .timeline { grid-template-columns: repeat(2, 1fr); }
+    .problem-grid, .solution-grid { grid-template-columns: 1fr; gap: 3rem; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .systems-grid { grid-template-columns: repeat(3, 1fr); }
     footer { flex-direction: column; gap: 1.5rem; text-align: center; }
     .footer-info { text-align: center; }
     .nav-links { display: none; }
@@ -594,14 +303,15 @@
 <!-- NAV -->
 <nav>
   <a href="#" class="nav-brand">
-    <span class="nav-name">ARIEL</span>
+    <span class="nav-name">GUIA</span>
+    <span class="nav-tag">Open Source</span>
   </a>
   <div class="nav-links">
     <a href="#problem">El Problema</a>
-    <a href="#solution">La Solución</a>
-    <a href="#roadmap">Hoja de Ruta</a>
-    <a href="#funding">Financiamiento</a>
-    <a href="#nextsteps">Próximos Pasos</a>
+    <a href="#solution">La Solucion</a>
+    <a href="#pricing">Precios</a>
+    <a href="#architecture">Arquitectura</a>
+    <a href="docs/">Documentacion</a>
   </div>
 </nav>
 
@@ -612,41 +322,47 @@
   <div class="hero-content">
     <div class="hero-eyebrow">
       <div class="hero-eyebrow-line"></div>
-      <span class="hero-eyebrow-text">Adventist Repository for Institutional and Educational Literature</span>
+      <span class="hero-eyebrow-text">Gateway Universitario de Informacion y Asistencia</span>
     </div>
     <h1 class="hero-title">
-      Red Científica<br><em>Adventista</em><br>Global
+      Un solo chat,<br><em>toda tu</em><br>universidad
     </h1>
-    <p class="hero-subtitle">Segunda mayor red educativa privada del mundo. Cero infraestructura digital compartida.</p>
-    <p class="hero-desc">ARIEL es la red federada de repositorios institucionales de las universidades adventistas — el equivalente denominacional de lo que OpenAIRE hace por Europa o LA Referencia por Latinoamérica.</p>
+    <p class="hero-subtitle">10 plataformas. 10 logins. Una sola respuesta.</p>
+    <p class="hero-desc">GUIA conecta DSpace, OJS, Koha, Moodle, SIS y ERP en un asistente AI conversacional. Tus estudiantes preguntan en lenguaje natural — GUIA responde.</p>
     <div class="hero-cta">
-      <a href="#solution" class="btn-primary">Ver la Solución</a>
-      <a href="#funding" class="btn-secondary">Financiamiento</a>
+      <a href="#solution" class="btn-primary">Ver como funciona</a>
+      <a href="docs/" class="btn-secondary">Documentacion</a>
     </div>
   </div>
-  <div class="hero-verse">
-    <blockquote>"En aquel día los sordos oirán las palabras del libro, y los ojos de los ciegos verán desde la oscuridad y las tinieblas."</blockquote>
-    <cite>— Isaías 29:18</cite>
+  <div class="hero-chat">
+    <div class="chat-header">
+      <div class="chat-dot"></div>
+      <span class="chat-label">GUIA Chat</span>
+    </div>
+    <div class="chat-msg chat-user">Tengo algun libro pendiente de devolver?</div>
+    <div class="chat-msg chat-bot">Tienes 1 libro pendiente: <strong>"Metodologia de la Investigacion"</strong> de Sampieri. Vence el 15 de abril. Puedes renovarlo desde el portal de biblioteca.</div>
+    <div class="chat-msg chat-user">Y cuanto debo de matricula?</div>
+    <div class="chat-msg chat-bot">Tu saldo pendiente es <strong>S/ 1,250.00</strong>. La fecha limite de pago es el 20 de abril. Puedes pagar en ventanilla o por transferencia.</div>
   </div>
 </section>
 
 <!-- STATS -->
 <div class="stats-bar reveal">
   <div class="stat-item">
-    <div class="stat-number">118+</div>
-    <div class="stat-label">Universidades en 50+ países <a href="https://www.adventist.education/education-statistics/" target="_blank" class="ref">1</a></div>
+    <div class="stat-number">10+</div>
+    <div class="stat-label">Sistemas por universidad</div>
   </div>
   <div class="stat-item">
-    <div class="stat-number">163K</div>
-    <div class="stat-label">Estudiantes nivel terciario <a href="https://www.adventist.education/education-statistics/" target="_blank" class="ref">1</a></div>
+    <div class="stat-number">1</div>
+    <div class="stat-label">Chat para acceder a todo</div>
   </div>
   <div class="stat-item">
-    <div class="stat-number">15K</div>
-    <div class="stat-label">Publicaciones anuales (est.) <a href="https://upeu-infra.github.io/ariel/literatura/" target="_blank" class="ref">2</a></div>
+    <div class="stat-number">~$100</div>
+    <div class="stat-label">USD/mes vs $20K+ de EDS</div>
   </div>
   <div class="stat-item">
-    <div class="stat-number">&lt;5%</div>
-    <div class="stat-label">Con repositorio operativo <a href="https://upeu-infra.github.io/ariel/literatura/" target="_blank" class="ref">2</a></div>
+    <div class="stat-number">OSS</div>
+    <div class="stat-label">Core open source (Apache 2.0)</div>
   </div>
 </div>
 
@@ -654,79 +370,55 @@
 <section class="problem" id="problem">
   <div class="section-header reveal">
     <div class="section-tag">El Problema</div>
-    <h2 class="section-title">Una escala sin<br><em>infraestructura</em></h2>
+    <h2 class="section-title">Diez plataformas,<br><em>cero conexion</em></h2>
   </div>
   <div class="problem-grid">
     <div class="problem-text reveal">
-      <p>El sistema educativo adventista constituye el <strong>segundo mayor sistema educativo privado del mundo</strong> con 118+ universidades en más de 50 países.<a href="https://www.adventist.education/education-statistics/" target="_blank" class="ref">1</a> Sin embargo, menos del 5% cuenta con un repositorio institucional operativo y no existe ninguna red federada entre ellas.<a href="https://upeu-infra.github.io/ariel/literatura/" target="_blank" class="ref">2</a></p>
-      <p>Entre <strong>5,000 y 15,000 publicaciones académicas anuales</strong> son actualmente invisibles para Scopus, WoS, OpenAlex y para otros investigadores adventistas en cualquier parte del mundo.<a href="https://upeu-infra.github.io/ariel/literatura/" target="_blank" class="ref">2</a></p>
-      <p>El repositorio de Andrews University recibió visitas de <strong>191 países</strong> y superó el millón de descargas en sus primeros tres años de operación.<a href="https://www.nadadventist.org/news/millionth-download-digital-commons-andrews-university/" target="_blank" class="ref">3</a> Esto sugiere que actúa como repositorio de facto para toda la denominación — dado que la gran mayoría de universidades adventistas no tiene infraestructura propia, Andrews concentra la visibilidad de la producción académica global adventista en una sola institución.</p>
-      <div class="danger-box">
-        <div class="danger-label">⚠ Riesgo sistémico</div>
-        <p>Si Andrews University cambia su política o plataforma, la visibilidad de toda la producción científica adventista global colapsa. La producción de África, Asia y Latinoamérica no tiene plataforma propia.<a href="https://digitalcommons.andrews.edu/" target="_blank" class="ref">4</a></p>
-      </div>
-      <div class="ref-list">
-        <div class="ref-list-title">Referencias</div>
-        <div class="ref-entries">
-          <div class="ref-entry"><span class="ref-num">[1]</span><span>GC Education Dept. — <a href="https://www.adventist.education/education-statistics/" target="_blank">adventist.education/education-statistics</a>. Estadísticas de educación adventista mundial.</span></div>
-          <div class="ref-entry"><span class="ref-num">[2]</span><span>Revisión de literatura ARIEL — <a href="https://upeu-infra.github.io/ariel/literatura/" target="_blank">upeu-infra.github.io/ariel/literatura</a>. Análisis de brechas y repositorios adventistas confirmados.</span></div>
-          <div class="ref-entry"><span class="ref-num">[3]</span><span>NAD Adventist News — <a href="https://www.nadadventist.org/news/millionth-download-digital-commons-andrews-university/" target="_blank">nadadventist.org — Millionth Download</a>. Digital Commons Andrews University: un millón de descargas.</span></div>
-          <div class="ref-entry"><span class="ref-num">[4]</span><span>Andrews University Digital Commons — <a href="https://digitalcommons.andrews.edu/" target="_blank">digitalcommons.andrews.edu</a>. Repositorio principal adventista global.</span></div>
-        </div>
-      </div>
+      <p>Cada universidad opera <strong>multiples sistemas desconectados</strong>: repositorio de tesis, revistas academicas, catalogo de biblioteca, sistema academico, LMS, ERP financiero, directorio de correo...</p>
+      <p>Los estudiantes no saben donde buscar. Los docentes pierden tiempo navegando plataformas. El helpdesk responde las mismas preguntas una y otra vez.</p>
+      <p><strong>El resultado:</strong> frustacion, informacion perdida, plataformas subutilizadas y una experiencia fragmentada que no esta a la altura de lo que los usuarios esperan en 2026.</p>
+      <p>Las soluciones existentes (EBSCO EDS, Ex Libris Primo) cuestan <strong>$20,000-80,000/ano</strong>, solo cubren busqueda bibliografica, y no ofrecen chat conversacional ni acceso a datos institucionales.</p>
     </div>
-    <div class="gap-visual reveal reveal-delay-1">
-      <div style="margin-bottom:2rem;">
-        <div class="section-tag" style="margin-bottom:1rem;">Brecha de adopción</div>
-        <div class="gap-bar-item">
-          <div class="gap-bar-label">Total universidades</div>
-          <div class="gap-bar-track"><div class="gap-bar-fill gold" style="--target-width:100%; width:0%"></div></div>
-          <div class="gap-bar-value">118+</div>
-        </div>
-        <div style="height:1rem"></div>
-        <div class="gap-bar-item">
-          <div class="gap-bar-label">Con repositorio activo</div>
-          <div class="gap-bar-track"><div class="gap-bar-fill red" style="--target-width:5%; width:0%"></div></div>
-          <div class="gap-bar-value">~6</div>
-        </div>
+    <div class="systems-grid reveal reveal-delay-1">
+      <div class="system-card">
+        <div class="system-icon">📚</div>
+        <div class="system-name">DSpace</div>
+        <div class="system-desc">Tesis y articulos</div>
       </div>
-      <div style="margin-top:3rem;">
-        <div class="section-tag" style="margin-bottom:0.5rem;">Comparación con redes equivalentes</div>
-        <div style="font-size:0.72rem; color:var(--text-dim); margin-bottom:1.5rem; font-style:italic;">Nº de instituciones fuente conectadas (repositorios / bibliotecas activas) — estimaciones aproximadas</div>
-        <!-- Column headers -->
-        <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.75rem; padding-bottom:0.5rem; border-bottom:1px solid var(--border-dim);">
-          <div style="width:180px; flex-shrink:0; text-align:right; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim);">Red</div>
-          <div style="flex:1; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim);">Cobertura relativa</div>
-          <div style="width:48px; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim);">Inst.</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:1rem;">
-          <div class="gap-bar-item">
-            <div class="gap-bar-label"><a href="https://www.openaire.eu/" target="_blank" style="color:var(--text-dim);text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='var(--text-dim)'">OpenAIRE</a></div>
-            <div class="gap-bar-track"><div class="gap-bar-fill gold" style="--target-width:100%; width:0%"></div></div>
-            <div class="gap-bar-value">2,209</div>
-          </div>
-          <div class="gap-bar-item">
-            <div class="gap-bar-label"><a href="https://www.beth.eu/" target="_blank" style="color:var(--text-dim);text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='var(--text-dim)'">BETH Teológica</a></div>
-            <div class="gap-bar-track"><div class="gap-bar-fill gold" style="--target-width:68%; width:0%"></div></div>
-            <div class="gap-bar-value">~1,500</div>
-          </div>
-          <div class="gap-bar-item">
-            <div class="gap-bar-label"><a href="https://www.lareferencia.info/es/" target="_blank" style="color:var(--text-dim);text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='var(--text-dim)'">LA Referencia</a></div>
-            <div class="gap-bar-track"><div class="gap-bar-fill gold" style="--target-width:4.5%; width:0%"></div></div>
-            <div class="gap-bar-value">~100</div>
-          </div>
-          <div class="gap-bar-item">
-            <div class="gap-bar-label"><a href="https://www.atla.com/learning-engagement/crra/" target="_blank" style="color:var(--text-dim);text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='var(--gold-light)'" onmouseout="this.style.color='var(--text-dim)'">CRRA Católica</a></div>
-            <div class="gap-bar-track"><div class="gap-bar-fill gold" style="--target-width:2.3%; width:0%"></div></div>
-            <div class="gap-bar-value">50</div>
-          </div>
-          <div class="gap-bar-item">
-            <div class="gap-bar-label" style="color:#e05050">Red Adventista hoy</div>
-            <div class="gap-bar-track"><div class="gap-bar-fill red" style="--target-width:0.27%; width:0%"></div></div>
-            <div class="gap-bar-value" style="color:#e05050">~6</div>
-          </div>
-        </div>
-        <div style="margin-top:1rem; font-size:0.68rem; color:var(--text-dim); font-style:italic;">* Cifras aproximadas. BETH incluye bibliotecas teológicas de todas las denominaciones. LA Referencia: 10 países miembro, ~100 instituciones estimadas. CRRA se disolvió en 2023 y migró a Atla.</div>
+      <div class="system-card">
+        <div class="system-icon">📰</div>
+        <div class="system-name">OJS</div>
+        <div class="system-desc">Revistas academicas</div>
+      </div>
+      <div class="system-card">
+        <div class="system-icon">📖</div>
+        <div class="system-name">Koha</div>
+        <div class="system-desc">Biblioteca</div>
+      </div>
+      <div class="system-card">
+        <div class="system-icon">🎓</div>
+        <div class="system-name">SIS</div>
+        <div class="system-desc">Matricula y notas</div>
+      </div>
+      <div class="system-card">
+        <div class="system-icon">📝</div>
+        <div class="system-name">Moodle</div>
+        <div class="system-desc">Tareas y cursos</div>
+      </div>
+      <div class="system-card">
+        <div class="system-icon">💰</div>
+        <div class="system-name">ERP</div>
+        <div class="system-desc">Pagos y deudas</div>
+      </div>
+      <div class="system-card">
+        <div class="system-icon">📧</div>
+        <div class="system-name">LDAP</div>
+        <div class="system-desc">Correo y cuentas</div>
+      </div>
+      <div class="system-card">
+        <div class="system-icon">📅</div>
+        <div class="system-name">Indico</div>
+        <div class="system-desc">Eventos</div>
       </div>
     </div>
   </div>
@@ -735,125 +427,118 @@
 <!-- SOLUTION -->
 <section class="solution" id="solution">
   <div class="section-header reveal">
-    <div class="section-tag">La Solución</div>
-    <h2 class="section-title">ARIEL — el hub<br><em>que falta</em></h2>
+    <div class="section-tag">La Solucion</div>
+    <h2 class="section-title">GUIA conecta<br><em>todo</em></h2>
   </div>
-  <div class="pyramid-container">
-    <div class="pyramid reveal">
-      <div class="pyramid-layer level-3">
-        <div class="pyramid-layer-label">Indexadores globales</div>
-        <div class="pyramid-layer-name">OpenAIRE · BASE · OpenAlex</div>
-      </div>
-      <div class="pyramid-connector"></div>
-      <div class="pyramid-layer level-2">
-        <div class="pyramid-layer-label">Red LATAM</div>
-        <div class="pyramid-layer-name">LA Referencia</div>
-      </div>
-      <div class="pyramid-connector"></div>
-      <div class="pyramid-layer hub">
-        <div class="pyramid-layer-label">⭐ Hub central</div>
-        <div class="pyramid-layer-name">ARIEL</div>
-      </div>
-      <div class="pyramid-connector"></div>
-      <div class="pyramid-layer level-2">
-        <div class="pyramid-layer-label">Redes nacionales</div>
-        <div class="pyramid-layer-name">ALICIA · BDTD · SNRD · RRAAE</div>
-      </div>
-      <div class="pyramid-connector"></div>
-      <div class="pyramid-layer level-3">
-        <div class="pyramid-layer-label">Nodos institucionales</div>
-        <div class="pyramid-layer-name">DSpace / OJS en cada universidad</div>
-      </div>
-    </div>
-    <div class="solution-features reveal reveal-delay-1">
+  <div class="solution-grid">
+    <div style="display:flex;flex-direction:column;gap:1.5rem;" class="reveal">
       <div class="feature-item">
-        <div class="feature-icon">📚</div>
+        <div class="feature-icon">🔍</div>
         <div class="feature-content">
-          <h4>DSpace — Repositorios institucionales</h4>
-          <p>Tesis, artículos, reportes. Vía OAI-PMH nativo. Núcleo del proyecto. <a href="https://dspace.lyrasis.org/" target="_blank" class="ref">5</a></p>
+          <h4>Busqueda semantica con RAG</h4>
+          <p>No keywords — lenguaje natural. GUIA entiende "que tesis hay sobre machine learning en educacion" y busca en todos los repositorios conectados.</p>
         </div>
       </div>
       <div class="feature-item">
-        <div class="feature-icon">📰</div>
+        <div class="feature-icon">💬</div>
         <div class="feature-content">
-          <h4>OJS — Revistas académicas adventistas</h4>
-          <p>Muchas ya existen con OAI-PMH nativo. Integración directa. <a href="https://pkp.sfu.ca/software/ojs/" target="_blank" class="ref">6</a></p>
+          <h4>Chat multicanal</h4>
+          <p>Web, Telegram, WhatsApp, Teams. Los estudiantes preguntan donde ya estan — no necesitan aprender otra plataforma.</p>
         </div>
       </div>
       <div class="feature-item">
-        <div class="feature-icon">🌐</div>
+        <div class="feature-icon">🔌</div>
         <div class="feature-content">
-          <h4>Hub — InvenioRDM (Fase 1)</h4>
-          <p>Desarrollado por CERN, usado por Zenodo. Docker Compose, UI moderna, OAI-PMH nativo. Open source MIT. <a href="https://inveniordm.docs.cern.ch/" target="_blank" class="ref">7</a></p>
+          <h4>Conectores modulares</h4>
+          <p>Cada sistema es un modulo independiente. Instala solo los que necesitas. Crea los tuyos para sistemas custom.</p>
         </div>
       </div>
       <div class="feature-item">
-        <div class="feature-icon">🔬</div>
+        <div class="feature-icon">🤖</div>
         <div class="feature-content">
-          <h4>DSpace-CRIS — Entidades de investigación (Fase 3)</h4>
-          <p>Investigadores, proyectos y financiamiento. Cuando DSpace 10 madure. <a href="https://dspace.org/dspace-cris/" target="_blank" class="ref">8</a></p>
+          <h4>MCP Server + API REST</h4>
+          <p>Expone tu corpus institucional a agentes AI externos (Claude, GPT, Perplexity). Tu produccion cientifica visible en el ecosistema AI.</p>
         </div>
       </div>
       <div class="feature-item" style="border-color: rgba(201,168,76,0.2); background: rgba(201,168,76,0.03);">
-        <div class="feature-icon">✅</div>
+        <div class="feature-icon">🏛️</div>
         <div class="feature-content">
-          <h4>Schema unificador: OpenAIRE Guidelines v4</h4>
-          <p>Compatible con CERIF, Dublin Core y DataCite. Cumple reguladores nacionales simultáneamente. <a href="https://guidelines.openaire.eu/en/latest/" target="_blank" class="ref">9</a></p>
+          <h4>Hub federado (para redes)</h4>
+          <p>Consorcios y redes pueden federar multiples Nodes para busqueda unificada de investigacion. Compatible con OpenAIRE, LA Referencia, ALICIA.</p>
+        </div>
+      </div>
+    </div>
+    <div class="reveal reveal-delay-1" style="display:flex;flex-direction:column;gap:1rem;">
+      <div style="border:1px solid var(--border);padding:2rem;background:rgba(10,15,30,0.5);">
+        <div style="font-size:0.68rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:1.5rem;">Ejemplos de preguntas</div>
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+          <div style="font-size:0.85rem;color:var(--cream);padding:0.5rem 0;border-bottom:1px solid var(--border-dim);">"Que tesis hay sobre inteligencia artificial?"</div>
+          <div style="font-size:0.85rem;color:var(--cream);padding:0.5rem 0;border-bottom:1px solid var(--border-dim);">"Tengo libros pendientes?"</div>
+          <div style="font-size:0.85rem;color:var(--cream);padding:0.5rem 0;border-bottom:1px solid var(--border-dim);">"Cuanto debo de matricula?"</div>
+          <div style="font-size:0.85rem;color:var(--cream);padding:0.5rem 0;border-bottom:1px solid var(--border-dim);">"Cual es mi horario de clases?"</div>
+          <div style="font-size:0.85rem;color:var(--cream);padding:0.5rem 0;border-bottom:1px solid var(--border-dim);">"Mi articulo fue aceptado en la revista?"</div>
+          <div style="font-size:0.85rem;color:var(--cream);padding:0.5rem 0;border-bottom:1px solid var(--border-dim);">"Cual es mi correo institucional?"</div>
+          <div style="font-size:0.85rem;color:var(--cream);padding:0.5rem 0;">"Que congresos hay este mes?"</div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ROADMAP -->
-<section class="roadmap" id="roadmap">
+<!-- PRICING -->
+<section class="pricing" id="pricing">
   <div class="section-header reveal">
-    <div class="section-tag">Hoja de Ruta</div>
-    <h2 class="section-title">Expansión<br><em>por fases</em></h2>
+    <div class="section-tag">Precios</div>
+    <h2 class="section-title">Open source.<br><em>Paga solo lo que necesitas.</em></h2>
   </div>
-  <div class="timeline reveal">
-    <div class="timeline-item active">
-      <div class="timeline-dot"></div>
-      <div class="timeline-year">2026</div>
-      <div class="timeline-phase">Piloto SAD</div>
-      <ul class="timeline-items">
-        <li>5–10 universidades sudamericanas</li>
-        <li>DSpace + OJS federados</li>
-        <li>Registro en OpenDOAR</li>
-        <li>InvenioRDM como hub</li>
+  <div class="pricing-grid reveal">
+    <div class="pricing-card">
+      <div class="pricing-tier">Community</div>
+      <div class="pricing-price">Gratis</div>
+      <div class="pricing-period">Para siempre — Apache 2.0</div>
+      <ul class="pricing-features">
+        <li>DSpace connector</li>
+        <li>OJS connector</li>
+        <li>RAG + embeddings</li>
+        <li>Chat web</li>
+        <li>Telegram bot</li>
+        <li>API REST</li>
       </ul>
     </div>
-    <div class="timeline-item">
-      <div class="timeline-dot"></div>
-      <div class="timeline-year">2027</div>
-      <div class="timeline-phase">SAD + IAD</div>
-      <ul class="timeline-items">
-        <li>20+ instituciones activas</li>
-        <li>Integración LA Referencia</li>
-        <li>Política OA denominacional</li>
-        <li>Upgrade a DSpace-CRIS hub</li>
+    <div class="pricing-card featured">
+      <div class="pricing-tier">Campus Basic</div>
+      <div class="pricing-price">$150</div>
+      <div class="pricing-period">USD / mes</div>
+      <ul class="pricing-features">
+        <li>Todo en Community</li>
+        <li>Koha connector</li>
+        <li>LDAP / Active Directory</li>
+        <li>Soporte por email</li>
       </ul>
     </div>
-    <div class="timeline-item">
-      <div class="timeline-dot"></div>
-      <div class="timeline-year">2028</div>
-      <div class="timeline-phase">Expansión global</div>
-      <ul class="timeline-items">
-        <li>Todas las divisiones IASD</li>
-        <li>DSpace-CRIS / CERIF</li>
-        <li>OpenAIRE Guidelines v4</li>
-        <li>OpenAIRE Graph stack</li>
+    <div class="pricing-card">
+      <div class="pricing-tier">Campus Pro</div>
+      <div class="pricing-price">$400</div>
+      <div class="pricing-period">USD / mes</div>
+      <ul class="pricing-features">
+        <li>Todo en Basic</li>
+        <li>SIS connector</li>
+        <li>ERP connector</li>
+        <li>Moodle connector</li>
+        <li>Soporte prioritario</li>
       </ul>
     </div>
-    <div class="timeline-item">
-      <div class="timeline-dot"></div>
-      <div class="timeline-year">2030</div>
-      <div class="timeline-phase">Red madura</div>
-      <ul class="timeline-items">
-        <li>100+ instituciones</li>
-        <li>500,000+ registros</li>
-        <li>Hub global adventista</li>
-        <li>Sostenibilidad SCOSS</li>
+    <div class="pricing-card">
+      <div class="pricing-tier">Enterprise</div>
+      <div class="pricing-price">$800</div>
+      <div class="pricing-period">USD / mes</div>
+      <ul class="pricing-features">
+        <li>Todo en Pro</li>
+        <li>WhatsApp Business</li>
+        <li>Microsoft Teams</li>
+        <li>Analytics avanzados</li>
+        <li>SLA 99.5%</li>
+        <li>MCP Server</li>
       </ul>
     </div>
   </div>
@@ -861,223 +546,54 @@
 
 <!-- ARCHITECTURE -->
 <section class="architecture" id="architecture">
-  <div class="section-header reveal">
-    <div class="section-tag">Arquitectura Técnica</div>
-    <h2 class="section-title">Stack tecnológico<br><em>por fase</em></h2>
+  <div class="section-header reveal" style="text-align:center;">
+    <div class="section-tag" style="justify-content:center;">Arquitectura</div>
+    <h2 class="section-title">Node + Hub<br><em>federado</em></h2>
   </div>
-  <div class="phase-cards reveal">
-    <div class="phase-card">
-      <div class="phase-number">01</div>
-      <div class="phase-year">Fase 1 — 2026</div>
-      <div class="phase-name">InvenioRDM</div>
-      <div class="phase-tech">AWS · EC2 t3.xlarge · S3 · PostgreSQL</div>
-      <p class="phase-desc">Desarrollado por CERN, usado por Zenodo y TU Graz.<a href="https://inveniordm.docs.cern.ch/" target="_blank" class="ref">7</a> Docker Compose — stack conocido. UI moderna. OAI-PMH nativo incorporado. Open source MIT. El más rápido de desplegar para el piloto.</p>
+  <div class="arch-visual reveal">
+    <div class="arch-layer narrow">
+      <div class="arch-label">Indexadores globales</div>
+      <div class="arch-name">OpenAIRE . BASE . OpenAlex</div>
     </div>
-    <div class="phase-card">
-      <div class="phase-number">02</div>
-      <div class="phase-year">Fase 2 — 2027</div>
-      <div class="phase-name">DSpace-CRIS Hub</div>
-      <div class="phase-tech">Cuando DSpace 10 madure</div>
-      <p class="phase-desc">Cero impedancia de schema: cada nodo expone entidades CRIS completas.<a href="https://dspace.org/dspace-cris/" target="_blank" class="ref">8</a> Permite construir el <em>grafo de conocimiento adventista</em>: quién investiga qué, con qué fondos, en qué institución.</p>
+    <div class="arch-connector"></div>
+    <div class="arch-layer wide">
+      <div class="arch-label">Redes nacionales</div>
+      <div class="arch-name">ALICIA . BDTD . SNRD . RRAAE</div>
     </div>
-    <div class="phase-card">
-      <div class="phase-number">03</div>
-      <div class="phase-year">Fase 3 — 2028+</div>
-      <div class="phase-name">OpenAIRE Graph Stack</div>
-      <div class="phase-tech">CERIF nativo · Escala continental</div>
-      <p class="phase-desc">CERIF nativo probado a escala continental. Integración directa con OpenAIRE (193M registros),<a href="https://graph.openaire.eu/" target="_blank" class="ref">10</a> LA Referencia (5M registros)<a href="https://www.lareferencia.info/es/" target="_blank" class="ref">11</a> y OpenAlex.<a href="https://openalex.org/" target="_blank" class="ref">12</a> Conecta todas las divisiones IASD globalmente.</p>
+    <div class="arch-connector"></div>
+    <div class="arch-layer hub">
+      <div class="arch-label">Hub federado (para consorcios)</div>
+      <div class="arch-name">GUIA Hub</div>
     </div>
-  </div>
-</section>
-
-<!-- FUNDING -->
-<section class="funding" id="funding">
-  <div class="section-header reveal">
-    <div class="section-tag">Financiamiento</div>
-    <h2 class="section-title">Pipeline de<br><em>financiamiento</em></h2>
-  </div>
-  <div class="funding-grid">
-    <div class="funding-card reveal">
-      <div class="funding-amount">$30K–$100K</div>
-      <div class="funding-source">WillPlan Mission Impact Fund</div>
-      <div class="funding-type">GC-IASD · No reembolsable</div>
-      <span class="funding-status open">Abierto — Deadline mayo 2027</span>
-      <a href="https://www.willplan.org/services/missionimpactfund/" target="_blank" class="funding-link">willplan.org/services/missionimpactfund</a>
-    </div>
-    <div class="funding-card reveal reveal-delay-1">
-      <div class="funding-amount">Hasta $1.5M</div>
-      <div class="funding-source">IOI Fund for Network Adoption</div>
-      <div class="funding-type">Invest in Open Infrastructure</div>
-      <span class="funding-status pending">Próx. conv. 2026–2027</span>
-      <a href="https://investinopen.org/blog/invest-in-open-infrastructure-announces-us-500-000-contribution-from-lyrasis-for-the-ioi-fund-for-network-adoption/" target="_blank" class="funding-link">investinopen.org — Network Adoption Fund</a>
-    </div>
-    <div class="funding-card reveal reveal-delay-2">
-      <div class="funding-amount">$250K–$500K</div>
-      <div class="funding-source">Mellon Foundation</div>
-      <div class="funding-type">Higher Learning Program</div>
-      <span class="funding-status future">Ciclo 2027</span>
-      <a href="https://mellon.org/programs/higher-learning/" target="_blank" class="funding-link">mellon.org/programs/higher-learning</a>
-    </div>
-    <div class="funding-card reveal">
-      <div class="funding-amount">Por confirmar</div>
-      <div class="funding-source">División Sudamericana (SAD)</div>
-      <div class="funding-type">Fondo TI / Educación · Co-financiador</div>
-      <span class="funding-status pending">Negociación institucional</span>
-      <a href="https://www.adventistas.org/es/institucional/organizacion/divisiones-de-la-asociacion-general/division-sudamericana/" target="_blank" class="funding-link">adventistas.org — División Sudamericana</a>
-    </div>
-    <div class="funding-card reveal reveal-delay-1">
-      <div class="funding-amount">Recurrente</div>
-      <div class="funding-source">SCOSS</div>
-      <div class="funding-type">Global Sustainability Coalition for OA Services</div>
-      <span class="funding-status future">Fase 3 — 50+ instituciones</span>
-      <a href="https://scoss.org/" target="_blank" class="funding-link">scoss.org</a>
-    </div>
-    <div class="funding-card reveal reveal-delay-2" style="border-color: rgba(201,168,76,0.2); background: rgba(201,168,76,0.03);">
-      <div class="funding-amount" style="font-size:1.1rem; font-family:'DM Sans'">Precedente directo</div>
-      <div class="funding-source">LA Referencia ← $1.5M IOI Fund</div>
-      <div class="funding-type">Ciclo inaugural 2025 — Modelo exacto para ARIEL</div>
-      <span class="funding-status open">ARIEL replica este modelo</span>
-      <a href="https://www.lareferencia.info/es/" target="_blank" class="funding-link">lareferencia.info</a>
+    <div class="arch-connector"></div>
+    <div class="arch-layer node" style="width:100%;">
+      <div class="arch-label">Por universidad</div>
+      <div class="arch-name">GUIA Node</div>
+      <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem;">DSpace + OJS + Koha + SIS + ERP + Moodle + LDAP</div>
     </div>
   </div>
-</section>
-
-<!-- ACTORS -->
-<section class="actors">
-  <div class="section-header reveal">
-    <div class="section-tag">Actores y Roles</div>
-    <h2 class="section-title">Quiénes hacen<br><em>posible ARIEL</em></h2>
-  </div>
-  <div class="actors-grid">
-    <div class="actor-card reveal">
-      <div class="actor-icon">🏛️</div>
-      <div class="actor-role">Institución Promotora</div>
-      <div class="actor-name">UPeU</div>
-      <p class="actor-desc">Universidad Peruana Unión, Lima. DSpace activo aprobado por ALICIA 2021. Líder institucional del proyecto. <a href="https://repositorio.upeu.edu.pe/" target="_blank" class="ref">13</a></p>
-    </div>
-    <div class="actor-card reveal reveal-delay-1">
-      <div class="actor-icon">⚙️</div>
-      <div class="actor-role">Socio Tecnológico</div>
-      <div class="actor-name">IATec</div>
-      <p class="actor-desc">Instituto Adventista de Tecnología. Brazo tech oficial de la SAD. Opera en 40+ países. <a href="https://www.iatec.com/" target="_blank" class="ref">14</a></p>
-    </div>
-    <div class="actor-card reveal reveal-delay-2">
-      <div class="actor-icon">✝️</div>
-      <div class="actor-role">Respaldo Denominacional</div>
-      <div class="actor-name">División Sudamericana</div>
-      <p class="actor-desc">Endorsement institucional para 13 universidades adventistas sudamericanas. Canal directo hacia la Conferencia General. <a href="https://www.adventistas.org/es/institucional/organizacion/divisiones-de-la-asociacion-general/division-sudamericana/" target="_blank" class="ref">15</a></p>
-    </div>
-    <div class="actor-card reveal reveal-delay-3">
-      <div class="actor-icon">🛠️</div>
-      <div class="actor-role">Operador Técnico</div>
-      <div class="actor-name">UPeU · DTI · Infra</div>
-      <p class="actor-desc">Dirección de Tecnologías de Información de la Universidad Peruana Unión. Responsable del despliegue y mantenimiento del hub ARIEL y los nodos institucionales.</p>
-    </div>
-  </div>
-</section>
-
-<!-- NEXT STEPS -->
-<section class="nextsteps" id="nextsteps">
-  <div class="section-header reveal">
-    <div class="section-tag">Próximos Pasos</div>
-    <h2 class="section-title">Acciones<br><em>inmediatas</em></h2>
-  </div>
-  <div class="steps-grid">
-    <div class="step-item reveal">
-      <div class="step-check done">✓</div>
-      <div class="step-text"><strong>Nombre del proyecto definido</strong> — ARIEL, nombre oficial para todas las regiones</div>
-    </div>
-    <div class="step-item reveal reveal-delay-1">
-      <div class="step-check done">✓</div>
-      <div class="step-text"><strong>Revisión de literatura</strong> — Brecha documentada y validada</div>
-    </div>
-    <div class="step-item reveal reveal-delay-2">
-      <div class="step-check done">✓</div>
-      <div class="step-text"><strong>Arquitectura técnica</strong> — Stack definido por fase</div>
-    </div>
-    <div class="step-item reveal reveal-delay-3">
-      <div class="step-check done">✓</div>
-      <div class="step-text"><strong>Propuesta ejecutiva</strong> — Documento completo listo</div>
-    </div>
-    <div class="step-item reveal">
-      <div class="step-check todo"> </div>
-      <div class="step-text"><strong>Reunión DTI UPeU</strong> — Presentar propuesta al equipo directivo</div>
-    </div>
-    <div class="step-item reveal reveal-delay-1">
-      <div class="step-check todo"> </div>
-      <div class="step-text"><strong>Reunión IATec</strong> — Confirmar rol tecnológico e infraestructura</div>
-    </div>
-    <div class="step-item reveal reveal-delay-2">
-      <div class="step-check todo"> </div>
-      <div class="step-text"><strong>Endorsement División Sudamericana</strong> — Respaldo institucional formal</div>
-    </div>
-    <div class="step-item reveal reveal-delay-3">
-      <div class="step-check todo"> </div>
-      <div class="step-text"><strong>Inventario SAD</strong> — Universidades con DSpace/OJS activos</div>
-    </div>
-    <div class="step-item reveal">
-      <div class="step-check todo"> </div>
-      <div class="step-text"><strong>Adquirir dominio para ARIEL</strong> — Evaluación de opciones en proceso</div>
-    </div>
-    <div class="step-item reveal reveal-delay-1">
-      <div class="step-check todo"> </div>
-      <div class="step-text"><strong>WillPlan MIF 2027</strong> — Aplicar antes del 1 de mayo 2027</div>
-    </div>
-    <div class="step-item reveal reveal-delay-2">
-      <div class="step-check todo"> </div>
-      <div class="step-text"><strong>IOI Fund concept note</strong> — Preparar para convocatoria 2026–2027</div>
-    </div>
-    <div class="step-item reveal reveal-delay-3">
-      <div class="step-check todo"> </div>
-      <div class="step-text"><strong>Registro OpenDOAR</strong> — Registrar ARIEL como red internacional</div>
-    </div>
+  <div style="text-align:center;margin-top:3rem;" class="reveal reveal-delay-1">
+    <p style="font-size:0.85rem;color:var(--text-dim);max-width:500px;margin:0 auto;">Los datos de campus (notas, pagos, prestamos) son <strong style="color:var(--cream);">privados</strong> y nunca salen del Node. Solo los datos de investigacion federan hacia el Hub.</p>
   </div>
 </section>
 
 <!-- FOOTER -->
 <footer>
   <div>
-    <div class="footer-brand">ARIEL</div>
-    <div class="footer-tagline">"En aquel día los sordos oirán las palabras del libro." — Isaías 29:18</div>
+    <div class="footer-brand">GUIA</div>
+    <div class="footer-tagline">Gateway Universitario de Informacion y Asistencia</div>
   </div>
   <div class="footer-info">
-    <div>Universidad Peruana Unión (UPeU) — Lima, Perú</div>
-    <div>División Sudamericana · Iglesia Adventista del Séptimo Día</div>
-    <div style="margin-top:0.5rem;">
-      <a href="https://upeu-infra.github.io/ariel">Documentación completa</a>
-      &nbsp;·&nbsp;
-      <a href="https://github.com/UPeU-Infra/ariel">GitHub</a>
-    </div>
+    Un producto <a href="https://sciback.com">SciBack</a><br>
+    Open source — <a href="https://github.com/UPeU-Infra/ariel">GitHub</a>
   </div>
 </footer>
 
 <script>
-  // Scroll reveal
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        // Animate bars
-        entry.target.querySelectorAll('.gap-bar-fill').forEach(bar => {
-          const target = bar.style.getPropertyValue('--target-width');
-          bar.style.width = target;
-          bar.style.transition = 'width 1.5s ease';
-        });
-      }
-    });
-  }, { threshold: 0.1 });
-
-  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-
-  // Nav active state
-  window.addEventListener('scroll', () => {
-    const nav = document.querySelector('nav');
-    if (window.scrollY > 50) {
-      nav.style.background = 'rgba(10,15,30,0.95)';
-    } else {
-      nav.style.background = 'rgba(10,15,30,0.8)';
-    }
-  });
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 </script>
 </body>
 </html>

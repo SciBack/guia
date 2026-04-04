@@ -1,4 +1,4 @@
-name: Deploy ARIEL Network Site
+name: Deploy GUIA Site
 
 on:
   push:
