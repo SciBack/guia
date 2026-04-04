@@ -9,8 +9,8 @@
 **Empresa:** SciBack (Alberto Sanchez, fundador).
 **Piloto:** Universidad Peruana Union (UPeU), Lima, Peru.
 **Dominio Fase 1:** guia.sciback.com (subdominio SciBack, disponible de inmediato).
-**Sitio web:** https://upeu-infra.github.io/ariel/ (pendiente migrar repo)
-**Repo GitHub:** https://github.com/UPeU-Infra/ariel (pendiente renombrar)
+**Sitio web:** https://upeu-infra.github.io/guia/
+**Repo GitHub:** https://github.com/UPeU-Infra/guia
 
 ---
 
