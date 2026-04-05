@@ -1,8 +1,8 @@
 site_name: GUIA
 site_description: Gateway Universitario de Información y Asistencia — Plataforma AI-native para universidades
-site_url: https://upeu-infra.github.io/guia
-repo_url: https://github.com/UPeU-Infra/guia
-repo_name: UPeU-Infra/guia
+site_url: https://guia.sciback.com
+repo_url: https://github.com/SciBack/guia
+repo_name: SciBack/guia
 edit_uri: edit/main/docs/
 
 theme:
@@ -86,14 +86,14 @@ markdown_extensions:
 extra:
   alternate:
     - name: Español
-      link: /guia/
+      link: /
       lang: es
     - name: English
-      link: /guia/en/
+      link: /en/
       lang: en
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/UPeU-Infra/guia
+      link: https://github.com/SciBack/guia
 
 nav:
   - Inicio: index.md

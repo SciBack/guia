@@ -19,7 +19,7 @@
 | **SciBack/guia-campus** | PRIVATE | Conectores comerciales: Koha, SIS, ERP, midPoint, WhatsApp, Hub |
 | **UPeU-Infra/guia-upeu** | PRIVATE | Config deploy UPeU: .env, overrides, scripts operacionales |
 
-`UPeU-Infra/guia` (actual) → se migra a `SciBack/guia` y se archiva con redirect.
+`UPeU-Infra/guia` → migrado a `SciBack/guia` (archivado con redirect).
 
 ---
 
