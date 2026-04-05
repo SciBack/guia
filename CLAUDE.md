@@ -89,25 +89,29 @@ Federador que agrega nodos GUIA de multiples universidades.
 - Modelo comercial open-core definido
 - Sitio web (pendiente actualizar con nueva identidad)
 
-### Pendiente inmediato (Fase 0)
-- Actualizar sitio web y documentacion con identidad GUIA
-- Renombrar repo de ariel a guia
-- Reunir con DTI UPeU — presentar como piloto
-- Configurar subdominio guia.sciback.com
-- Construir el Node piloto: harvester + RAG + chat basico
-- Primer conector: DSpace UPeU (OAI-PMH)
-- Segundo conector: Koha UPeU (SIP2/API REST)
+### Pendiente inmediato (pre-Sprint 0.0)
+- [ ] Confirmar URL OAI-PMH de DSpace UPeU (probar con `curl`)
+- [ ] Confirmar URLs OAI-PMH de revistas OJS UPeU
+- [ ] Decidir: EC2 existente (AWS-DSpace) o EC2 nuevo para GUIA
+- [ ] API key de Claude API disponible en `~/.secrets/anthropic.env`
+- [ ] Dominio guia.sciback.com apuntando al EC2
+- [ ] Crear repo `SciBack/guia-node` (privado por ahora)
 
 ---
 
 ## Fases
 
-| Fase | Periodo | Objetivo |
-|------|---------|----------|
-| 0 | 2026 Q2-Q3 | Node piloto UPeU (1 DSpace + 1 OJS + 1 Koha) |
-| 1 | 2026 Q4 | Node empaquetado Docker Compose, 2-3 universidades |
-| 2 | 2027 | Hub federado piloto, OAI-PMH para redes nacionales |
-| 3 | 2028+ | Hub escalado + MCP server publico |
+| Fase | Periodo | Objetivo | Conectores |
+|------|---------|----------|-----------|
+| 0 | 2026 abr-sep | Node piloto UPeU: DSpace + OJS + RAG + chat | DSpace + OJS (Research) |
+| 1 | 2026 oct-dic | Node empaquetado, 2-3 universidades, primer revenue | + Koha (Campus Basic) |
+| 2 | 2027 H1 | Hub federado, OAI-PMH hacia redes nacionales | + SIS + ERP (Campus Pro) |
+| 3 | 2028+ | Hub escalado, 50+ universidades, MCP publico | + Moodle + WhatsApp |
+
+**Fase 0 enfocada en DSpace + OJS** — es lo que el 90% de universidades LATAM ya tienen.
+Koha y conectores Campus entran en Fase 1 cuando el core Research este solido.
+
+Plan operativo detallado semana a semana en `docs/roadmap.md`.
 
 ---
 
