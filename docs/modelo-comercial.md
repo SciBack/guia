@@ -1,20 +1,122 @@
 # Modelo Comercial
 
-## Open-core: lo mejor de dos mundos
+## El codigo es gratis. El servicio es el producto.
 
-GUIA es open-core: el core de investigacion es gratuito y open source (Apache 2.0). Los conectores Campus y el soporte gestionado son productos comerciales de SciBack.
+GUIA sigue el modelo open-core: el core de investigacion es gratuito y open source (Apache 2.0). SciBack vende **hosting gestionado**, **implementacion** y **conectores Campus** como servicios comerciales.
+
+Modelo analogo a:
+
+| Referencia | Gratis | Pago |
+|-----------|--------|------|
+| WordPress.org → WordPress.com | Software | Hosting gestionado |
+| DSpace → DSpaceDirect (LYRASIS) | Software | Hosting + soporte |
+| Keycloak → Red Hat SSO | Software | Soporte enterprise |
+| **GUIA Community → SciBack Managed GUIA** | **Software** | **Hosting + implementacion + conectores** |
 
 ---
 
-## Tiers
+## Fuentes de revenue
 
-| Tier | Incluye | Precio |
-|------|---------|--------|
-| **Community** | Research core: DSpace + OJS + RAG + Chat web + Telegram | Gratis (Apache 2.0) |
-| **Campus Basic** | + Koha + directorio LDAP | ~$100-200/mes |
-| **Campus Pro** | + SIS + ERP + Moodle | ~$300-500/mes |
-| **Campus Enterprise** | + WhatsApp + analytics avanzados + SLA | ~$500-1000/mes |
-| **Hub** | Federacion de nodos + OAI-PMH + MCP server | ~$500-5000/mes |
+```mermaid
+graph TB
+    subgraph gratis["Community (gratis, Apache 2.0)"]
+        CORE["GUIA Node Core\nDSpace + OJS + RAG\nChat web + Telegram"]
+    end
+
+    subgraph pago["SciBack Managed (pago)"]
+        HOST["Hosting gestionado\nAWS dedicado por universidad"]
+        IMPL["Implementacion\nIntegracion custom con\nsistemas de cada universidad"]
+        CONN["Conectores Campus\nKoha, SIS, ERP, Moodle\nmidPoint, WhatsApp"]
+        SLA["Soporte + SLA\nRespuesta <4h\nUptime 99.9%"]
+        HUB["Hub federado\nSaaS central\nValor de red"]
+    end
+
+    CORE -->|"Universidad prueba\ny le gusta"| HOST
+    HOST --> IMPL
+    IMPL --> CONN
+    CONN --> SLA
+    
+    style gratis fill:#1a4a2a,color:#fff
+    style pago fill:#4a3a1a,color:#fff
+    style CORE fill:#1e3a5f,color:#fff,stroke:#f39c12,stroke-width:2px
+```
+
+### Por que pagan las universidades
+
+| Fuente | Que vende SciBack | Por que la universidad paga |
+|--------|-------------------|---------------------------|
+| **Hosting gestionado** | SciBack despliega y mantiene el Node en AWS dedicado | No tienen DTI capaz de mantener Docker + pgvector + GROBID + SSL + backups |
+| **Implementacion** | SciBack conecta GUIA a los sistemas de la universidad | Cada universidad tiene sistemas distintos — la integracion es custom |
+| **Conectores Campus** | Codigo privado: Koha, SIS, ERP, Moodle, midPoint | No estan en el core open source — requieren desarrollo especializado |
+| **Soporte + SLA** | Respuesta <4h, uptime garantizado, actualizaciones | Produccion 24/7 necesita respaldo profesional |
+| **Hub federado** | SaaS central que agrega nodos | Un Hub con 20 universidades es mas util que 20 nodos aislados |
+
+---
+
+## Tiers de pricing
+
+```mermaid
+graph LR
+    subgraph tiers["Ruta de upgrade"]
+        C["Community\nGratis"]
+        MB["Managed Basic\n$150-300/mes"]
+        MP["Managed Pro\n$400-700/mes"]
+        ME["Managed Enterprise\n$800-1500/mes"]
+    end
+
+    C -->|"Necesita hosting"| MB
+    MB -->|"Necesita Koha + SIS"| MP
+    MP -->|"Necesita WhatsApp + SLA"| ME
+
+    style C fill:#1a4a2a,color:#fff
+    style MB fill:#1e3a5f,color:#fff
+    style MP fill:#4a3a1a,color:#fff
+    style ME fill:#4a1a1a,color:#fff
+```
+
+| Tier | Incluye | Precio mensual | Precio anual |
+|------|---------|---------------|-------------|
+| **Community** | Core open source: DSpace + OJS + RAG + chat web + Telegram | Gratis | Gratis |
+| **Managed Basic** | SciBack hospeda Node + DSpace + OJS + soporte email | $150-300 | $1.8K-3.6K |
+| **Managed Pro** | + Koha + SIS/ERP + Keycloak SSO + midPoint | $400-700 | $4.8K-8.4K |
+| **Managed Enterprise** | + WhatsApp + SLA 99.9% + analytics + soporte dedicado | $800-1500 | $9.6K-18K |
+| **Implementacion** | Proyecto de integracion inicial (one-time) | — | $2K-5K |
+| **Hub** | Federacion de nodos (SaaS) | $500-5000 | $6K-60K |
+
+---
+
+## Barrera de pago
+
+Lo que el tier Community NO incluye (y por lo que las universidades pagan):
+
+```mermaid
+graph TB
+    subgraph community["Community (gratis)"]
+        D1["DSpace connector"]
+        D2["OJS connector"]
+        D3["RAG + pgvector"]
+        D4["Chat web (Chainlit)"]
+        D5["Telegram bot"]
+        D6["FastAPI REST"]
+    end
+
+    subgraph paid["Solo en tiers pagos"]
+        P1["Koha connector"]
+        P2["SIS connector"]
+        P3["ERP connector"]
+        P4["Moodle connector"]
+        P5["midPoint + Keycloak SSO"]
+        P6["WhatsApp (pywa)"]
+        P7["Hub federation"]
+        P8["MCP Server"]
+        P9["Analytics avanzados"]
+        P10["Hosting AWS gestionado"]
+        P11["Soporte + SLA"]
+    end
+
+    style community fill:#1a4a2a,color:#fff
+    style paid fill:#4a1a1a,color:#fff
+```
 
 ---
 
@@ -34,6 +136,7 @@ quadrantChart
     Summon: [0.25, 0.80]
     Google Scholar: [0.4, 0.05]
     GUIA Community: [0.6, 0.05]
+    GUIA Managed Pro: [0.85, 0.25]
     GUIA Enterprise: [0.9, 0.35]
 ```
 
@@ -44,22 +147,27 @@ quadrantChart
 | Summon | Similar | Propietario | Similar a Primo |
 | Google Scholar | Gratis | Solo papers publicos | Sin datos institucionales |
 | **GUIA Community** | **Gratis** | **Open source** | **RAG + chat sobre tesis/articulos** |
-| **GUIA Enterprise** | **~$12K** | **Open-core** | **AI conversacional + todos los sistemas** |
+| **GUIA Managed Pro** | **$4.8K-8.4K** | **Open-core** | **AI conversacional + Koha + SIS + SSO** |
+| **GUIA Enterprise** | **$9.6K-18K** | **Open-core** | **Todo + WhatsApp + SLA + analytics** |
 
 ---
 
-## Por que open source funciona aqui
+## Estructura de repositorios
 
-1. **Adopcion:** Universidades publicas en LATAM no tienen presupuesto para EDS. Community gratis = adopcion masiva.
-2. **Confianza:** Las universidades quieren auditar el codigo que procesa datos de estudiantes. Open source lo permite.
-3. **Comunidad:** Conectores nuevos pueden venir de la comunidad (cada universidad tiene sistemas distintos).
-4. **Revenue real:** El valor no esta en el codigo sino en el soporte, la integracion y los conectores Campus complejos (SIS, ERP).
+| Repo | Visibilidad | Contenido | Licencia |
+|------|------------|-----------|----------|
+| `SciBack/guia` | PUBLIC | Docs + landing + sitio web | — |
+| `SciBack/guia-node` | PUBLIC | Core: harvester, RAG, DSpace, OJS, chat, API | Apache 2.0 |
+| `SciBack/guia-campus` | PRIVATE | Conectores Campus + Hub + midPoint | Comercial |
+| `UPeU-Infra/guia-upeu` | PRIVATE | Config deploy UPeU (.env, overrides) | — |
+
+El core open source debe ser **genuinamente util** standalone. Si Community es pobre, nadie lo prueba y no hay pipeline de clientes.
 
 ---
 
 ## Pipeline de financiamiento complementario
 
-Para el Hub federado y el desarrollo del core, GUIA puede acceder a grants:
+Para el Hub federado y el desarrollo del core:
 
 | Fuente | Monto | Para que |
 |--------|-------|---------|
@@ -85,3 +193,13 @@ Para el Hub federado y el desarrollo del core, GUIA puede acceder a grants:
 - Redes denominacionales: IASD, catolicas, jesuiticas
 - Sistemas universitarios estatales
 - Redes tematicas: salud, teologia, ingenieria
+
+---
+
+## Por que open source funciona aqui
+
+1. **Adopcion:** Universidades publicas en LATAM no tienen presupuesto para EDS. Community gratis = adopcion masiva = pipeline de clientes pagos.
+2. **Confianza:** Las universidades quieren auditar el codigo que procesa datos de estudiantes.
+3. **Comunidad:** Conectores nuevos pueden venir de la comunidad (cada universidad tiene sistemas distintos).
+4. **Revenue real:** El valor no esta en el codigo sino en el **hosting**, la **implementacion** y los **conectores Campus** complejos.
+5. **Precedente:** DSpace es open source y LYRASIS vende DSpaceDirect. WordPress es open source y Automattic factura $500M/ano.

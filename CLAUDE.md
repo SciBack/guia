@@ -5,12 +5,21 @@
 **GUIA** (Gateway Universitario de Informacion y Asistencia) es una plataforma open-source AI-native que unifica el acceso a toda la informacion universitaria en un solo punto conversacional. En vez de que estudiantes, docentes y administrativos naveguen 10 plataformas distintas, GUIA conecta todos los sistemas institucionales y responde via chat (web, Telegram, WhatsApp, Teams).
 
 **Nombre:** GUIA = Gateway Universitario de Informacion y Asistencia. Termina en IA intencionalmente.
-**Modelo:** Open-core. Core gratuito (Apache 2.0), conectores Campus y soporte gestionado = pago.
+**Modelo:** Open-core. Core gratuito (Apache 2.0), conectores Campus + hosting gestionado + implementacion = pago.
 **Empresa:** SciBack (Alberto Sanchez, fundador).
 **Piloto:** Universidad Peruana Union (UPeU), Lima, Peru.
-**Dominio Fase 1:** guia.sciback.com (subdominio SciBack, disponible de inmediato).
-**Sitio web:** https://upeu-infra.github.io/guia/
-**Repo GitHub:** https://github.com/UPeU-Infra/guia
+**Sitio web:** https://guia.sciback.com (GitHub Pages con custom domain)
+
+### Repositorios GitHub
+
+| Repo | Visibilidad | Contenido |
+|------|------------|-----------|
+| **SciBack/guia** | PUBLIC | Docs + landing + sitio web del producto (MkDocs) |
+| **SciBack/guia-node** | PUBLIC (Apache 2.0) | Core open source: harvester, RAG, DSpace + OJS, chat, API |
+| **SciBack/guia-campus** | PRIVATE | Conectores comerciales: Koha, SIS, ERP, midPoint, WhatsApp, Hub |
+| **UPeU-Infra/guia-upeu** | PRIVATE | Config deploy UPeU: .env, overrides, scripts operacionales |
+
+`UPeU-Infra/guia` (actual) → se migra a `SciBack/guia` y se archiva con redirect.
 
 ---
 
@@ -67,16 +76,38 @@ Federador que agrega nodos GUIA de multiples universidades.
 
 ## Modelo comercial SciBack
 
-| Tier | Incluye | Precio estimado |
-|------|---------|----------------|
-| **Community** | Research core (DSpace + OJS + RAG) | Gratis (open source) |
-| **Campus Basic** | + Koha + directorio LDAP | ~$100-200/mes |
-| **Campus Pro** | + SIS + ERP + Moodle | ~$300-500/mes |
-| **Campus Enterprise** | + WhatsApp + analytics + SLA | ~$500-1000/mes |
-| **Hub** | Federacion de nodos | ~$500-5000/mes segun miembros |
+**El codigo open source es el gancho de adopcion. El revenue viene del hosting, la implementacion y los conectores comerciales.** Modelo analogo a Red Hat / WordPress.com / DSpaceDirect.
+
+### Fuentes de revenue
+
+| Fuente | Que vendes | Por que pagan |
+|--------|-----------|---------------|
+| Hosting gestionado | SciBack despliega y mantiene el Node en AWS dedicado | La universidad no tiene DTI capaz de mantener Docker + pgvector + GROBID |
+| Implementacion | SciBack conecta GUIA a los sistemas de la universidad | Cada universidad tiene sistemas distintos — la integracion es custom |
+| Conectores Campus | Codigo privado (Koha, SIS, ERP, Moodle, midPoint) | No estan en el core open source |
+| Soporte + SLA | Respuesta <4h, uptime garantizado, actualizaciones | Produccion necesita respaldo |
+| Hub federado | SaaS central que agrega nodos | Valor de red — un Hub es mas util que N nodos aislados |
+
+### Tiers de pricing
+
+| Tier | Incluye | Precio | Revenue real |
+|------|---------|--------|-------------|
+| **Community** | Core open source (DSpace + OJS + RAG + chat web + Telegram) | Gratis (Apache 2.0) | Pipeline de clientes |
+| **Managed Basic** | SciBack hospeda Node + DSpace + OJS + soporte email | ~$150-300/mes | Hosting + mantenimiento |
+| **Managed Pro** | + Koha + SIS/ERP + Keycloak SSO + midPoint | ~$400-700/mes | Implementacion custom + conectores |
+| **Managed Enterprise** | + WhatsApp + SLA 99.9% + analytics + soporte dedicado | ~$800-1500/mes | SLA + operaciones |
+| **Implementacion** | Proyecto de integracion inicial (one-time) | ~$2K-5K | Consultoria + config por universidad |
+| **Hub** | Federacion de nodos (SaaS) | ~$500-5000/mes | Valor de red |
+
+### Barrera de pago (que NO esta en Community)
+1. **Conectores Campus** — Koha, SIS, ERP, Moodle (codigo privado en guia-campus)
+2. **Identidad compleja** — midPoint + Keycloak con AD/Entra/LDAP de cada universidad
+3. **Operaciones** — hosting, backups, SSL, monitoring, actualizaciones 24/7
+4. **WhatsApp** — requiere Cloud API Meta, config por universidad
+5. **Hub** — federacion, OAI-PMH server, MCP server
 
 **Posicionamiento:** Alternativa open-source a EBSCO EDS / Ex Libris Primo / Summon.
-- EDS: $20K-50K/ano. GUIA: ~$50-100/mes para el core.
+- EDS: $20K-50K/ano. GUIA Managed Pro: ~$5K-8K/ano.
 - Chat conversacional + WhatsApp en vez de formularios de busqueda.
 
 ---
@@ -325,6 +356,8 @@ class GUIAConnector:
 
 ## Archivos del proyecto
 
+### Este repo (SciBack/guia) — Docs + sitio web
+
 ```
 ~/proyectos/sciback/guia/
 ├── CLAUDE.md                  <- este archivo (fuente de verdad del proyecto)
@@ -333,14 +366,53 @@ class GUIAConnector:
 ├── requirements.txt
 ├── docs/
 │   ├── index.md               <- que es GUIA, para quien
-│   ├── arquitectura.md        <- diagramas Mermaid detallados (Node, Hub, identidad, agentes)
-│   ├── modelo-comercial.md    <- tiers, precios, comparacion
+│   ├── arquitectura.md        <- diagramas Mermaid (Node, Hub, identidad, agentes)
+│   ├── estandares.md          <- schemas, ALICIA 2.1.0, COAR, CERIF, modelo canonico
+│   ├── modelo-comercial.md    <- tiers, pricing, revenue, comparacion
 │   ├── conectores.md          <- interfaz GUIAConnector + conectores disponibles
-│   ├── roadmap.md             <- fases de desarrollo
+│   ├── roadmap.md             <- plan operativo con sprints semanales
 │   └── en/
 │       └── index.md           <- version en ingles
 └── .github/workflows/
     └── deploy.yml             <- build MkDocs -> landing -> deploy
+```
+
+### SciBack/guia-node — Core open source (por crear en Sprint 0.0)
+
+```
+guia-node/
+├── docker-compose.yml
+├── pyproject.toml             <- uv project
+├── uv.lock
+├── .env.example
+├── src/guia/
+│   ├── api/                   <- FastAPI app
+│   ├── connectors/            <- DSpace, OJS (solo Research, open source)
+│   ├── harvester/             <- OAI-PMH + normalizer + embedder
+│   ├── rag/                   <- LlamaIndex FunctionAgent
+│   └── config.py
+├── docker/
+│   ├── Dockerfile
+│   ├── grobid/
+│   └── postgres/init.sql
+└── tests/
+```
+
+### SciBack/guia-campus — Conectores comerciales (por crear en Fase 1)
+
+```
+guia-campus/
+├── connectors/
+│   ├── koha.py                <- SIP2 / REST API
+│   ├── sis.py                 <- Sistema academico (custom por universidad)
+│   ├── erp.py                 <- Finanzas
+│   ├── moodle.py              <- LMS
+│   └── identity/
+│       ├── keycloak.py        <- KeycloakDirectConnector
+│       └── midpoint.py        <- MidPointConnector
+├── hub/                       <- Federation broker
+├── whatsapp/                  <- pywa integration
+└── pyproject.toml
 ```
 
 ---
