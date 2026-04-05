@@ -153,11 +153,46 @@ GUIA es producto comercial de SciBack. El financiamiento puede venir de multiple
 | Fuente | Tipo | Aplicabilidad |
 |--------|------|---------------|
 | Revenue SciBack | Suscripciones Campus/Hub | Principal a mediano plazo |
+| **NLnet NGI Zero Commons Fund** | **Grant open source hasta €50,000** | **PRIORITARIO — deadline 1 junio 2026** |
 | IOI Fund | Grant para infra open science | Para el Hub federado |
 | Mellon Foundation | Grant educacion superior | Para el core open source |
 | SCOSS | Sostenibilidad recurrente | Fase 3+ (50+ instituciones) |
 | Fondos denominacionales | Grants especificos | Para verticales (IASD, catolicas, etc.) |
 | Fondos gubernamentales | CONCYTEC, CAPES, etc. | Por pais, para universidades especificas |
+
+### NLnet NGI Zero Commons Fund — ACCION INMEDIATA
+
+**URL:** https://nlnet.nl/commonsfund/
+**Deadline:** 1 junio 2026
+**Monto:** hasta €50,000 (no reembolsable, sin equity, sin requisito de empresa constituida)
+**Elegibilidad:** personas naturales, equipos informales y empresas. Alberto puede postular con DNI sin empresa constituida.
+
+**Por que GUIA califica perfectamente:**
+NLnet financia infraestructura digital abierta que beneficia al bien publico. GUIA construye piezas que le faltan al ecosistema global de repositorios academicos:
+
+1. **OAIPMHReader para LlamaIndex** — no existe en llamahub. Libreria Python que conecta OAI-PMH a cualquier sistema RAG. Util para cualquier repositorio DSpace/EPrints/OJS del mundo.
+2. **Validador ALICIA/RENATI en Python** — CONCYTEC no ha publicado herramientas. Libreria open source extensible a otros paises LATAM.
+3. **Servidor OAI-PMH en FastAPI** — no hay implementacion moderna en Python. El Hub de GUIA lo necesita y seria reutilizable globalmente.
+4. **Core RAG para repositorios academicos** (guia-node, Apache 2.0) — infraestructura publica para acceso abierto al conocimiento en universidades de paises emergentes.
+
+**Framing correcto para la propuesta:**
+No postular "GUIA el producto comercial". Postular las **piezas open source que GUIA construye y que le faltan al ecosistema global**, con el caso de uso de universidades peruanas bajo ALICIA/RENATI como validacion concreta.
+
+**El modelo open-core NO es problema para NLnet.** Solo los entregables financiados por ellos deben ser open source (Apache 2.0). Los conectores comerciales de guia-campus son parte del modelo de negocio de SciBack, no del scope del grant.
+
+### Estado de la documentacion open source del repo (actualizado 05/04/2026)
+
+El repo SciBack/guia fue auditado y completado con todos los archivos requeridos para postular a financiamiento:
+
+| Archivo | Estado |
+|---|---|
+| LICENSE (Apache 2.0) | ✅ Creado 05/04/2026 |
+| CONTRIBUTING.md | ✅ Creado 05/04/2026 |
+| CODE_OF_CONDUCT.md (Contributor Covenant 2.1) | ✅ Creado 05/04/2026 |
+| SECURITY.md | ✅ Creado 05/04/2026 |
+| README.md expandido con badges | ✅ Actualizado 05/04/2026 |
+| .github/FUNDING.yml | ✅ Creado 05/04/2026 |
+| Todas las menciones a ARIEL eliminadas | ✅ Limpiado 05/04/2026 |
 
 ---
 
