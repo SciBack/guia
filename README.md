@@ -1,12 +1,10 @@
-# ARIEL Network
+# GUIA
 
-**Adventist Repository for Institutional and Educational Literature**
+**Gateway Universitario de Información y Asistencia**
 
-> *"En aquel día los sordos oirán las palabras del libro, y los ojos de los ciegos verán desde la oscuridad y las tinieblas."* — Isaías 29:18
+Plataforma AI-native open source que unifica el acceso a toda la información universitaria en un punto conversacional. Conecta DSpace, OJS y sistemas institucionales para responder preguntas vía chat (web, Telegram, WhatsApp, Teams).
 
-Red federada de repositorios científicos de las universidades e institutos de la Iglesia Adventista del Séptimo Día.
-
-**Website:** https://upeu-infra.github.io/ariel-network
+**Website:** https://guia.sciback.com
 
 ---
 
