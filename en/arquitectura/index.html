@@ -584,10 +584,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#conector-de-identidad-abstracto" class="md-nav__link">
+  <a href="#el-patron-de-integracion-midpoint-como-hub-de-correlacion" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Conector de identidad abstracto
+        El patron de integracion: midPoint como hub de correlacion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementacion-del-midpointconnector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementacion del MidPointConnector
       
     </span>
   </a>
@@ -903,10 +914,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#conector-de-identidad-abstracto" class="md-nav__link">
+  <a href="#el-patron-de-integracion-midpoint-como-hub-de-correlacion" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Conector de identidad abstracto
+        El patron de integracion: midPoint como hub de correlacion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementacion-del-midpointconnector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementacion del MidPointConnector
       
     </span>
   </a>
@@ -1373,49 +1395,129 @@ Cuando GUIA Campus se despliegue en UPeU, esta capa ya esta construida y validad
 </table>
 </div>
 <hr />
-<h3 id="conector-de-identidad-abstracto">Conector de identidad abstracto</h3>
-<pre class="mermaid"><code>classDiagram
-    class GUIAConnector {
-        &lt;&lt;interface&gt;&gt;
-        +search(query, user_context) list~Result~
-        +get_user_info(user_id) dict
-        +get_status(user_id, entity) dict
-    }
+<h3 id="el-patron-de-integracion-midpoint-como-hub-de-correlacion">El patron de integracion: midPoint como hub de correlacion</h3>
+<p>midPoint no es "otro conector mas" — es la capa que hace posibles todos los conectores Campus. El problema que resuelve: <strong>cada sistema universitario usa un ID distinto para el mismo usuario</strong>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Keycloak sabe al usuario como: &quot;sub&quot;: &quot;a3f9c...&quot;  (UUID OIDC)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>Koha lo conoce como:           patron_id: 1234
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>SIS lo conoce como:            student_id: UC-2021-00456
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>ERP lo conoce como:            account: FIN-9012
+</code></pre></div>
+<p>Sin midPoint, GUIA tendria que hacer su propia logica de correlacion por universidad. Con midPoint, esa logica ya esta resuelta — midPoint mantiene los <code>shadows</code> (cuentas) de cada usuario en cada sistema.</p>
+<pre class="mermaid"><code>graph TB
+    subgraph auth["1. Autenticacion (Keycloak)"]
+        JWT["JWT token\nsub=a3f9c...\nroles=[estudiante_activo]"]
+    end
 
-    class IdentityConnector {
-        &lt;&lt;interface&gt;&gt;
-        +get_user_info(user_id) dict
-        +get_user_roles(user_id) list~str~
-        +is_active(user_id) bool
-    }
+    subgraph identity["2. Enriquecimiento de identidad (midPoint)"]
+        MP2["MidPointConnector\nGET /ws/rest/users?q=name=a3f9c"]
+        CANON2["Usuario canonico\nnombre: Juan Perez\nDNI: 12345678\nkoha_id: 1234\nsis_id: UC-2021-00456\nerp_id: FIN-9012\nroles: [estudiante_activo]"]
+    end
 
-    class KeycloakDirectConnector {
-        -keycloak_admin: KeycloakAdmin
-        +get_user_info(user_id) dict
-        +get_user_roles(user_id) list~str~
-    }
+    subgraph ops["3. Datos operacionales (conectores directos)"]
+        KOHA3["KohaConnector\nget_loans(patron_id=1234)\n→ 2 libros, vence en 3 dias"]
+        SIS3["SISConnector\nget_grades(student_id=UC-2021-00456)\n→ Estadistica: 16, Calculo: 14"]
+        ERP3["ERPConnector\nget_balance(account=FIN-9012)\n→ Debe S/. 450"]
+    end
 
-    class MidPointConnector {
-        -midpoint_url: str
-        -midpoint_auth: str
-        +get_user_info(user_id) dict
-        +get_user_roles(user_id) list~str~
-    }
+    subgraph answer["4. Respuesta GUIA"]
+        RESP["'Tienes 2 libros por vencer en 3 dias,\ntu nota de Estadistica es 16\ny debes S/. 450 de matricula'"]
+    end
 
-    class DSpaceConnector {
-        +search(query, user_context) list~Result~
-    }
+    JWT --&gt; MP2 --&gt; CANON2
+    CANON2 --&gt; KOHA3 &amp; SIS3 &amp; ERP3
+    KOHA3 &amp; SIS3 &amp; ERP3 --&gt; RESP
 
-    class KohaConnector {
-        +get_user_info(user_id) dict
-        +get_status(user_id, entity) dict
-    }
-
-    GUIAConnector &lt;|-- IdentityConnector
-    GUIAConnector &lt;|-- DSpaceConnector
-    GUIAConnector &lt;|-- KohaConnector
-    IdentityConnector &lt;|.. KeycloakDirectConnector
-    IdentityConnector &lt;|.. MidPointConnector</code></pre>
+    style identity fill:#2d1a4a,color:#fff
+    style ops fill:#1e3a5f,color:#fff
+    style answer fill:#1a4a2a,color:#fff</code></pre>
+<p><strong>Regla clara:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Pregunta</th>
+<th>Quien responde</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Quien es este usuario?</td>
+<td>midPoint</td>
+</tr>
+<tr>
+<td>Que ID tiene en Koha/SIS/ERP?</td>
+<td>midPoint (shadows)</td>
+</tr>
+<tr>
+<td>Que libros tiene prestados?</td>
+<td>Koha (directo, con el ID de midPoint)</td>
+</tr>
+<tr>
+<td>Cuales son sus notas?</td>
+<td>SIS (directo, con el ID de midPoint)</td>
+</tr>
+<tr>
+<td>Cuanto debe?</td>
+<td>ERP (directo, con el ID de midPoint)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="implementacion-del-midpointconnector">Implementacion del MidPointConnector</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nd">@dataclass</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">CanonicalUser</span><span class="p">:</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Usuario canonico tal como lo ve GUIA — construido desde midPoint.&quot;&quot;&quot;</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">display_name</span><span class="p">:</span> <span class="nb">str</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">email</span><span class="p">:</span> <span class="nb">str</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">dni</span><span class="p">:</span> <span class="nb">str</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">archetype</span><span class="p">:</span> <span class="nb">str</span>              <span class="c1"># ESTUDI / DOCEN / ADMIN / EGRES</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">is_active</span><span class="p">:</span> <span class="nb">bool</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="c1"># IDs de shadows — para consultar sistemas operacionales</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">koha_patron_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="n">sis_student_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="n">erp_account_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="n">moodle_user_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    <span class="n">azure_object_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="k">class</span><span class="w"> </span><span class="nc">MidPointConnector</span><span class="p">(</span><span class="n">IdentityConnector</span><span class="p">):</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="sd">    Consulta midPoint REST API para obtener el usuario canonico</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="sd">    con todos sus IDs de sistemas externos (account shadows).</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="sd">    midPoint sabe QUIEN es el usuario y en QUE sistemas existe.</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="sd">    Los conectores operacionales usan esos IDs para consultar datos reales.</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_canonical_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keycloak_sub</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CanonicalUser</span><span class="p">:</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>        <span class="c1"># GET /ws/rest/users?q=name={keycloak_sub}</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>        <span class="c1"># Extrae shadows de cada recurso configurado</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>        <span class="o">...</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_user_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>        <span class="k">return</span> <span class="n">asdict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_canonical_user</span><span class="p">(</span><span class="n">user_id</span><span class="p">))</span>
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>
+<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_user_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a>        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_canonical_user</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+<a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a>        <span class="k">return</span> <span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">archetype</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="s2">&quot;active&quot;</span> <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">is_active</span> <span class="k">else</span> <span class="s2">&quot;inactive&quot;</span><span class="p">]</span>
+<a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a>
+<a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a>
+<a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a><span class="k">class</span><span class="w"> </span><span class="nc">KeycloakDirectConnector</span><span class="p">(</span><span class="n">IdentityConnector</span><span class="p">):</span>
+<a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-1-41" name="__codelineno-1-41" href="#__codelineno-1-41"></a><span class="sd">    Fallback para Fase 0 o universidades sin midPoint.</span>
+<a id="__codelineno-1-42" name="__codelineno-1-42" href="#__codelineno-1-42"></a><span class="sd">    Solo puede dar info basica del token — sin IDs de sistemas externos.</span>
+<a id="__codelineno-1-43" name="__codelineno-1-43" href="#__codelineno-1-43"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-1-44" name="__codelineno-1-44" href="#__codelineno-1-44"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_user_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<a id="__codelineno-1-45" name="__codelineno-1-45" href="#__codelineno-1-45"></a>        <span class="c1"># Consulta Keycloak Admin API — solo nombre, email, roles</span>
+<a id="__codelineno-1-46" name="__codelineno-1-46" href="#__codelineno-1-46"></a>        <span class="c1"># NO sabe el patron_id en Koha ni el student_id en SIS</span>
+<a id="__codelineno-1-47" name="__codelineno-1-47" href="#__codelineno-1-47"></a>        <span class="o">...</span>
+</code></pre></div>
+<p><strong>Beneficio del patron:</strong> Los conectores operacionales son simples y uniformes — siempre reciben el ID correcto, sin necesidad de busquedas por email o DNI que pueden fallar por inconsistencias de datos.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Conector Koha: simple porque ya tiene el ID correcto</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">KohaConnector</span><span class="p">(</span><span class="n">GUIAConnector</span><span class="p">):</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_loans</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_context</span><span class="p">:</span> <span class="n">CanonicalUser</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Loan</span><span class="p">]:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">user_context</span><span class="o">.</span><span class="n">koha_patron_id</span><span class="p">:</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>            <span class="k">return</span> <span class="p">[]</span>  <span class="c1"># usuario sin cuenta en Koha</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">koha_api</span><span class="o">.</span><span class="n">get_patron_checkouts</span><span class="p">(</span><span class="n">user_context</span><span class="o">.</span><span class="n">koha_patron_id</span><span class="p">)</span>
+</code></pre></div>
 <hr />
 <h2 id="arquitectura-de-agentes">Arquitectura de agentes</h2>
 <h3 id="fase-0-rag-simple-fase-05-functionagent-con-tools">Fase 0: RAG simple → Fase 0.5: FunctionAgent con tools</h3>
