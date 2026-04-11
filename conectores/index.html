@@ -698,6 +698,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#midpoint-iga-el-estandarizador-capa-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        midPoint IGA — El estandarizador (Capa 2+)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#capa-3-connect-licencia-comercial-sciback" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1004,6 +1015,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#midpoint-iga-el-estandarizador-capa-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        midPoint IGA — El estandarizador (Capa 2+)
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1382,6 +1404,64 @@
 - "Cual fue mi nota en el ultimo examen de estadistica?"
 - "Cuando vence la entrega del proyecto final?"</p>
 <hr />
+<h2 id="midpoint-iga-el-estandarizador-capa-2">midPoint IGA — El estandarizador (Capa 2+)</h2>
+<p>midPoint no es un conector mas — es la <strong>capa de integracion de identidad</strong> que hace posible GUIA Campus y Connect a escala. En lugar de que GUIA construya conectores custom para cada SIS, ERP o directorio distinto, midPoint absorbe esa heterogeneidad y expone una API unificada.</p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Detalle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tecnologia</strong></td>
+<td>MidPoint 4.9.5 (Evolveum)</td>
+</tr>
+<tr>
+<td><strong>Protocolo hacia GUIA</strong></td>
+<td>REST API (<code>/ws/rest/users/</code>)</td>
+</tr>
+<tr>
+<td><strong>Conectores que gestiona</strong></td>
+<td>LAMB Academic (JDBC), Koha (connector-koha v1.1.0), Azure EntraID, AD/LDAP, Keycloak</td>
+</tr>
+<tr>
+<td><strong>Estandares</strong></td>
+<td>ISO/IEC 24760, SCIM 2.0, eduPerson, SCHAC</td>
+</tr>
+<tr>
+<td><strong>Plan</strong></td>
+<td>Campus (requerido para datos personalizados)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Lo que midPoint entrega a GUIA:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># GUIA siempre hace la misma consulta, sin importar lo que haya detras</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">user</span> <span class="o">=</span> <span class="n">midpoint</span><span class="o">.</span><span class="n">get_user</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Devuelve usuario canonico con:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># - nombre, email, DNI, carrera, ciclo</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># - roles: [&quot;estudiante_activo&quot;, &quot;facultad_ingenieria&quot;]</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># - estado academico, estado en Koha, cuenta Azure</span>
+</code></pre></div>
+<p><strong>Flujo Joiner-Mover-Leaver que GUIA aprovecha:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Nuevo estudiante en LAMB → midPoint detecta → provisiona en Koha + Azure + Keycloak
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>                                            → GUIA lo reconoce en su primer login
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>Estudiante egresa → midPoint detecta → deshabilita en todos los sistemas
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>                                     → GUIA cambia su perfil a egresado automaticamente
+</code></pre></div>
+<p><strong>connector-koha</strong> — el puente entre midPoint y Koha esta desarrollado como proyecto open source:</p>
+<ul>
+<li>Repo: <code>UPeU-Infra/connector-koha</code> (Java, ConnId framework)</li>
+<li>Version: v1.1.0 — soporta BASIC + OAuth2, thread safety, retry backoff</li>
+<li>Operaciones: crear, actualizar, buscar y deshabilitar patrones en Koha via REST API</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">Estado en UPeU</p>
+<p>midPoint con LAMB + Koha + Azure EntraID esta en pre-produccion desde 2026.
+Cuando GUIA Campus se active en UPeU, esta capa <strong>ya esta construida y probada</strong>.</p>
+</div>
+<hr />
 <h2 id="capa-3-connect-licencia-comercial-sciback">Capa 3 — Connect (licencia comercial SciBack)</h2>
 <p>Conectores de integracion extendida. Disponibles en el plan <strong>GUIA Connect</strong>. Habilitan acciones (no solo consultas) y conectan GUIA con el ecosistema AI externo via MCP.</p>
 <h3 id="zammad-helpdesk">Zammad (Helpdesk)</h3>
@@ -1620,45 +1700,45 @@
 </table>
 <p><strong>El diferenciador mas estrategico de GUIA Connect.</strong></p>
 <p>GUIA expone un servidor MCP que permite a cualquier AI externa (Claude Desktop, GPT custom actions, GitHub Copilot) consultar los sistemas de la universidad como herramientas nativas.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Claude Desktop del rector pregunta:
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>&quot;Cual es la produccion cientifica de mi facultad de medicina este ano?&quot;
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>→ Claude llama al MCP Server de GUIA
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>→ GUIA consulta DSpace + OJS + CRM
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>→ Respuesta con datos reales y citas
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Claude Desktop del rector pregunta:
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>&quot;Cual es la produccion cientifica de mi facultad de medicina este ano?&quot;
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>→ Claude llama al MCP Server de GUIA
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>→ GUIA consulta DSpace + OJS + CRM
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>→ Respuesta con datos reales y citas
 </code></pre></div>
 <p>Esto convierte a GUIA en <strong>la capa de inteligencia institucional</strong> que cualquier asistente AI puede usar — no solo los usuarios directos del chat.</p>
 <hr />
 <h2 id="interfaz-de-conectores">Interfaz de conectores</h2>
 <p>Todos los conectores implementan la misma interfaz base:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">guia.connectors.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">GUIAConnector</span><span class="p">,</span> <span class="n">Result</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">MiSistemaConnector</span><span class="p">(</span><span class="n">GUIAConnector</span><span class="p">):</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Conector para MiSistema.&quot;&quot;&quot;</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">user_context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Result</span><span class="p">]:</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Busqueda semantica o estructurada en el sistema.&quot;&quot;&quot;</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>        <span class="o">...</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_user_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Informacion personalizada del usuario autenticado.&quot;&quot;&quot;</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>        <span class="o">...</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">entity</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Estado de un proceso o entidad (prestamo, pago, ticket).&quot;&quot;&quot;</span>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>        <span class="o">...</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">execute_action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">user_context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Ejecutar una accion (abrir ticket, reservar sala, renovar libro).&quot;&quot;&quot;</span>
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>        <span class="o">...</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">guia.connectors.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">GUIAConnector</span><span class="p">,</span> <span class="n">Result</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">MiSistemaConnector</span><span class="p">(</span><span class="n">GUIAConnector</span><span class="p">):</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Conector para MiSistema.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">user_context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Result</span><span class="p">]:</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Busqueda semantica o estructurada en el sistema.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>        <span class="o">...</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_user_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Informacion personalizada del usuario autenticado.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>        <span class="o">...</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">entity</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Estado de un proceso o entidad (prestamo, pago, ticket).&quot;&quot;&quot;</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>        <span class="o">...</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">execute_action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">user_context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Ejecutar una accion (abrir ticket, reservar sala, renovar libro).&quot;&quot;&quot;</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>        <span class="o">...</span>
 </code></pre></div>
 <p>Registrar en <code>config.yml</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">connectors</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mi_sistema</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nt">class</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guia.connectors.mi_sistema.MiSistemaConnector</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nt">tier</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">campus</span><span class="w">  </span><span class="c1"># research | campus | connect</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="nt">config</span><span class="p">:</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">      </span><span class="nt">api_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://mi-sistema.universidad.edu</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">      </span><span class="nt">api_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${MI_SISTEMA_API_KEY}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">connectors</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mi_sistema</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">class</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guia.connectors.mi_sistema.MiSistemaConnector</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">tier</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">campus</span><span class="w">  </span><span class="c1"># research | campus | connect</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="nt">api_url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://mi-sistema.universidad.edu</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">      </span><span class="nt">api_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${MI_SISTEMA_API_KEY}</span>
 </code></pre></div>
 <hr />
 <h2 id="mapa-de-conectores-por-plan">Mapa de conectores por plan</h2>
@@ -1668,10 +1748,17 @@
         OJS["OJS\nOAI-PMH + REST"]
     end
 
+    subgraph iga["midPoint IGA — eje de identidad"]
+        MP["midPoint 4.9.5\nREST API"]
+        MP --&gt; LAMB["LAMB / SIS\nJDBC"]
+        MP --&gt; KHC["Koha\nconnector-koha v1.1.0"]
+        MP --&gt; AZ["Azure EntraID\nMS Graph"]
+        MP --&gt; KC["Keycloak\nOIDC + LDAP"]
+    end
+
     subgraph campus["GUIA Campus — Comercial"]
-        KC["Keycloak + AD/LDAP\nIdentidad SSO"]
-        KH["Koha\nBiblioteca"]
-        SI["SIS\nAcademico"]
+        SI["SIS via midPoint\nAcademico"]
+        KH["Koha via midPoint\nBiblioteca"]
         ER["ERP\nFinanzas"]
         MD["Moodle\nLMS"]
     end
@@ -1687,9 +1774,13 @@
         MCP["MCP Server\nAI externas"]
     end
 
+    iga --&gt; campus
+
     style research fill:#1a4a2a,color:#fff
+    style iga fill:#2d1a4a,color:#fff
     style campus fill:#1e3a5f,color:#fff
-    style connect fill:#4a3a1a,color:#fff</code></pre>
+    style connect fill:#4a3a1a,color:#fff
+    style MP fill:#8e44ad,color:#fff,stroke:#f39c12,stroke-width:2px</code></pre>
 
 
 

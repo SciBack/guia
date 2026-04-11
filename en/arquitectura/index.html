@@ -573,10 +573,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fase-1-midpoint-keycloak-multiples-fuentes-heterogeneas" class="md-nav__link">
+  <a href="#fase-0-upeu-fase-1-otras-universidades-midpoint-keycloak" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Fase 1+ — midPoint + Keycloak (multiples fuentes heterogeneas)
+        Fase 0 (UPeU) / Fase 1+ (otras universidades) — midPoint + Keycloak
       
     </span>
   </a>
@@ -892,10 +892,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fase-1-midpoint-keycloak-multiples-fuentes-heterogeneas" class="md-nav__link">
+  <a href="#fase-0-upeu-fase-1-otras-universidades-midpoint-keycloak" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Fase 1+ — midPoint + Keycloak (multiples fuentes heterogeneas)
+        Fase 0 (UPeU) / Fase 1+ (otras universidades) — midPoint + Keycloak
       
     </span>
   </a>
@@ -1064,12 +1064,12 @@
 <tr>
 <td><strong>Keycloak</strong></td>
 <td>Co-desplegado con el Node</td>
-<td>Cada universidad tiene su realm</td>
+<td>Cada universidad tiene su realm. Emite tokens OIDC</td>
 </tr>
 <tr>
-<td><strong>midPoint</strong></td>
-<td>Opcional, co-desplegado</td>
-<td>Solo para universidades con infra compleja</td>
+<td><strong>midPoint IGA</strong></td>
+<td>Co-desplegado (Campus+)</td>
+<td>Estandarizador de identidad. Absorbe heterogeneidad de SIS, AD, ERP. GUIA siempre habla la misma API sin importar lo que haya detras</td>
 </tr>
 </tbody>
 </table>
@@ -1286,7 +1286,7 @@
 <li><strong>Solo tiene base de datos:</strong> Custom User Storage SPI o usuarios manuales en Keycloak</li>
 </ul>
 <hr />
-<h3 id="fase-1-midpoint-keycloak-multiples-fuentes-heterogeneas">Fase 1+ — midPoint + Keycloak (multiples fuentes heterogeneas)</h3>
+<h3 id="fase-0-upeu-fase-1-otras-universidades-midpoint-keycloak">Fase 0 (UPeU) / Fase 1+ (otras universidades) — midPoint + Keycloak</h3>
 <pre class="mermaid"><code>graph TB
     subgraph fuentes["Fuentes de identidad de la universidad"]
         AD2["Active Directory\nOn-premise"]
@@ -1333,6 +1333,45 @@
 <li>GUIA Node consulta <strong>midPoint REST API</strong> para atributos detallados</li>
 </ol>
 <p><strong>Beneficio clave:</strong> El codigo de GUIA Node es identico en todas las universidades. midPoint absorbe toda la heterogeneidad.</p>
+<div class="admonition success">
+<p class="admonition-title">Ya operativo en UPeU (piloto)</p>
+<p>El stack midPoint + Keycloak + Koha + Azure EntraID esta en pre-produccion en UPeU desde 2026.
+Cuando GUIA Campus se despliegue en UPeU, esta capa ya esta construida y validada.</p>
+<table>
+<thead>
+<tr>
+<th>Sistema</th>
+<th>Estado en UPeU</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>midPoint 4.9.5</td>
+<td>UP — 192.168.15.230:8080</td>
+</tr>
+<tr>
+<td>LAMB Academic (SIS/ERP)</td>
+<td>Conectado via JDBC</td>
+</tr>
+<tr>
+<td>Koha (biblioteca)</td>
+<td>Conectado via connector-koha v1.1.0</td>
+</tr>
+<tr>
+<td>Azure EntraID</td>
+<td>Conectado — tenant sciback.com</td>
+</tr>
+<tr>
+<td>Keycloak 26.6.0</td>
+<td>UP — federado con EntraID</td>
+</tr>
+<tr>
+<td>GLPI (helpdesk)</td>
+<td>Pendiente (Fase Connect)</td>
+</tr>
+</tbody>
+</table>
+</div>
 <hr />
 <h3 id="conector-de-identidad-abstracto">Conector de identidad abstracto</h3>
 <pre class="mermaid"><code>classDiagram
