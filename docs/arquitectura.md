@@ -34,6 +34,83 @@ graph TB
 
 ---
 
+## Federacion cientifica abierta (jerarquia IASD)
+
+Por mas que GUIA crezca hacia Campus y Connect, el Node conserva su rol como **nodo de ciencia abierta interoperable**. La capa Research expone datos publicos de investigacion via OAI-PMH para que Hubs regionales y globales puedan cosechar.
+
+```mermaid
+graph TB
+    subgraph nodos["GUIA Nodes — Universidades IASD"]
+        UPEU["Node UPeU\n(Peru)"]
+        UNAC["Node UNAC\n(Colombia)"]
+        UAB["Node UAB\n(Brasil)"]
+        UPE["Node UPe\n(Argentina)"]
+        MAS["... otras universidades"]
+    end
+
+    subgraph regional["Hubs Regionales — Divisiones IASD"]
+        SAD["Hub Division\nSudamericana (DSA)"]
+        IAD["Hub Division\nInteramericana"]
+        NAD["Hub Division\nNorteamericana"]
+        EUD["Hub Division\nEuroafricana"]
+    end
+
+    subgraph global["Hub Mundial"]
+        GC["GUIA Hub Mundial IASD"]
+    end
+
+    subgraph externo["Redes globales de ciencia abierta"]
+        OAIRE["OpenAIRE"]
+        LAREF["LaReferencia"]
+        BASE["BASE"]
+        OALEX["OpenAlex"]
+        CORE["CORE"]
+    end
+
+    UPEU -->|"OAI-PMH"| SAD
+    UAB -->|"OAI-PMH"| SAD
+    UPE -->|"OAI-PMH"| SAD
+    UNAC -->|"OAI-PMH"| IAD
+    MAS -->|"OAI-PMH"| NAD
+
+    SAD -->|"OAI-PMH agregado"| GC
+    IAD -->|"OAI-PMH agregado"| GC
+    NAD -->|"OAI-PMH agregado"| GC
+    EUD -->|"OAI-PMH agregado"| GC
+
+    GC -->|"OAI-PMH\noai_openaire v4"| OAIRE
+    GC -->|"OAI-PMH"| LAREF
+    GC -->|"OAI-PMH"| BASE
+    GC -->|"JSON-LD + API"| OALEX
+    GC -->|"OAI-PMH"| CORE
+
+    style nodos fill:#0d1b3e,color:#fff
+    style regional fill:#1a4a2a,color:#fff
+    style global fill:#4a3a1a,color:#fff,stroke:#f39c12,stroke-width:3px
+    style externo fill:#1e3a5f,color:#fff
+```
+
+**Principio:** el Node es nodo OpenAIRE-compatible **antes** que producto comercial. Sin este rol, GUIA no puede justificar su presencia en redes nacionales (ALICIA, LaReferencia) ni denominacionales (Hubs IASD).
+
+### Dos superficies del Node
+
+| Superficie | Contenido | Auth | Exposicion externa |
+|-----------|-----------|------|--------------------|
+| **Publica (ciencia abierta)** | `guia_item`: tesis, articulos, libros | Anonima | OAI-PMH server + API REST publica + JSON-LD |
+| **Privada (campus)** | Notas, deudas, prestamos, tickets | Keycloak/midPoint | Nunca indexable, nunca cosechable |
+
+El endpoint OAI-PMH del Node **solo lee de `guia_item`**. No existe query posible que exponga datos campus via OAI-PMH — es guardrail tecnico, no politica.
+
+### Protocolos expuestos por el Node (Fase 1)
+
+- **OAI-PMH 2.0** con `oai_dc`, `oai_openaire` (guidelines v4), `dim`
+- **Sets** por tipo (tesis/articulo/libro) y por programa/facultad
+- **COAR Vocabularies** en URIs (tipo, acceso, version)
+- **schema.org / JSON-LD** en HTML publico
+- **Handle.net / DOI / ORCID** como identificadores persistentes
+
+---
+
 ## GUIA Node — Arquitectura completa
 
 ```mermaid

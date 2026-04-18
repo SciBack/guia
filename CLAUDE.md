@@ -74,6 +74,61 @@ Federador que agrega nodos GUIA de multiples universidades.
 
 ---
 
+## Rol del Node en la federacion cientifica abierta
+
+**Invariante del producto:** por mas que GUIA crezca hacia Campus y Connect, el Node NUNCA pierde su rol como nodo de ciencia abierta interoperable. Es lo que permite que redes regionales y globales cosechen la produccion cientifica de la universidad.
+
+### Jerarquia federada (modelo IASD)
+
+```
+GUIA Node (universidad: UPeU, UNAC, UAB, UPE, etc.)
+    ↓ OAI-PMH (solo datos publicos de investigacion)
+GUIA Hub Regional = Division IASD
+    (Sudamericana, Interamericana, Norteamericana, Euroafricana, ...)
+    ↓ OAI-PMH agregado
+GUIA Hub Mundial IASD
+    ↓ OAI-PMH compatible OpenAIRE v4
+Redes globales: OpenAIRE, LaReferencia, BASE, OpenAlex, CORE
+```
+
+Mismo patron aplicable a otros consorcios (redes catolicas, estatales, tematicas).
+
+### Dos superficies del Node, separadas por diseno
+
+| Superficie | Contenido | Auth | Exposicion externa |
+|-----------|-----------|------|--------------------|
+| **Publica (ciencia abierta)** | `guia_item`: tesis, articulos, libros de DSpace + OJS | Anonima | **OAI-PMH server + API REST publica + JSON-LD** |
+| **Privada (campus)** | Notas, deudas, prestamos, tickets, matricula | Keycloak/midPoint obligatorio | **Nunca indexable, nunca cosechable** |
+
+La separacion es **guardrail tecnico, no solo politica**. El endpoint OAI-PMH del Node solo lee de `guia_item`. No existe query posible que exponga datos campus via OAI-PMH.
+
+### Protocolos de interoperabilidad obligatorios en el Node
+
+El Node expone (no solo consume) desde Fase 1:
+
+| Protocolo | Rol | Para quien |
+|-----------|-----|-----------|
+| **OAI-PMH 2.0 server** | Endpoint para harvesters externos | Hubs regionales IASD, LaReferencia, ALICIA, BASE |
+| **metadataPrefix `oai_dc`** | Minimo universal | Cualquier harvester |
+| **metadataPrefix `oai_openaire`** | Guidelines OpenAIRE v4 | OpenAIRE, LaReferencia |
+| **metadataPrefix `dim`** | DSpace Intermediate (incluye renati.*, thesis.*) | Hubs que preservan namespaces ALICIA/RENATI |
+| **Sets OAI-PMH** | Particion selectiva | Por tipo (tesis/articulo/libro) y por programa/facultad |
+| **COAR Vocabularies (URIs)** | Tipo, acceso, version | Interop semantica global |
+| **schema.org / JSON-LD** | Metadatos HTML | OpenAlex, Google Scholar, indexadores web |
+| **ResourceSync** (Fase 2, opcional) | Sincronizacion incremental | Hubs con alto volumen |
+
+### Identificadores persistentes
+
+- **Handle.net** — heredado de DSpace UPeU (CNRI)
+- **DOI** — articulos OJS via CrossRef
+- **ORCID** — autores (via midPoint o captura en DSpace-CRIS)
+
+### Implicacion arquitectonica
+
+El crecimiento hacia Campus + Connect **no puede contaminar** la capa Research del Node. Cualquier feature nueva que toque `guia_item` debe preguntarse: "¿esto sigue siendo cosechable sin exponer datos privados?"
+
+---
+
 ## Modelo comercial SciBack
 
 **El codigo open source es el gancho de adopcion. El revenue viene del hosting, la implementacion y los conectores comerciales.** Modelo analogo a Red Hat / WordPress.com / DSpaceDirect.
@@ -340,8 +395,10 @@ class MidPointConnector(IdentityConnector):
 | 3 | ALICIA 2.1.0 / CONCYTEC (38 campos) | SI | 0 | Consumir | Baja |
 | 4 | RENATI / SUNEDU (namespace renati.*) | SI | 0 | Consumir | Baja |
 | 5 | OpenAIRE v3 (consumir de DSpace) | SI | 0 | Consumir (ya compatible) | Baja |
-| 6 | OpenAIRE v4 (exponer del Hub) | SI | 2 | Exponer (oai_openaire) | Media |
-| 7 | schema.org / JSON-LD | SI | 1 | Exponer en HTML del Hub | Baja |
+| 6 | OpenAIRE v4 (exponer en Node y Hub) | SI | 1 (Node), 2 (Hub agregado) | Exponer (oai_openaire) | Media |
+| 6b | **OAI-PMH server en el Node** | SI | 1 | Exponer `guia_item` (oai_dc + oai_openaire + dim) | Media |
+| 6c | Sets OAI-PMH (tipo, programa) | SI | 1 | Exponer (particion selectiva para Hubs) | Baja |
+| 7 | schema.org / JSON-LD | SI | 1 | Exponer en HTML del Node y Hub | Baja |
 | 8 | DataCite | PARCIAL | 2 | Consumir (DOI, ORCID ya en modelo) | Media |
 | 9 | DRIVER Guidelines | NO | — | Solo tabla traduccion DRIVER→COAR | — |
 | 10 | CERIF | SI | 1+ (Person) / 2 (full) | DSpace-CRIS entidades: Person, Project, Patent, Equipment | Media |

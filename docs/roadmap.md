@@ -202,8 +202,10 @@ de 45 mg/kg en muestras de Junin, superando el ECA peruano de 70 mg/kg..."
 | 0.7.2 | Logging estructurado | Logs JSON a stdout, CloudWatch | Trazabilidad de queries y errores |
 | 0.7.3 | Health checks en Docker Compose | Healthcheck por servicio | `docker compose ps` muestra todos healthy |
 | 0.7.4 | Backup automatizado de PostgreSQL | Script + cron a S3 | Backup diario verificable |
-| 0.7.5 | Grabar demo en video | Video de 3-5 min | Demo lista para presentacion a DTI |
-| 0.7.6 | Reunir con DTI UPeU | Presentacion + demo en vivo | Feedback documentado, siguiente paso acordado |
+| 0.7.5 | **OAI-PMH server en el Node** (MVP federacion) | Endpoint `/oai` expone `guia_item` con `oai_dc` + `oai_openaire` + `dim` | `curl ?verb=ListRecords&metadataPrefix=oai_dc` devuelve items validos. Solo lee de `guia_item` (nunca campus). Guardrail tecnico verificado |
+| 0.7.6 | Validar cosecha externa del Node | Harvester de prueba (LaReferencia-like) cosecha del Node | 100+ records cosechados sin errores, compliance OpenAIRE v4 validado con validator |
+| 0.7.7 | Grabar demo en video | Video de 3-5 min | Demo lista para presentacion a DTI |
+| 0.7.8 | Reunir con DTI UPeU | Presentacion + demo en vivo | Feedback documentado, siguiente paso acordado |
 
 ---
 
