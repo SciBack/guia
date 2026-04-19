@@ -1,8 +1,8 @@
-site_name: GUIA — Ecosistema
-site_description: Documentación centralizada del ecosistema GUIA — Gateway Universitario de Información y Asistencia
+site_name: GUIA
+site_description: Gateway Universitario de Información y Asistencia — Plataforma AI-native para universidades
 site_url: https://guia.sciback.com
-repo_url: https://github.com/SciBack/guia-docs
-repo_name: SciBack/guia-docs
+repo_url: https://github.com/SciBack/guia
+repo_name: SciBack/guia
 edit_uri: edit/main/docs/
 
 theme:
@@ -50,13 +50,13 @@ plugins:
           default: true
           name: Español
           build: true
-          site_name: GUIA — Ecosistema
+          site_name: GUIA
           nav_translations:
             Home: Inicio
         - locale: en
           name: English
           build: true
-          site_name: GUIA — Ecosystem
+          site_name: GUIA
 
 markdown_extensions:
   - admonition
@@ -93,35 +93,12 @@ extra:
       lang: en
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/SciBack/guia-docs
+      link: https://github.com/SciBack/guia
 
 nav:
   - Inicio: index.md
-
-  - GUIA Node:
-    - Qué es: guia-node/index.md
-    - Arquitectura: guia-node/arquitectura.md
-    - Estándares: guia-node/estandares.md
-    - Conectores: guia-node/conectores.md
-    - Modelo Comercial: guia-node/modelo-comercial.md
-    - Roadmap: guia-node/roadmap.md
-
-  - GUIA Campus:
-    - Qué es: guia-campus/index.md
-
-  - GUIA Hub:
-    - Qué es: guia-hub/index.md
-
-  - Plataforma SciBack:
-    - sciback-core: platform/index.md
-    - Adapters: platform/adapters/index.md
-
-  - Integraciones:
-    - DSpace: integraciones/dspace/index.md
-    - OJS: integraciones/ojs/index.md
-    - ALICIA / CONCYTEC: integraciones/alicia/index.md
-    - midPoint: integraciones/midpoint/index.md
-    - Keycloak: integraciones/keycloak/index.md
-    - Koha: integraciones/koha/index.md
-    - Zammad: integraciones/zammad/index.md
-    - Mac Mini M4: integraciones/mac-mini/index.md
+  - Arquitectura: arquitectura.md
+  - Estandares: estandares.md
+  - Modelo Comercial: modelo-comercial.md
+  - Conectores: conectores.md
+  - Roadmap: roadmap.md
