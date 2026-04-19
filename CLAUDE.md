@@ -15,11 +15,35 @@
 | Repo | Visibilidad | Contenido |
 |------|------------|-----------|
 | **SciBack/guia** | PUBLIC | Docs + landing + sitio web del producto (MkDocs) |
-| **SciBack/guia-node** | PUBLIC (Apache 2.0) | Core open source: harvester, RAG, DSpace + OJS, chat, API |
+| **SciBack/guia-node** | PUBLIC (Apache 2.0) | Core open source: harvester, RAG, FastAPI, chat, Telegram |
 | **SciBack/guia-campus** | PRIVATE | Conectores comerciales: Koha, SIS, ERP, midPoint, WhatsApp, Hub |
 | **UPeU-Infra/guia-upeu** | PRIVATE | Config deploy UPeU: .env, overrides, scripts operacionales |
+| **SciBack/platform** | PRIVATE | sciback-core + todos los adapters (base de GUIA) |
 
-`UPeU-Infra/guia` → migrado a `SciBack/guia` (archivado con redirect).
+---
+
+## Fundacion: sciback-platform
+
+**GUIA no construye sus propios clientes HTTP ni harvesters.** Todo eso ya existe en `SciBack/platform`.
+
+`SciBack/platform` es un monorepo uv con 12 paquetes listos (834 tests, ruff limpio):
+
+| Paquete | Que provee a GUIA |
+|---------|------------------|
+| `sciback-core` v0.11.0 | Domain CERIF, ports hexagonales (LLMPort, VectorStorePort, EventBusPort, JobQueuePort) |
+| `sciback-adapter-dspace` | DSpace 7.x REST API + OAI-PMH harvesting, mapeo DC→Publication |
+| `sciback-adapter-ojs` | OJS REST API v3 + OAI-PMH, soporte titulo multilang |
+| `sciback-adapter-alicia` | CONCYTEC OAI-PMH + validacion ALICIA 2.1.0 + vocabulario DRIVER/COAR |
+| `sciback-adapter-orcid` | ORCID Public API v3.0, checksum ISO 7064 MOD 11-2 |
+| `sciback-adapter-crossref` | Crossref REST polite pool |
+| `sciback-adapter-openalex` | OpenAlex API |
+| `sciback-adapter-ror` | Research Organization Registry |
+| `sciback-llm-claude` | Anthropic Claude API → LLMPort |
+| `sciback-llm-ollama` | Ollama HTTP API → LLMPort (Mac Mini M4) |
+| `sciback-embeddings-e5` | multilingual-e5-large-instruct via Ollama con prefijos passage/query |
+| `sciback-vectorstore-pgvector` | SQLAlchemy + pgvector, cosine similarity, IVFFlat index |
+
+**GUIA consume estos paquetes como dependencias.** No reimplementa ningun cliente HTTP, harvester, ni conector de base de datos vectorial.
 
 ---
 
@@ -30,22 +54,24 @@
 Asistente AI institucional que conecta todos los sistemas de una universidad y expone un chat unificado.
 
 **Capa 1 — GUIA Research (core, open source):**
-- Conecta a DSpace/OJS locales via OAI-PMH
-- Procesa full-text -> chunks -> embeddings vectoriales (pgvector)
-- RAG sobre produccion cientifica institucional
-- "Que tesis hay sobre X?", "En que estado esta mi tesis?", "Mi articulo fue aceptado?"
+- Cosecha DSpace/OJS via `sciback-adapter-dspace` y `sciback-adapter-ojs`
+- Valida y normaliza ALICIA 2.1.0 via `sciback-adapter-alicia`
+- Embeddings multilingues via `sciback-embeddings-e5`
+- Almacenamiento vectorial via `sciback-vectorstore-pgvector`
+- RAG sobre produccion cientifica institucional con LlamaIndex
+- LLM via `sciback-llm-claude` (modo HYBRID) o `sciback-llm-ollama` (modo LOCAL)
 
 **Capa 2 — GUIA Campus (conectores modulares, pago):**
-- Koha -> prestamos, deudas de biblioteca
-- SIS (sistema academico) -> matricula, notas, horarios
-- ERP (finanzas) -> estado de cuenta, pagos pendientes
-- AD/LDAP -> usuario de correo, credenciales
-- Moodle -> tareas, cursos, calificaciones
-- Indico -> eventos, congresos
+- Koha → prestamos, deudas de biblioteca
+- SIS (sistema academico) → matricula, notas, horarios
+- ERP (finanzas) → estado de cuenta, pagos pendientes
+- AD/LDAP → usuario de correo, credenciales
+- Moodle → tareas, cursos, calificaciones
+- Indico → eventos, congresos
 
 **Canales de chat:**
-- Chat web (widget embebible) — Fase 0
-- Telegram bot — Fase 0 (gratis, sin costo de API)
+- Chat web (Chainlit, embebible) — Fase 0
+- Telegram bot — Fase 0
 - WhatsApp Business API — cuando haya presupuesto
 - Microsoft Teams — canal institucional
 
@@ -53,71 +79,46 @@ Asistente AI institucional que conecta todos los sistemas de una universidad y e
 - API REST para integraciones custom
 - MCP server para agentes AI externos (Claude, GPT, etc.)
 
-**Stack tecnico:**
-- Python harvester + GROBID (full-text PDF) + pgvector + RAG engine + LLM
-- Docker Compose (deploy estandar)
-
 ### GUIA Hub (por consorcio/red/pais)
 
 Federador que agrega nodos GUIA de multiples universidades.
 
 - Federation broker: resuelve queries que nodos locales no pueden
-- Embeddings agregados de nodos miembro
-- OAI-PMH endpoint para compatibilidad con redes nacionales (ALICIA, BDTD)
+- OAI-PMH endpoint compatible con redes nacionales (ALICIA, BDTD, La Referencia)
 - Solo datos publicos (investigacion) — nunca datos campus privados
-
-**Clientes potenciales del Hub:**
-- Consorcios universitarios (ALTAMIRA, CINCEL, etc.)
-- Redes denominacionales (IASD, catolicas, etc.)
-- Sistemas universitarios estatales
-- Redes tematicas (salud, teologia, ingenieria)
 
 ---
 
 ## Modelo comercial SciBack
 
-**El codigo open source es el gancho de adopcion. El revenue viene del hosting, la implementacion y los conectores comerciales.** Modelo analogo a Red Hat / WordPress.com / DSpaceDirect.
-
-### Fuentes de revenue
-
-| Fuente | Que vendes | Por que pagan |
-|--------|-----------|---------------|
-| Hosting gestionado | SciBack despliega y mantiene el Node en AWS dedicado | La universidad no tiene DTI capaz de mantener Docker + pgvector + GROBID |
-| Implementacion | SciBack conecta GUIA a los sistemas de la universidad | Cada universidad tiene sistemas distintos — la integracion es custom |
-| Conectores Campus | Codigo privado (Koha, SIS, ERP, Moodle, midPoint) | No estan en el core open source |
-| Soporte + SLA | Respuesta <4h, uptime garantizado, actualizaciones | Produccion necesita respaldo |
-| Hub federado | SaaS central que agrega nodos | Valor de red — un Hub es mas util que N nodos aislados |
+El codigo open source es el gancho de adopcion. El revenue viene del hosting, la implementacion y los conectores comerciales (modelo Red Hat / WordPress.com / DSpaceDirect).
 
 ### Tres planes comerciales
 
-| Plan | Incluye | Precio mensual | Precio anual |
-|------|---------|---------------|-------------|
-| **GUIA Research** (Community) | Core open source: DSpace + OJS + RAG + chat web + Telegram | Gratis (Apache 2.0) | Pipeline de clientes |
-| **GUIA Research** (Managed) | SciBack hospeda + DSpace + OJS + soporte email | ~$150-300/mes | $1.8K-3.6K |
-| **GUIA Campus** | Research + Koha + SIS + ERP + Moodle + Keycloak SSO | ~$400-700/mes | $4.8K-8.4K |
-| **GUIA Connect** | Campus + Helpdesk + Calendarios + Teams + CRM + MCP Server | ~$800-1500/mes | $9.6K-18K |
-| **Implementacion** | Proyecto de integracion inicial (one-time) | — | $1K-6K |
-| **Hub** | Federacion de nodos (SaaS, add-on) | ~$200-500/mes | $2.4K-6K |
+| Plan | Incluye | Precio mensual |
+|------|---------|---------------|
+| **GUIA Research** (Community) | Core: DSpace + OJS + RAG + chat web + Telegram | Gratis (Apache 2.0) |
+| **GUIA Research** (Managed) | SciBack hospeda + soporte | ~$150-300 |
+| **GUIA Campus** | Research + Koha + SIS + ERP + Moodle + Keycloak SSO | ~$400-700 |
+| **GUIA Connect** | Campus + Helpdesk + Teams + CRM + MCP Server | ~$800-1500 |
+| **Implementacion** | Integracion inicial (one-time) | $1K-6K |
+| **Hub** | Federacion de nodos (SaaS, add-on) | ~$200-500 |
 
 ### Barrera de pago (que NO esta en Community)
-1. **Conectores Campus** — Koha, SIS, ERP, Moodle (codigo privado en guia-campus)
-2. **Conectores Connect** — Helpdesk (Zammad/GLPI), Calendarios, Teams, CRM, BD custom, Webhooks
-3. **MCP Server** — expone GUIA como herramienta para Claude, GPT, Copilot
-4. **Identidad compleja** — midPoint + Keycloak con AD/Entra/LDAP de cada universidad
-5. **Operaciones** — hosting, backups, SSL, monitoring, actualizaciones 24/7
-6. **Hub** — federacion, OAI-PMH server, valor de red
+1. Conectores Campus — Koha, SIS, ERP, Moodle (codigo privado)
+2. Conectores Connect — Helpdesk, Calendarios, Teams, CRM, Webhooks
+3. MCP Server — expone GUIA para Claude, GPT, Copilot
+4. Identidad compleja — midPoint + Keycloak con AD/Entra/LDAP
+5. Operaciones — hosting, backups, SSL, monitoring 24/7
+6. Hub — federacion, OAI-PMH server, valor de red
 
 ### Competencia y posicionamiento
 
-**Competidor principal identificado: OpenAlex + Perplexity**
-- OpenAlex + Perplexity ya resuelven la busqueda academica publica de forma gratuita
-- GUIA no compite en contenido publico — compite en el **estrato institucional privado**
-- El moat de GUIA: tesis no indexadas, datos de campus, cumplimiento ALICIA/RENATI, y ACCION (no solo consulta)
-
-**Posicionamiento por plan:**
-- GUIA Research: "La capa que Perplexity no puede ver — tu produccion institucional privada" ($1.8K-3.6K/ano vs $20K-50K de EDS)
+**Competidor principal: OpenAlex + Perplexity**
+GUIA no compite en contenido publico. Compite en el **estrato institucional privado**:
+- Tesis no indexadas, datos de campus, cumplimiento ALICIA/RENATI, y ACCION (no solo consulta)
+- GUIA Research: "La capa que Perplexity no puede ver" ($1.8K-3.6K/ano vs $20K-50K de EDS)
 - GUIA Campus: "El asistente que conoce toda tu vida universitaria" (sin competidor directo en LATAM)
-- GUIA Connect: "El sistema operativo AI de tu universidad — cualquier sistema, cualquier canal, cualquier AI externa"
 
 ---
 
@@ -126,17 +127,17 @@ Federador que agrega nodos GUIA de multiples universidades.
 ### Completado
 - Nombre oficial definido: GUIA
 - Arquitectura tecnica definida (Node + Hub, dos capas)
-- Modelo comercial open-core definido con 3 planes (Research, Campus, Connect)
-- Competidor principal identificado: OpenAlex + Perplexity
-- Sitio web actualizado con nueva estructura de 3 planes (11/04/2026)
+- Modelo comercial open-core con 3 planes (Research, Campus, Connect)
+- `SciBack/platform` con 12 paquetes listos (sciback-core + adapters) — 834 tests
+- Documentacion open source del repo auditada y completa (LICENSE, CONTRIBUTING, etc.)
 
 ### Pendiente inmediato (pre-Sprint 0.0)
-- [ ] Confirmar URL OAI-PMH de DSpace UPeU (probar con `curl`)
+- [ ] Confirmar URL OAI-PMH de DSpace UPeU: `curl https://repositorio.upeu.edu.pe/oai?verb=Identify`
 - [ ] Confirmar URLs OAI-PMH de revistas OJS UPeU
-- [ ] Decidir: EC2 existente (AWS-DSpace) o EC2 nuevo para GUIA
-- [ ] API key de Claude API disponible en `~/.secrets/anthropic.env`
-- [ ] Dominio guia.sciback.com apuntando al EC2
-- [ ] Crear repo `SciBack/guia-node` (privado por ahora)
+- [ ] Decidir: EC2 existente (AWS-DSpace 18.188.164.130) o EC2 nuevo para GUIA
+- [ ] API key Claude disponible en `~/.secrets/anthropic.env`
+- [ ] Dominio guia.sciback.com → EC2 GUIA
+- [ ] Crear repos `SciBack/guia-node` y `SciBack/guia-campus`
 
 ---
 
@@ -144,97 +145,56 @@ Federador que agrega nodos GUIA de multiples universidades.
 
 | Fase | Periodo | Objetivo | Conectores |
 |------|---------|----------|-----------|
-| 0 | 2026 abr-sep | Node piloto UPeU: DSpace + OJS + RAG + chat | DSpace + OJS (Research) |
+| 0 | 2026 abr-sep | Node piloto UPeU: DSpace + OJS + RAG + chat | sciback-adapter-dspace + sciback-adapter-ojs |
 | 1 | 2026 oct-dic | Node empaquetado, 2-3 universidades, primer revenue | + Koha (Campus Basic) |
 | 2 | 2027 H1 | Hub federado, OAI-PMH hacia redes nacionales | + SIS + ERP (Campus Pro) |
 | 3 | 2028+ | Hub escalado, 50+ universidades, MCP publico | + Moodle + WhatsApp |
-
-**Fase 0 enfocada en DSpace + OJS** — es lo que el 90% de universidades LATAM ya tienen.
-Koha y conectores Campus entran en Fase 1 cuando el core Research este solido.
-
-Plan operativo detallado semana a semana en `docs/roadmap.md`.
 
 ---
 
 ## Financiamiento
 
-GUIA es producto comercial de SciBack. El financiamiento puede venir de multiples fuentes:
-
 | Fuente | Tipo | Aplicabilidad |
 |--------|------|---------------|
 | Revenue SciBack | Suscripciones Campus/Hub | Principal a mediano plazo |
 | **NLnet NGI Zero Commons Fund** | **Grant open source hasta €50,000** | **PRIORITARIO — deadline 1 junio 2026** |
-| IOI Fund | Grant para infra open science | Para el Hub federado |
+| IOI Fund | Grant infra open science | Para el Hub federado |
 | Mellon Foundation | Grant educacion superior | Para el core open source |
-| SCOSS | Sostenibilidad recurrente | Fase 3+ (50+ instituciones) |
-| Fondos denominacionales | Grants especificos | Para verticales (IASD, catolicas, etc.) |
-| Fondos gubernamentales | CONCYTEC, CAPES, etc. | Por pais, para universidades especificas |
+| SCOSS | Sostenibilidad recurrente | Fase 3+ |
+| Fondos gubernamentales | CONCYTEC, CAPES, etc. | Por pais |
 
-### NLnet NGI Zero Commons Fund — ACCION INMEDIATA
+### NLnet NGI Zero Commons Fund
 
 **URL:** https://nlnet.nl/commonsfund/
-**Deadline:** 1 junio 2026
-**Monto:** hasta €50,000 (no reembolsable, sin equity, sin requisito de empresa constituida)
-**Elegibilidad:** personas naturales, equipos informales y empresas. Alberto puede postular con DNI sin empresa constituida.
+**Deadline:** 1 junio 2026 — **ACCION INMEDIATA**
+**Monto:** hasta €50,000 (no reembolsable, sin equity, sin empresa constituida)
 
-**Por que GUIA califica perfectamente:**
-NLnet financia infraestructura digital abierta que beneficia al bien publico. GUIA construye piezas que le faltan al ecosistema global de repositorios academicos:
+**Entregables open source que califican:**
+1. `sciback-adapter-dspace` + `sciback-adapter-ojs` — harvesters OAI-PMH tipo-safe (ya construidos en platform)
+2. Validador ALICIA/RENATI en Python — `sciback-adapter-alicia` (ya construido)
+3. Servidor OAI-PMH en FastAPI — para el Hub (por construir)
+4. `guia-node` core RAG — infraestructura publica para acceso abierto en universidades LATAM
 
-1. **OAIPMHReader para LlamaIndex** — no existe en llamahub. Libreria Python que conecta OAI-PMH a cualquier sistema RAG. Util para cualquier repositorio DSpace/EPrints/OJS del mundo.
-2. **Validador ALICIA/RENATI en Python** — CONCYTEC no ha publicado herramientas. Libreria open source extensible a otros paises LATAM.
-3. **Servidor OAI-PMH en FastAPI** — no hay implementacion moderna en Python. El Hub de GUIA lo necesita y seria reutilizable globalmente.
-4. **Core RAG para repositorios academicos** (guia-node, Apache 2.0) — infraestructura publica para acceso abierto al conocimiento en universidades de paises emergentes.
-
-**Framing correcto para la propuesta:**
-No postular "GUIA el producto comercial". Postular las **piezas open source que GUIA construye y que le faltan al ecosistema global**, con el caso de uso de universidades peruanas bajo ALICIA/RENATI como validacion concreta.
-
-**El modelo open-core NO es problema para NLnet.** Solo los entregables financiados por ellos deben ser open source (Apache 2.0). Los conectores comerciales de guia-campus son parte del modelo de negocio de SciBack, no del scope del grant.
-
-### Estado de la documentacion open source del repo (actualizado 05/04/2026)
-
-El repo SciBack/guia fue auditado y completado con todos los archivos requeridos para postular a financiamiento:
-
-| Archivo | Estado |
-|---|---|
-| LICENSE (Apache 2.0) | ✅ Creado 05/04/2026 |
-| CONTRIBUTING.md | ✅ Creado 05/04/2026 |
-| CODE_OF_CONDUCT.md (Contributor Covenant 2.1) | ✅ Creado 05/04/2026 |
-| SECURITY.md | ✅ Creado 05/04/2026 |
-| README.md expandido con badges | ✅ Actualizado 05/04/2026 |
-| .github/FUNDING.yml | ✅ Creado 05/04/2026 |
-| Todas las menciones a ARIEL eliminadas | ✅ Limpiado 05/04/2026 |
+**Framing:** postular las **piezas open source que le faltan al ecosistema global**, no el producto comercial. El modelo open-core no es problema para NLnet.
 
 ---
 
-## Modelo de despliegue: Hibrido (self-hosted + managed + SaaS)
-
-No es 100% SaaS ni 100% on-premise. Cada capa tiene su modelo:
+## Modelo de despliegue: Hibrido
 
 | Componente | Modelo | Razon |
 |-----------|--------|-------|
-| **GUIA Node** | **Self-hosted** o **SciBack-managed** | Datos sensibles (notas, deudas, expedientes) deben quedarse en infra de la universidad o en AWS dedicado. Necesita acceso a red interna (AD, SIS, ERP) |
-| **GUIA Hub** | **SaaS** (gestionado por SciBack) | Solo datos publicos de investigacion. Un Hub central sirve a N universidades |
-| **Keycloak** | **Co-desplegado con el Node** | Cada universidad tiene su realm. Va junto al Node |
-| **midPoint** | **Opcional, co-desplegado** | Solo para universidades con infra compleja (Tier Pro+) |
+| **GUIA Node** | Self-hosted o SciBack-managed | Datos sensibles (notas, deudas) — quedan en infra de la universidad |
+| **GUIA Hub** | SaaS (gestionado por SciBack) | Solo datos publicos de investigacion |
+| **Keycloak** | Co-desplegado con el Node | 1 realm por universidad |
+| **midPoint** | Opcional, co-desplegado | Solo para universidades con infra compleja (Tier Pro+) |
 
-### Variantes de deploy del Node
+### Variantes de deploy
 
 | Variante | Para quien | Infra |
 |----------|-----------|-------|
-| **Self-hosted** | Universidades con DTI capaz y AWS/on-premise propio | Docker Compose en su EC2 o servidor fisico |
-| **SciBack-managed** | Universidades sin infra propia | SciBack despliega en AWS dedicado por cliente, con VPN o peering a la red interna de la universidad |
-| **Community** | Desarrolladores, pruebas | `docker compose up` local, solo Capa 1 Research |
-
-### Por que NO SaaS puro para el Node
-- Los datos campus (notas, deudas, matricula) son sensibles y regulados
-- El Node necesita acceso a AD/LDAP/SIS que estan en la red interna
-- Universidades latinoamericanas no confian en "mis datos en la nube de un tercero"
-- Latencia: el harvester debe estar cerca del DSpace/OJS local
-
-### Por que SI SaaS para el Hub
-- Solo agrega datos publicos de investigacion (ya estan en acceso abierto)
-- Un Hub central es mas eficiente que N Hubs independientes
-- SciBack controla la calidad y disponibilidad del servicio federado
+| Self-hosted | DTI capaz + AWS/on-premise propio | Docker Compose en su EC2 |
+| SciBack-managed | Universidades sin infra propia | AWS dedicado por cliente |
+| Community | Desarrolladores, pruebas | `docker compose up` local |
 
 ---
 
@@ -242,176 +202,180 @@ No es 100% SaaS ni 100% on-premise. Cada capa tiene su modelo:
 
 ### Stack definitivo del Node
 
-| Componente | Tecnologia | Licencia | Justificacion |
-|-----------|-----------|----------|---------------|
-| RAG engine | **LlamaIndex** (FunctionAgent + pgvector) | MIT | Mejor framework Python para RAG en produccion |
-| OAI-PMH harvester | **oaipmh-scythe** (fork moderno de sickle) | BSD | v1.0.0 sept 2025, async, type hints |
-| DSpace REST API | **dspace-rest-client** | BSD | v0.1.13, DSpace 7+ CRUD completo |
-| PDF academicos | **GROBID** + grobid-client-python | Apache 2.0 | Gold standard para papers. F1 mas alto en benchmarks |
-| PDF genericos | **Docling** (IBM) | MIT | Estructura semantica, tablas, nativo en LlamaIndex |
-| Embeddings | **intfloat/multilingual-e5-large-instruct** | MIT | Top MTEB multilingue, excelente en espanol academico, local, gratis |
-| Vector store | **pgvector** (extension PostgreSQL) | MIT | Sin infraestructura adicional — usa el mismo Postgres |
-| API | **FastAPI** | MIT | ASGI async, OpenAPI nativo, 15K+ req/s |
-| Chat web (Fase 0) | **Chainlit** | Apache 2.0 | Nativo LlamaIndex, auth OIDC, streaming |
-| Chat web (Fase 1+) | **React** widget embebible | — | Cuando necesitemos UI custom con branding por universidad |
-| Telegram bot | **aiogram** v3 | MIT | 100% async, FSM para conversaciones con estado |
-| WhatsApp (Fase 1+) | **pywa** | MIT | Cloud API oficial Meta, FastAPI webhook nativo |
-| Dashboard | **Streamlit + Plotly** (Fase 0) → **Metabase** (Fase 1+) | MIT / AGPL | Visualizacion de produccion cientifica |
-| SSO/Auth | **Keycloak** + authlib + fastapi-keycloak-middleware + PyJWT | Apache 2.0 | OIDC, multi-tenant por realms |
-| IGA (Fase 1+) | **midPoint** | EUPL | Usuario canonico multi-fuente, lifecycle, gobernanza |
-| Dep. management | **uv** (Astral) | MIT | 10-100x mas rapido que pip, Docker-friendly, lockfile universal |
-| Deploy | **Docker Compose** | — | Un solo `docker compose up` |
+| Componente | Tecnologia | Rol | Fuente |
+|-----------|-----------|-----|--------|
+| Dominio + puertos | `sciback-core` v0.11.0 | Contratos hexagonales (LLMPort, VectorStorePort, EventBusPort) | SciBack/platform |
+| Harvesting DSpace | `sciback-adapter-dspace` | OAI-PMH + REST API + mapper DC→Publication | SciBack/platform |
+| Harvesting OJS | `sciback-adapter-ojs` | OAI-PMH + REST API v3 | SciBack/platform |
+| Validacion ALICIA | `sciback-adapter-alicia` | CONCYTEC OAI-PMH, DRIVER/COAR | SciBack/platform |
+| LLM modo CLOUD | `sciback-llm-claude` | Claude API → LLMPort | SciBack/platform |
+| LLM modo LOCAL | `sciback-llm-ollama` | Ollama HTTP API → LLMPort | SciBack/platform |
+| Embeddings | `sciback-embeddings-e5` | multilingual-e5-large via Ollama | SciBack/platform |
+| Vector store | `sciback-vectorstore-pgvector` | pgvector + IVFFlat + cosine similarity | SciBack/platform |
+| RAG engine | LlamaIndex (FunctionAgent + VectorStoreIndex) | Orquestacion RAG | PyPI |
+| API | FastAPI + uvicorn | REST + WebSocket | PyPI |
+| Chat web (F0) | Chainlit | Auth OIDC + streaming nativo LlamaIndex | PyPI |
+| Chat web (F1+) | React widget | Branding por universidad | Custom |
+| Telegram | aiogram v3 | 100% async, FSM | PyPI |
+| WhatsApp (F1+) | pywa | Cloud API oficial Meta | PyPI |
+| Dashboard | Streamlit (F0) → Metabase (F1+) | Visualizacion produccion cientifica | PyPI / AGPL |
+| SSO/Auth | Keycloak + authlib + PyJWT | OIDC multi-tenant | Apache 2.0 |
+| IGA (F1+) | midPoint | Usuario canonico multi-fuente | EUPL |
+| Cache semantico | Redis | 40-60% hit rate esperado | PyPI |
+| PDF academicos | GROBID + grobid-client | Gold standard papers (Fase 1) | Apache 2.0 |
+| PDF genericos | Docling (IBM) | Estructura semantica, tablas (Fase 1) | MIT |
+| Dep. management | uv | Workspace monorepo | MIT |
+| Deploy | Docker Compose | Un solo `docker compose up` | — |
 
-### Boilerplates de referencia
-- **stevereiner/flexible-graphrag** — FastAPI + LlamaIndex + pgvector + MCP Server + Docker Compose + monitoring (Apache 2.0)
-- **pmaske-aihub/rag-application** — LlamaIndex + pgvector + FastAPI minimal (punto de partida mas limpio)
-- **create-llama** (`npx create-llama@latest`) — Scaffolding oficial de LlamaIndex
+### pyproject.toml de guia-node (dependencias)
 
-### Lo que SI hay que construir desde cero
-1. `OAIPMHReader` para LlamaIndex (no existe en llamahub) — potencialmente publicable
-2. Conector Koha SIP2/REST — no hay libreria Python mantenida
-3. Servidor OAI-PMH en FastAPI para el Hub — ~500 lineas, protocolo simple
-4. Validador ALICIA/RENATI — CONCYTEC no ha publicado herramientas Python
+```toml
+[project]
+name = "guia-node"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    # Plataforma SciBack (todos del workspace SciBack/platform)
+    "sciback-core>=0.11",
+    "sciback-adapter-dspace>=0.1",
+    "sciback-adapter-ojs>=0.1",
+    "sciback-adapter-alicia>=0.1",
+    "sciback-llm-claude>=0.1",
+    "sciback-llm-ollama>=0.1",
+    "sciback-embeddings-e5>=0.1",
+    "sciback-vectorstore-pgvector>=0.1",
+    # RAG + API
+    "llama-index>=0.12",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "chainlit>=2.0",
+    # Canales
+    "aiogram>=3.15",
+    # Cache + auth
+    "redis>=5.0",
+    "authlib>=1.3",
+    "pyjwt>=2.9",
+    # Config
+    "pydantic-settings>=2.5",
+]
+```
 
-### Por que Python (y no otra cosa)
+### Selector de modo LLM
 
-- **Backend:** Obligatorio. LlamaIndex, GROBID client, sickle, aiogram — todo el ecosistema AI/ML es Python. No hay alternativa viable.
-- **Frontend:** Chainlit (Python) para Fase 0. React para Fase 1+ cuando haya UI custom.
-- Python NO es para el frontend final — es para el backend + RAG + agentes.
+GUIA opera en 3 modos configurables via variable de entorno `GUIA_LLM_MODE`:
+
+| Modo | LLM | Embeddings | Cuando usar |
+|------|-----|-----------|-------------|
+| `LOCAL` | `sciback-llm-ollama` (Qwen 2.5 7B) | `sciback-embeddings-e5` | Datos sensibles, queries campus |
+| `HYBRID` | Ollama para clasificacion, Claude para sintesis | `sciback-embeddings-e5` | Default para Research |
+| `CLOUD` | `sciback-llm-claude` | `sciback-embeddings-e5` | Alta calidad, demo inicial |
+
+### Arquitectura hexagonal de guia-node
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                  Canales de entrada                      │
+│         (FastAPI, Chainlit, aiogram, pywa)              │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────────┐
+│              GUIA Application Layer                      │
+│   ChatService / HarvesterService / SearchService        │
+│   (orquesta puertos — NO importa adapters directamente) │
+└──────┬──────────────┬──────────────┬────────────────────┘
+       │              │              │
+┌──────▼──────┐ ┌─────▼──────┐ ┌────▼────────────────────┐
+│  LLMPort    │ │VectorStore │ │  DSpacePort / OJSPort   │
+│  (sciback-  │ │  Port      │ │  (sciback-adapter-*)    │
+│  llm-*)     │ │ (pgvector) │ │                         │
+└─────────────┘ └────────────┘ └─────────────────────────┘
+       │              │              │
+       └──────────────┼──────────────┘
+                      │
+              sciback-core (dominio CERIF, contratos)
+```
+
+**Regla:** `guia-node` importa interfaces de `sciback_core.ports`, no implementaciones de adapters. Los adapters se inyectan via config/DI.
+
+### Lo que GUIA SÍ construye desde cero (no en platform)
+
+1. **`HarvesterService`** — orquesta `DSpaceAdapter` + `AliciaHarvester` + `OjsAdapter` → embeds → pgvector
+2. **`ChatService`** — intent classification + LlamaIndex FunctionAgent + selector de modo LLM
+3. **`OaiPmhServer`** — endpoint FastAPI OAI-PMH del Hub (exponer, no consumir) — ~500 lineas
+4. **Conectores Campus** — Koha, SIS, ERP (codigo privado guia-campus)
+5. **UI y canales** — Chainlit, aiogram, pywa
 
 ### Framework de agentes
 
 | Fase | Capacidad | Herramienta |
 |------|-----------|-------------|
-| 0 | RAG simple (busqueda semantica) | LlamaIndex + pgvector |
+| 0 | RAG simple (busqueda semantica) | LlamaIndex VectorStoreIndex + sciback-vectorstore-pgvector |
 | 0.5 | FunctionAgent con tools (DSpace + Koha + SIS en 1 query) | LlamaIndex FunctionAgent |
 | 1 | MCP server del Hub (datos publicos) | FastMCP / fastapi-mcp |
-| 1+ | Estado persistente, workflows complejos | LangGraph (si se necesita) |
-| 2 | Multi-agente con handoff | LlamaIndex AgentWorkflow o LangGraph |
+| 2+ | Multi-agente con handoff | LlamaIndex AgentWorkflow |
 
 No usar en Fase 0: LangGraph, CrewAI, AutoGen (complejidad innecesaria para 1 desarrollador).
 
 ### Arquitectura de identidad
 
-**Problema:** Cada universidad tiene infra distinta (AD, LDAP, Azure Entra ID, Google WS, bases de datos custom, o nada).
-
-**Solucion por fases:**
-
 | Fase | Componente | Rol |
 |------|-----------|-----|
-| 0 | **Keycloak** solo | SSO via OIDC. Federa con AD/LDAP o broker de Google/Entra ID |
-| 0 (UPeU) | **midPoint + Keycloak** | Ya operativo. LAMB → midPoint → Koha + Azure EntraID → Keycloak |
-| 1+ | **midPoint + Keycloak** | midPoint sincroniza fuentes heterogeneas y crea usuario canonico. Keycloak emite tokens |
+| 0 | Keycloak solo | SSO via OIDC |
+| 0 (UPeU) | midPoint + Keycloak | Ya operativo: LAMB → midPoint → Koha + EntraID → Keycloak |
+| 1+ | midPoint + Keycloak | Usuario canonico multi-fuente, lifecycle |
 
-**midPoint como estandarizador:** Absorbe la heterogeneidad de cada universidad. GUIA Node siempre consulta la misma API de midPoint, sin importar si detras hay AD, Google o un SIS en Oracle.
-
-**Estado actual del stack IGA (UPeU — pre-produccion 2026):**
-- MidPoint 4.9.5 UP en 192.168.15.230:8080
-- LAMB Academic (PostgreSQL SIS/ERP) conectado via JDBC
-- Koha conectado via `connector-koha` v1.1.0 (repo: UPeU-Infra/connector-koha, Java/ConnId)
+**Estado IGA UPeU (pre-produccion abril 2026):**
+- midPoint 4.9.5 UP en 192.168.15.230:8080
+- LAMB Academic (PostgreSQL SIS/ERP) via JDBC
+- Koha via `connector-koha` v1.1.0 (UPeU-Infra/connector-koha)
 - Azure EntraID conectado — tenant sciback.com
 - Keycloak 26.6.0 federado con EntraID
-- 10 usuarios ficticios sci-* probados end-to-end con 3 shadows (LAMB + Koha + Azure)
-- GLPI pendiente de conectar (Fase Connect)
-
-**Proyecto paralelo activo:** `upeu-ops/context/iga/` — documentacion detallada del proyecto IGA UPeU.
-
-**Interfaz de identidad abstracta:**
-```python
-class IdentityConnector(GUIAConnector):
-    def get_user_info(self, user_id: str) -> dict: ...
-    def get_user_roles(self, user_id: str) -> list[str]: ...
-
-class KeycloakDirectConnector(IdentityConnector):
-    """Fase 0: consulta Keycloak Admin API"""
-
-class MidPointConnector(IdentityConnector):
-    """Fase 1+: consulta midPoint REST API (usuario canonico)"""
-```
+- 10 usuarios ficticios sci-* probados end-to-end (3 shadows: LAMB + Koha + Azure)
 
 ### Estandares y schemas de metadatos
 
-**Principio rector:** "Recolectar con amplitud, almacenar lo util, exponer lo requerido."
+| Estandar | Soportado | Fase | Quien lo maneja |
+|---------|-----------|------|-----------------|
+| Dublin Core (Qualified) | SI | 0 | `sciback-adapter-dspace` / `sciback-adapter-ojs` |
+| COAR Vocabularies (URIs) | SI | 0 | `sciback-adapter-alicia` (DRIVER→COAR) |
+| ALICIA 2.1.0 / CONCYTEC | SI | 0 | `sciback-adapter-alicia` |
+| RENATI / SUNEDU | SI | 0 | `sciback-adapter-dspace` (campos `renati.*`) |
+| OpenAIRE v3 | SI | 0 | Compatible via DSpace |
+| CERIF | SI | 0+ | `sciback-core` domain model |
+| DataCite | PARCIAL | 2 | `sciback-core` `to_datacite_xml()` |
 
-| # | Estandar | Soportado | Fase | Modo | Complejidad |
-|---|---------|-----------|------|------|-------------|
-| 1 | Dublin Core (Qualified) | SI | 0 | Consumir + Exponer | Baja |
-| 2 | COAR Vocabularies (tipos, acceso) | SI | 0 | Consumir + almacenar como URIs | Baja |
-| 3 | ALICIA 2.1.0 / CONCYTEC (38 campos) | SI | 0 | Consumir | Baja |
-| 4 | RENATI / SUNEDU (namespace renati.*) | SI | 0 | Consumir | Baja |
-| 5 | OpenAIRE v3 (consumir de DSpace) | SI | 0 | Consumir (ya compatible) | Baja |
-| 6 | OpenAIRE v4 (exponer del Hub) | SI | 2 | Exponer (oai_openaire) | Media |
-| 7 | schema.org / JSON-LD | SI | 1 | Exponer en HTML del Hub | Baja |
-| 8 | DataCite | PARCIAL | 2 | Consumir (DOI, ORCID ya en modelo) | Media |
-| 9 | DRIVER Guidelines | NO | — | Solo tabla traduccion DRIVER→COAR | — |
-| 10 | CERIF | SI | 1+ (Person) / 2 (full) | DSpace-CRIS entidades: Person, Project, Patent, Equipment | Media |
-| 11 | VIVO | NO | — | Usar ORCID API en su lugar | Alta |
-| 12 | MODS / METS | NO | — | Overkill para RAG | Alta |
-| 13 | ETD-MS | PARCIAL | 0 | Ya cubierto por campos RENATI | Baja |
+**3 decisiones de diseno criticas (no cambian):**
+1. URIs COAR en el modelo interno, nunca strings
+2. Consumir `metadataPrefix=dim` ademas de `oai_dc` (para `renati.*` y `thesis.*`)
+3. El abstract es el campo mas importante para RAG (Fase 0 sin GROBID)
 
-**3 decisiones de diseno criticas:**
-1. **URIs COAR en el modelo interno, nunca strings.** No guardar "Tesis" — guardar `http://purl.org/coar/resource_type/c_db06`
-2. **Consumir `metadataPrefix=dim`** (DSpace Intermediate Metadata) ademas de `oai_dc`. Asi obtenemos campos `renati.*` y `thesis.*`
-3. **El abstract es el campo mas importante para RAG.** En Fase 0 sin GROBID, la calidad depende 100% de `dc.description.abstract`
+### Mac Mini M4 — Servidor IA dedicado
 
-**11 campos OBLIGATORIOS universales de ALICIA 2.1.0:**
-`dc.contributor.author`, `dc.title`, `dc.publisher`, `dc.date.issued`, `dc.type` (URI COAR), `dc.language.iso`, `dc.rights` (URI COAR), `dc.description.abstract`, `dc.subject`, `dc.subject.ocde`, `dc.identifier.uri`
+**Rol:** inferencia compartida para toda la plataforma SciBack (incluye GUIA).
 
-**Campos adicionales para TESIS (RENATI):**
-`renati.author.dni`, `dc.contributor.advisor`, `renati.advisor.orcid`, `renati.type`, `thesis.degree.name`, `renati.level`, `thesis.degree.discipline`, `thesis.degree.grantor`, `renati.juror`
+- Ollama runtime con backend MLX (ARM64)
+- Modelos: Qwen 2.5 3B, Qwen 2.5 7B, DeepSeek R1 Distill, multilingual-e5-large-instruct
+- Reverse proxy Caddy con autenticacion por API key
+- API HTTP en `ia.guia.upeu.edu.pe`
 
-### Orquestacion de equipo de desarrollo
-
-**Paperclip** (paperclip.ing) — plataforma open-source MIT para orquestar agentes AI como una empresa (org chart, presupuesto, auditoria). 47K+ GitHub stars.
-- **No para Fase 0:** Overkill para 1 desarrollador con <5 agentes
-- **Evaluar en Fase 2+:** Cuando GUIA tenga harvester + RAG + respuesta + monitoreo corriendo coordinadamente
-- **Sin lock-in:** MIT license, self-hosted, sin costo de plataforma (solo costo de API de LLMs)
-
-Para Fase 0-1: Claude Code + GitHub Issues/Projects es suficiente.
+`sciback-llm-ollama` y `sciback-embeddings-e5` ya saben como hablar con este servidor (variable de entorno `OLLAMA_BASE_URL`).
 
 ### Que NO se usa y por que
 
 | Descartado | Razon |
 |-----------|-------|
+| oaipmh-scythe / sickle | Ya incluido en sciback-adapter-dspace y sciback-adapter-ojs |
+| Llamadas directas a Anthropic SDK | Usar sciback-llm-claude (abstraccion sobre LLMPort) |
+| SQLAlchemy raw para pgvector | Usar sciback-vectorstore-pgvector |
 | Onyx (ex Danswer) | Competidor directo, 20 contenedores, 8GB+ RAM |
-| RAGFlow | Stack pesado (Go + Elasticsearch), harvesting manual |
+| RAGFlow | Stack pesado (Go + Elasticsearch) |
 | AnythingLLM | Node.js, orientado a uso personal |
-| Open WebUI | Frontend de LLMs, no plataforma RAG |
-| LangChain (como RAG) | LlamaIndex es mas eficiente para RAG puro |
-| ClustPy | Libreria de clustering academico, sin relevancia para GUIA |
-| MiroFish | Simulador social, AGPL incompatible con open-core |
+| LangChain | LlamaIndex mas eficiente para RAG puro |
 | Zitadel | AGPL desde 2025, incompatible con SaaS |
-| FreeIPA | Invasivo, solo Linux, no multi-tenant |
 
 ---
 
-## Arquitectura tecnica
-
-Diagramas detallados en `docs/arquitectura.md` (Mermaid, renderizados en MkDocs).
-
-### Interfaz de conectores
-
-```python
-class GUIAConnector:
-    def search(query, user_context) -> list[Result]
-    def get_user_info(user_id) -> dict
-    def get_status(user_id, entity) -> dict
-```
-
----
-
-## Competencia
-
-| Producto | Precio | Modelo | GUIA vs. |
-|----------|--------|--------|----------|
-| EBSCO EDS | $20K-50K/ano | Propietario, solo busqueda | GUIA: open source, conversacional, multi-sistema |
-| Ex Libris Primo | $30K-80K/ano | Propietario, ProQuest | GUIA: 100x mas barato, AI-native |
-| Summon (ProQuest) | Similar a Primo | Propietario | GUIA: chat vs formulario |
-| Google Scholar | Gratis | Solo papers publicos | GUIA: datos institucionales privados tambien |
-
----
-
-## Archivos del proyecto
+## Estructura de archivos
 
 ### Este repo (SciBack/guia) — Docs + sitio web
 
@@ -426,7 +390,7 @@ class GUIAConnector:
 │   ├── arquitectura.md        <- diagramas Mermaid (Node, Hub, identidad, agentes)
 │   ├── estandares.md          <- schemas, ALICIA 2.1.0, COAR, CERIF, modelo canonico
 │   ├── modelo-comercial.md    <- tiers, pricing, revenue, comparacion
-│   ├── conectores.md          <- interfaz GUIAConnector + conectores disponibles
+│   ├── conectores.md          <- interface GUIAConnector + conectores disponibles
 │   ├── roadmap.md             <- plan operativo con sprints semanales
 │   └── en/
 │       └── index.md           <- version en ingles
@@ -438,20 +402,24 @@ class GUIAConnector:
 
 ```
 guia-node/
-├── docker-compose.yml
-├── pyproject.toml             <- uv project
+├── pyproject.toml             <- uv project, depende de sciback-platform packages
 ├── uv.lock
+├── docker-compose.yml
 ├── .env.example
-├── src/guia/
-│   ├── api/                   <- FastAPI app
-│   ├── connectors/            <- DSpace, OJS (solo Research, open source)
-│   ├── harvester/             <- OAI-PMH + normalizer + embedder
-│   ├── rag/                   <- LlamaIndex FunctionAgent
-│   └── config.py
+├── src/
+│   └── guia/
+│       ├── api/               <- FastAPI app (endpoints REST + WebSocket)
+│       ├── services/
+│       │   ├── harvester.py   <- HarvesterService (orquesta adapters de platform)
+│       │   ├── search.py      <- SearchService (LlamaIndex + VectorStorePort)
+│       │   └── chat.py        <- ChatService (intent + FunctionAgent + LLMPort)
+│       ├── channels/
+│       │   ├── web.py         <- Chainlit
+│       │   └── telegram.py    <- aiogram v3
+│       └── config.py          <- GUIASettings (pydantic-settings)
 ├── docker/
 │   ├── Dockerfile
-│   ├── grobid/
-│   └── postgres/init.sql
+│   └── postgres/init.sql      <- habilitar pgvector
 └── tests/
 ```
 
@@ -460,13 +428,13 @@ guia-node/
 ```
 guia-campus/
 ├── connectors/
-│   ├── koha.py                <- SIP2 / REST API
+│   ├── koha.py                <- SIP2 / REST API Koha
 │   ├── sis.py                 <- Sistema academico (custom por universidad)
 │   ├── erp.py                 <- Finanzas
 │   ├── moodle.py              <- LMS
 │   └── identity/
-│       ├── keycloak.py        <- KeycloakDirectConnector
-│       └── midpoint.py        <- MidPointConnector
+│       ├── keycloak.py        <- KeycloakDirectConnector (Fase 0)
+│       └── midpoint.py        <- MidPointConnector (Fase 1+)
 ├── hub/                       <- Federation broker
 ├── whatsapp/                  <- pywa integration
 └── pyproject.toml
@@ -474,14 +442,57 @@ guia-campus/
 
 ---
 
+## Variables de entorno (.env.example)
+
+```env
+# Modo LLM: LOCAL | HYBRID | CLOUD
+GUIA_LLM_MODE=HYBRID
+
+# Fuentes de datos
+DSPACE_BASE_URL=https://repositorio.upeu.edu.pe
+DSPACE_OAI_PMH_URL=https://repositorio.upeu.edu.pe/oai
+OJS_BASE_URL=https://revistas.upeu.edu.pe
+
+# LLM (sciback-llm-claude)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# LLM local (sciback-llm-ollama + sciback-embeddings-e5)
+OLLAMA_BASE_URL=http://ia.guia.upeu.edu.pe
+OLLAMA_API_KEY=...
+OLLAMA_DEFAULT_MODEL=qwen2.5:7b
+E5_MODEL=multilingual-e5-large-instruct
+
+# Vector store (sciback-vectorstore-pgvector)
+PGVECTOR_DATABASE_URL=postgresql://guia:password@postgres:5432/guia_db
+
+# Auth
+KEYCLOAK_URL=https://keycloak.guia.sciback.com
+KEYCLOAK_REALM=upeu
+KEYCLOAK_CLIENT_ID=guia-node
+KEYCLOAK_CLIENT_SECRET=...
+
+# Telegram
+TELEGRAM_BOT_TOKEN=...
+
+# Redis (cache semantico)
+REDIS_URL=redis://redis:6379
+
+# Deploy
+GUIA_BASE_URL=https://guia.upeu.edu.pe
+ENVIRONMENT=production
+```
+
+---
+
 ## Notas tecnicas
 
-### Deploy workflow
-El workflow hace: `mkdocs build --strict` -> `cp landing.html site/index.html` -> `peaceiris/actions-gh-pages`.
+### Deploy workflow del sitio
+`mkdocs build --strict` → `cp landing.html site/index.html` → `peaceiris/actions-gh-pages`.
 El `cp` sobreescribe el index.html generado por MkDocs con la landing del producto.
 
-### Regulacion por pais (relevante para el pitch)
+### Regulacion por pais
 - Peru: Ley 30035 (repositorios interoperables obligatorios)
 - Colombia: Resolucion 0777/2022
 - Brasil: CAPES OA
-Conectarse a GUIA permite cumplir la normativa nacional **y** tener asistente AI unificado en un solo movimiento.
+
+Conectarse a GUIA permite cumplir la normativa **y** tener asistente AI unificado en un solo movimiento.
