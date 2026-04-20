@@ -10,6 +10,7 @@ Arranque:
 from __future__ import annotations
 
 import chainlit as cl
+from chainlit.types import ThreadDict
 
 from guia.config import GUIASettings
 from guia.container import GUIAContainer
@@ -20,17 +21,37 @@ _settings = GUIASettings()
 configure_logging(level=_settings.log_level, json_logs=False)
 logger = get_logger(__name__)
 
-# Container global — instanciado una vez al cargar el módulo
 _container = GUIAContainer(_settings)
+
+
+@cl.oauth_callback
+def oauth_callback(
+    provider_id: str,
+    token: str,
+    raw_user_data: dict[str, object],
+    default_user: cl.User,
+) -> cl.User | None:
+    """Valida el usuario autenticado via Keycloak → MicrosoftUPeU."""
+    email = str(raw_user_data.get("email", ""))
+    if not email.endswith("@upeu.edu.pe"):
+        logger.warning("oauth_rejected", email=email, provider=provider_id)
+        return None  # rechaza cuentas que no son UPeU
+
+    name = str(raw_user_data.get("name", email.split("@")[0]))
+    logger.info("oauth_login", email=email, name=name)
+    return cl.User(identifier=email, metadata={"name": name, "provider": provider_id})
 
 
 @cl.on_chat_start
 async def on_chat_start() -> None:
     """Inicializa la sesión de chat."""
+    user = cl.user_session.get("user")
     cl.user_session.set("session_id", cl.context.session.id)
+
+    name = user.metadata.get("name", "usuario") if user else "usuario"
     await cl.Message(
         content=(
-            "Hola, soy **GUIA**, tu asistente universitario. "
+            f"Hola **{name}**, soy **GUIA**, tu asistente universitario UPeU. "
             "Puedo ayudarte a encontrar tesis, artículos y publicaciones "
             "del repositorio institucional. ¿En qué te ayudo?"
         )
