@@ -11,6 +11,7 @@ from sciback_core.ports.llm import LLMPort
 from sciback_core.ports.vector_store import VectorStorePort
 
 from guia.config import GUIASettings, LLMMode
+from guia.search.backend import SyncSearchAdapter, get_search_adapter
 from guia.services.cache import SemanticCache
 from guia.services.chat import ChatService
 from guia.services.harvester import HarvesterService
@@ -67,6 +68,12 @@ class GUIAContainer:
         self.ojs_adapter = self._try_build_ojs()
         self.alicia_harvester = self._try_build_alicia()
 
+        # M3: Search backend (ADR-029) — None si backend=pgvector
+        self.search_adapter: SyncSearchAdapter | None = get_search_adapter(
+            self.settings.search_backend,
+            self.store,
+        )
+
         # Redis para caché semántico
         self._redis = redis.from_url(self.settings.redis_url, decode_responses=True)
 
@@ -116,6 +123,7 @@ class GUIAContainer:
             embedder=self.embedder,
             classifier_llm=self.classifier_llm,
             cache=self.cache,
+            search_adapter=self.search_adapter,  # M3: usa hybrid_sync cuando disponible
         )
 
         self.search_service = SearchService(
@@ -135,4 +143,7 @@ class GUIAContainer:
         """Libera recursos (conexiones pool, etc.)."""
         if hasattr(self._pg_store_concrete, "close"):
             self._pg_store_concrete.close()  # type: ignore[union-attr]
+        if self.search_adapter is not None:
+            import asyncio
+            asyncio.run(self.search_adapter.close())
         self._redis.close()

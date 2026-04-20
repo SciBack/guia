@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sciback_core.ports.llm import LLMMessage, LLMPort
 
@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from sciback_core.ports.vector_store import VectorRecord, VectorStorePort
     from sciback_embeddings_e5 import E5EmbeddingAdapter
 
+    from guia.search.backend import SyncSearchAdapter
     from guia.services.cache import SemanticCache
 
 _SYSTEM_PROMPT = """\
@@ -37,6 +38,37 @@ _OUT_OF_SCOPE = (
     "Puedo ayudarte con información académica, investigación y servicios "
     "institucionales de la universidad."
 )
+
+
+def _hits_to_context(hits: list[dict[str, Any]]) -> tuple[str, list[Source]]:
+    """Convierte hits de OpenSearch hybrid_sync en texto de contexto y fuentes."""
+    sources: list[Source] = []
+    lines: list[str] = []
+
+    for i, hit in enumerate(hits, 1):
+        title = str(hit.get("title", f"Documento {i}"))
+        abstract = str(hit.get("abstract", ""))
+        authors = hit.get("authors", [])
+        year = hit.get("year")
+        url = hit.get("url")
+
+        lines.append(f"[{i}] {title}")
+        if abstract:
+            lines.append(f"    {abstract[:300]}...")
+        lines.append("")
+
+        sources.append(
+            Source(
+                id=str(hit.get("id", str(i))),
+                title=title,
+                url=str(url) if url else None,
+                authors=[str(a) for a in authors] if isinstance(authors, list) else [],
+                year=int(year) if year else None,
+                score=float(hit.get("score", 0.0)),
+            )
+        )
+
+    return "\n".join(lines), sources
 
 
 def _records_to_context(records: list[VectorRecord]) -> tuple[str, list[Source]]:
@@ -92,6 +124,7 @@ class ChatService:
         classifier_llm: LLMPort | None = None,
         cache: SemanticCache | None = None,
         institution: str = "la universidad",
+        search_adapter: SyncSearchAdapter | None = None,
     ) -> None:
         self._synthesis_llm = synthesis_llm
         self._store = store
@@ -99,6 +132,8 @@ class ChatService:
         self._classifier = IntentClassifier(classifier_llm or synthesis_llm)
         self._cache = cache
         self._institution = institution
+        # M3: si hay search_adapter usa hybrid BM25+kNN, si no usa pgvector directo
+        self._search_adapter = search_adapter
 
     def answer(self, request: ChatRequest) -> ChatResponse:
         """Genera una respuesta para el ChatRequest del usuario."""
@@ -149,8 +184,17 @@ class ChatService:
             return response
 
         # 5. RAG para RESEARCH y GENERAL
-        records = self._store.search(query_vector, limit=5, min_score=0.3)
-        context_text, sources = _records_to_context(records)
+        # M3: preferir OpenSearch hybrid si disponible, fallback a pgvector
+        if self._search_adapter is not None:
+            hits = self._search_adapter.hybrid_sync(
+                text=query,
+                vector=query_vector,
+                limit=5,
+            )
+            context_text, sources = _hits_to_context(hits)
+        else:
+            records = self._store.search(query_vector, limit=5, min_score=0.3)
+            context_text, sources = _records_to_context(records)
 
         system = _SYSTEM_PROMPT.format(
             institution=self._institution,

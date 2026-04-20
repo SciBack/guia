@@ -9,7 +9,7 @@ authors = [{ name = "SciBack S.A.C.", email = "contacto@sciback.com" }]
 
 dependencies = [
     # Plataforma SciBack (path deps — no están en PyPI aún)
-    "sciback-core>=0.11",
+    "sciback-core>=0.12",
     "sciback-adapter-dspace>=0.1",
     "sciback-adapter-ojs>=0.1",
     "sciback-adapter-alicia>=0.1",
@@ -17,6 +17,11 @@ dependencies = [
     "sciback-llm-ollama>=0.1",
     "sciback-embeddings-e5>=0.1",
     "sciback-vectorstore-pgvector>=0.1",
+    # M2: nuevos adapters (ADR-029 / ADR-033 / ADR-034)
+    "sciback-search-opensearch>=0.1",
+    "sciback-storage-s3>=0.1",
+    "sciback-identity-keycloak>=0.1",
+    "sciback-identity-midpoint>=0.1",
     # RAG + API
     "llama-index>=0.12",
     "fastapi>=0.115",
@@ -64,6 +69,10 @@ sciback-llm-claude = { path = "../sciback-core/packages/sciback-llm-claude", edi
 sciback-llm-ollama = { path = "../sciback-core/packages/sciback-llm-ollama", editable = true }
 sciback-embeddings-e5 = { path = "../sciback-core/packages/sciback-embeddings-e5", editable = true }
 sciback-vectorstore-pgvector = { path = "../sciback-core/packages/sciback-vectorstore-pgvector", editable = true }
+sciback-search-opensearch = { path = "../sciback-core/packages/sciback-search-opensearch", editable = true }
+sciback-storage-s3 = { path = "../sciback-core/packages/sciback-storage-s3", editable = true }
+sciback-identity-keycloak = { path = "../sciback-core/packages/sciback-identity-keycloak", editable = true }
+sciback-identity-midpoint = { path = "../sciback-core/packages/sciback-identity-midpoint", editable = true }
 
 [build-system]
 requires = ["hatchling"]
