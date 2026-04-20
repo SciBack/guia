@@ -155,6 +155,157 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # ── M1: Search (ADR-029) ─────────────────────────────────────
+  opensearch:
+    image: opensearchproject/opensearch:2.19.2
+    environment:
+      - cluster.name=guia-search
+      - node.name=guia-node-1
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g
+      - plugins.security.disabled=true
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:-GuiaSearch_2026!}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -v '\"status\":\"red\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.19.2
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch:9200"]
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    ports:
+      - "5601:5601"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── M1: Event bus + Job queue (ADR-011 / ADR-013) ────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guia}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-changeme}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-sciback}
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbitmq_management load_definitions \"/etc/rabbitmq/definitions.json\""
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./docker/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ── M1: Celery workers (ADR-013) ─────────────────────────────
+  celery-worker-indexer:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    command: celery -A guia.worker.celery_app worker -Q indexer -c 4 --loglevel=info --prefetch-multiplier=1
+    env_file: .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src:ro
+
+  celery-worker-harvester:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    command: celery -A guia.worker.celery_app worker -Q harvester -c 2 --loglevel=info --prefetch-multiplier=1
+    env_file: .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src:ro
+
+  celery-worker-grobid:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    command: celery -A guia.worker.celery_app worker -Q grobid -c 1 --loglevel=info --prefetch-multiplier=1 --time-limit=600
+    env_file: .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      grobid:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src:ro
+
+  celery-worker-misc:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    command: celery -A guia.worker.celery_app worker -Q profile,health -c 4 --loglevel=info --prefetch-multiplier=1
+    env_file: .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src:ro
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    command: celery -A guia.worker.celery_app beat --loglevel=info --scheduler celery.beat:PersistentScheduler
+    env_file: .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - celery_beat_data:/var/lib/celery
+      - ./src:/app/src:ro
+    restart: unless-stopped
+
   # ── Reverse proxy ─────────────────────────────────────────────
   nginx:
     image: nginx:1.27-alpine
@@ -176,3 +327,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  opensearch_data:
+  rabbitmq_data:
+  celery_beat_data:

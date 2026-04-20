@@ -34,6 +34,10 @@ dependencies = [
     # Scheduler + observabilidad
     "apscheduler>=3.10",
     "structlog>=24.4",
+    # M1: Job queue (ADR-013)
+    "celery[rabbitmq]>=5.4",
+    # M1: OpenSearch client (ADR-029)
+    "opensearch-py>=2.7",
     # CLI
     "typer>=0.13",
     # HTTP client

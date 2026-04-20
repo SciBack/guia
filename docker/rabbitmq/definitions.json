@@ -1,0 +1,135 @@
+{
+  "vhosts": [
+    {"name": "sciback"}
+  ],
+  "users": [
+    {
+      "name": "guia",
+      "password_hash": "HyLlKNNhQGl8XrIuI4dNlI73LaYu3pAA6tTouIs31BMUqN+W",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"],
+      "limits": {}
+    }
+  ],
+  "permissions": [
+    {
+      "user": "guia",
+      "vhost": "sciback",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "sciback.events",
+      "vhost": "sciback",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "sciback.events.dlx",
+      "vhost": "sciback",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "sciback.events.dlq",
+      "vhost": "sciback",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "search.indexer",
+      "vhost": "sciback",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "sciback.events.dlx",
+        "x-dead-letter-routing-key": "dlq",
+        "x-message-ttl": 86400000
+      }
+    },
+    {
+      "name": "harvester",
+      "vhost": "sciback",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "sciback.events.dlx",
+        "x-dead-letter-routing-key": "dlq"
+      }
+    },
+    {
+      "name": "grobid",
+      "vhost": "sciback",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "sciback.events.dlx",
+        "x-dead-letter-routing-key": "dlq"
+      }
+    },
+    {
+      "name": "profile.updater",
+      "vhost": "sciback",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "sciback.events.dlx",
+        "x-dead-letter-routing-key": "dlq"
+      }
+    },
+    {
+      "name": "health",
+      "vhost": "sciback",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "sciback.events.dlx",
+        "x-dead-letter-routing-key": "dlq"
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "sciback.events",
+      "vhost": "sciback",
+      "destination": "search.indexer",
+      "destination_type": "queue",
+      "routing_key": "publication.#",
+      "arguments": {}
+    },
+    {
+      "source": "sciback.events",
+      "vhost": "sciback",
+      "destination": "profile.updater",
+      "destination_type": "queue",
+      "routing_key": "user.#",
+      "arguments": {}
+    },
+    {
+      "source": "sciback.events",
+      "vhost": "sciback",
+      "destination": "health",
+      "destination_type": "queue",
+      "routing_key": "resource.#",
+      "arguments": {}
+    },
+    {
+      "source": "sciback.events.dlx",
+      "vhost": "sciback",
+      "destination": "sciback.events.dlq",
+      "destination_type": "queue",
+      "routing_key": "dlq",
+      "arguments": {}
+    }
+  ]
+}
