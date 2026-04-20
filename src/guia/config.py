@@ -66,3 +66,23 @@ class GUIASettings(BaseSettings):
     harvest_cron: str = "0 2 * * *"
     aws_s3_backup_bucket: str = ""
     aws_region: str = "us-east-1"
+
+    # M3: Search backend (ADR-029)
+    # "pgvector" | "opensearch" | "dual"
+    # dual: escribe a ambos, lee de OpenSearch con fallback a pgvector
+    search_backend: str = "dual"
+
+    # M3: Auth / dominio permitido (ADR-034) — antes hardcodeado como @upeu.edu.pe
+    # Comma-separated: "upeu.edu.pe,sciback.com"
+    keycloak_allowed_domains: str = "upeu.edu.pe"
+
+    # M3: OAI-PMH server (ADR-031)
+    oai_repository_name: str = "GUIA Node"
+    oai_admin_email: str = "admin@guia.sciback.com"
+    oai_base_url: str = "http://localhost:8000/oai"
+
+    # M3: midPoint enrichment (ADR-034) — opcional
+    midpoint_url: str = "http://192.168.15.230:8080/midpoint"
+    midpoint_username: str = "administrator"
+    midpoint_password: str = ""
+    midpoint_cache_ttl: int = 900
