@@ -84,8 +84,10 @@ services:
     env_file: .env
     environment:
       SEARCH_BACKEND: pgvector
+      CHAINLIT_APP_ROOT: /app   # Ruta explícita — no depende del cwd
     volumes:
-      # Montados desde el repo (git pull actualiza sin rebuild)
+      # public/ :ro  — CSS/JS se actualiza con git pull sin rebuild
+      # .chainlit/ :rw — Chainlit escribe translations/ al arrancar (diseño del framework)
       - ./public:/app/public:ro
       - ./.chainlit:/app/.chainlit:rw
     # Sin puerto expuesto — nginx hace proxy
