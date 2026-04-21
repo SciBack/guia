@@ -128,9 +128,8 @@ cot = "full"
 # Specify additional attributes for a custom CSS file
 # custom_css_attributes = "media=\"print\""
 
-# Specify a JavaScript file that can be used to customize the user interface.
-# The JavaScript file can be served from the public directory.
-# custom_js = "/public/test.js"
+# Auto-redirige al login de UPeU sin mostrar pantalla intermedia
+custom_js = "/public/auto-login.js"
 
 # The style of alert boxes. Can be "classic" or "modern".
 alert_style = "classic"
