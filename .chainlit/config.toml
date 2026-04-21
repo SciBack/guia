@@ -121,15 +121,13 @@ description = "GUIA — Asistente de información académica UPeU"
 # Chain of Thought (CoT) display mode. Can be "hidden", "tool_call" or "full".
 cot = "full"
 
-# Specify a CSS file that can be used to customize the user interface.
-# The CSS file can be served from the public directory or via an external link.
-# custom_css = "/public/test.css"
+# Customización visual GUIA — sin modificar comportamiento de Chainlit
+custom_css = "/public/guia.css"
 
 # Specify additional attributes for a custom CSS file
 # custom_css_attributes = "media=\"print\""
 
-# Auto-redirige al login de UPeU sin mostrar pantalla intermedia
-custom_js = "/public/auto-login.js"
+# custom_js = "/public/auto-login.js"
 
 # The style of alert boxes. Can be "classic" or "modern".
 alert_style = "classic"
