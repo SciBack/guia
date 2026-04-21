@@ -1,0 +1,342 @@
+/* ── GUIA UPeU — Portal institucional ──────────────────────────
+   Solo CSS. Compatible con upgrades de Chainlit.
+   Los detalles invisibles se acumulan en algo que se siente bien.
+   ──────────────────────────────────────────────────────────── */
+
+/* ── Design tokens ──────────────────────────────────────────── */
+:root {
+  --g-bg:             #07101f;
+  --g-bg-card:        rgba(9, 17, 36, 0.88);
+  --g-blue-900:       #071228;
+  --g-blue-800:       #0d2040;
+  --g-blue-700:       #0f3460;
+  --g-blue-500:       #1a5aaa;
+  --g-blue-400:       #4a90d9;
+  --g-blue-300:       #6ab0f5;
+  --g-border:         rgba(74, 144, 217, 0.12);
+  --g-border-hover:   rgba(74, 144, 217, 0.40);
+  --g-glow:           rgba(74, 144, 217, 0.20);
+  --g-text:           #eef2f7;
+  --g-muted:          #8899b4;
+  --g-ease:           cubic-bezier(0.23, 1, 0.32, 1);
+  --g-ease-in-out:    cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* ── Ocultar todo rastro de Chainlit ────────────────────────── */
+img[alt="Chainlit"],
+img[src*="chainlit"],
+svg[data-testid*="chainlit"],
+a[href*="chainlit.io"],
+a[href*="github.com/Chainlit"],
+[class*="powered"],
+[class*="PoweredBy"],
+footer > a {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* ── Fondo de la página en login ────────────────────────────── */
+/* body:has() — soportado en todos los browsers modernos */
+body:has(.login-container),
+body:has([class*="login"]),
+body:has([class*="Login"]) {
+  background:
+    radial-gradient(
+      ellipse 80% 70% at 10% 55%,
+      rgba(15, 52, 96, 0.55) 0%,
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 90% 20%,
+      rgba(13, 32, 64, 0.45) 0%,
+      transparent 55%
+    ),
+    linear-gradient(170deg, #07101f 0%, #0a1628 50%, #07101f 100%) !important;
+  min-height: 100vh !important;
+}
+
+/* Fallback para browsers sin :has() */
+.login-container,
+[class*="login"],
+[class*="Login"] {
+  background:
+    radial-gradient(
+      ellipse 80% 70% at 10% 55%,
+      rgba(15, 52, 96, 0.55) 0%,
+      transparent 65%
+    ),
+    linear-gradient(170deg, #07101f 0%, #0a1628 100%) !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px !important;
+}
+
+/* ── Card / Panel central ───────────────────────────────────── */
+.login-container > div,
+[class*="login"] > div,
+[class*="Login"] > div,
+[class*="auth-form"],
+[class*="AuthForm"],
+[class*="login-form"] {
+  background: var(--g-bg-card) !important;
+  border: 1px solid var(--g-border) !important;
+  border-radius: 18px !important;
+  backdrop-filter: blur(32px) saturate(1.6) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(1.6) !important;
+  box-shadow:
+    0 0 0 1px rgba(74, 144, 217, 0.05),
+    0 4px 6px rgba(0, 0, 0, 0.15),
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    0 0 100px rgba(15, 52, 96, 0.18) !important;
+  padding: 52px 44px !important;
+  max-width: 440px !important;
+  width: 100% !important;
+
+  /* Entrada suave — nada aparece desde la nada */
+  animation: guia-card-enter 400ms var(--g-ease) both !important;
+}
+
+@keyframes guia-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Nombre del asistente (h1 "GUIA") ──────────────────────── */
+.login-container h1,
+[class*="login"] h1,
+[class*="Login"] h1 {
+  font-size: 2.25rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1 !important;
+  margin: 0 0 10px 0 !important;
+
+  /* Gradiente institucional en el wordmark */
+  background: linear-gradient(
+    135deg,
+    #a8c8f0 0%,
+    #6ab0f5 35%,
+    #4a90d9 65%,
+    #3a7abf 100%
+  ) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: transparent !important;
+}
+
+/* ── Descripción / subtitle ─────────────────────────────────── */
+.login-container p,
+[class*="login"] p,
+[class*="Login"] p {
+  color: var(--g-muted) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.65 !important;
+  margin: 0 0 36px 0 !important;
+  letter-spacing: 0.005em !important;
+}
+
+/* ── Separador (OR / o continua con) ────────────────────────── */
+[class*="divider"],
+[class*="Divider"],
+.login-container hr {
+  border: none !important;
+  border-top: 1px solid var(--g-border) !important;
+  margin: 28px 0 !important;
+  opacity: 1 !important;
+}
+
+/* Texto del separador */
+[class*="divider"] span,
+[class*="Divider"] span {
+  color: var(--g-muted) !important;
+  font-size: 0.8125rem !important;
+  background: var(--g-bg-card) !important;
+  padding: 0 12px !important;
+}
+
+/* ── Botón OAuth — pieza central del diseño ─────────────────── */
+button[class*="oauth"],
+button[class*="OAuth"],
+.login-container button,
+[class*="login"] button,
+[class*="Login"] button {
+  background: linear-gradient(
+    135deg,
+    #0f3460 0%,
+    #16428a 60%,
+    #1a5aaa 100%
+  ) !important;
+  border: 1px solid rgba(74, 144, 217, 0.22) !important;
+  border-radius: 11px !important;
+  color: #ffffff !important;
+  font-size: 0.9375rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.015em !important;
+  padding: 15px 20px !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  position: relative !important;
+  overflow: hidden !important;
+  isolation: isolate !important;
+
+  /* Solo propiedades específicas — nunca 'all' */
+  transition:
+    background 180ms var(--g-ease),
+    border-color 180ms var(--g-ease),
+    box-shadow 180ms var(--g-ease),
+    transform 160ms var(--g-ease) !important;
+}
+
+/* Shimmer sweep en hover */
+button[class*="oauth"]::after,
+.login-container button::after,
+[class*="login"] button::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.07) 50%,
+    transparent 65%
+  ) !important;
+  transform: translateX(-100%) !important;
+  transition: transform 520ms var(--g-ease) !important;
+  pointer-events: none !important;
+}
+
+button[class*="oauth"]:hover::after,
+.login-container button:hover::after,
+[class*="login"] button:hover::after {
+  transform: translateX(150%) !important;
+}
+
+/* Hover — responde inmediatamente (ease-out: empieza rápido) */
+button[class*="oauth"]:hover,
+.login-container button:hover,
+[class*="login"] button:hover {
+  background: linear-gradient(
+    135deg,
+    #1a4a8a 0%,
+    #1e5aa0 60%,
+    #2468cc 100%
+  ) !important;
+  border-color: rgba(74, 144, 217, 0.45) !important;
+  box-shadow:
+    0 0 0 4px rgba(74, 144, 217, 0.08),
+    0 8px 28px rgba(74, 144, 217, 0.22),
+    0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Press — feedback táctil inmediato (Emil: scale 0.97) */
+button[class*="oauth"]:active,
+.login-container button:active,
+[class*="login"] button:active {
+  background: linear-gradient(
+    135deg,
+    #0d2d58 0%,
+    #133878 100%
+  ) !important;
+  border-color: rgba(74, 144, 217, 0.30) !important;
+  box-shadow:
+    0 0 0 4px rgba(74, 144, 217, 0.05),
+    0 4px 12px rgba(74, 144, 217, 0.12),
+    0 1px 4px rgba(0, 0, 0, 0.30) !important;
+  transform: scale(0.97) !important;
+  transition-duration: 100ms !important;
+}
+
+/* Focus visible — accesibilidad sin sacrificar diseño */
+button[class*="oauth"]:focus-visible,
+.login-container button:focus-visible,
+[class*="login"] button:focus-visible {
+  outline: 2px solid rgba(74, 144, 217, 0.70) !important;
+  outline-offset: 3px !important;
+  box-shadow:
+    0 0 0 4px rgba(74, 144, 217, 0.12) !important;
+}
+
+/* ── Ícono dentro del botón OAuth ───────────────────────────── */
+button[class*="oauth"] img,
+button[class*="oauth"] svg,
+.login-container button img,
+.login-container button svg,
+[class*="login"] button img,
+[class*="login"] button svg {
+  width: 20px !important;
+  height: 20px !important;
+  opacity: 0.92 !important;
+}
+
+/* ── Links ──────────────────────────────────────────────────── */
+.login-container a,
+[class*="login"] a,
+[class*="Login"] a {
+  color: var(--g-blue-400) !important;
+  text-decoration: none !important;
+  transition: color 150ms var(--g-ease) !important;
+}
+
+.login-container a:hover,
+[class*="login"] a:hover,
+[class*="Login"] a:hover {
+  color: var(--g-blue-300) !important;
+}
+
+/* ── Inputs (email/password si aparecen) ────────────────────── */
+.login-container input,
+[class*="login"] input {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--g-border) !important;
+  border-radius: 8px !important;
+  color: var(--g-text) !important;
+  padding: 12px 16px !important;
+  font-size: 0.9375rem !important;
+  width: 100% !important;
+  transition:
+    border-color 150ms var(--g-ease),
+    box-shadow 150ms var(--g-ease) !important;
+}
+
+.login-container input:focus,
+[class*="login"] input:focus {
+  outline: none !important;
+  border-color: rgba(74, 144, 217, 0.50) !important;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.10) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.login-container input::placeholder,
+[class*="login"] input::placeholder {
+  color: var(--g-muted) !important;
+  opacity: 0.7 !important;
+}
+
+/* ── Labels ─────────────────────────────────────────────────── */
+.login-container label,
+[class*="login"] label {
+  color: var(--g-muted) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.03em !important;
+  text-transform: uppercase !important;
+  margin-bottom: 6px !important;
+  display: block !important;
+}
+
+/* ── Chat UI — header del asistente ─────────────────────────── */
+#chat-header span,
+[class*="chat-header"] span {
+  font-weight: 700 !important;
+  letter-spacing: 0.3px !important;
+}
