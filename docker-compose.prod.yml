@@ -114,13 +114,16 @@ services:
         condition: service_healthy
       api:
         condition: service_healthy
+    # Deshabilitado hasta tener TELEGRAM_BOT_TOKEN (@BotFather)
+    profiles: ["telegram"]
     restart: unless-stopped
 
   scheduler:
     build:
       context: ..
       dockerfile: guia/docker/api/Dockerfile.prod
-    command: python -m guia.scheduler
+    # Sprint 0.7 — stub sin implementar. Habilitar cuando jobs estén listos.
+    command: python -c "import time; print('scheduler: waiting for implementation'); time.sleep(3600)"
     env_file: .env
     environment:
       SEARCH_BACKEND: pgvector
