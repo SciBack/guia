@@ -1,0 +1,10 @@
+{
+  "auth": {
+    "login": {
+      "title": "Inicia sesión con tu cuenta UPeU"
+    },
+    "provider": {
+      "continue": "Continuar con UPeU"
+    }
+  }
+}

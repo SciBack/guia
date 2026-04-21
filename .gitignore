@@ -41,8 +41,10 @@ htmlcov/
 # mypy
 .mypy_cache/
 
-# Chainlit — config.toml sí se versiona (branding GUIA)
-.chainlit/translations/
+# Chainlit — config.toml y es-PE.json se versionan (branding GUIA)
+# Las traducciones auto-generadas por Chainlit no se versionan
+.chainlit/translations/*.json
+!.chainlit/translations/es-PE.json
 .chainlit/*.json
 chainlit.md
 
