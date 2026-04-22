@@ -143,10 +143,11 @@ body:has(form.flex) form.flex::after {
   letter-spacing: -0.07em !important;
   line-height: 0.88 !important;
   margin-bottom: 0 !important;
-  background: linear-gradient(145deg, #d6effe 0%, var(--g-blue) 38%, #1270b8 100%) !important;
+  background: linear-gradient(150deg, #ffffff 0%, #e8f6ff 28%, #a8dcff 65%, var(--g-blue) 100%) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
+  filter: drop-shadow(0 0 24px rgba(46, 163, 242, 0.45)) !important;
   animation: g-fade-up 500ms var(--g-ease) both !important;
 }
 
@@ -154,7 +155,7 @@ body:has(form.flex) form.flex::after {
 body:has(form.flex) form h1 {
   font-size: 0.85rem !important;
   font-weight: 400 !important;
-  color: rgba(255, 255, 255, 0.40) !important;
+  color: rgba(255, 255, 255, 0.65) !important;
   text-align: left !important;
   letter-spacing: 0.01em !important;
   line-height: 1.5 !important;
@@ -171,7 +172,8 @@ body:has(form.flex) form h1::before { display: none !important; }
   font-weight: 700;
   letter-spacing: 0.20em;
   text-transform: uppercase;
-  color: rgba(46, 163, 242, 0.52);
+  color: var(--g-gold);
+  opacity: 0.72;
   text-align: left;
   margin-top: 8px;
   animation: g-fade-up 380ms var(--g-ease) 60ms both;
@@ -257,10 +259,10 @@ body:has(form.flex) form button[type="button"] {
   align-items: center !important;
   justify-content: center !important;
   gap: 10px !important;
-  background: rgba(46, 163, 242, 0.13) !important;
-  border: 1px solid rgba(46, 163, 242, 0.32) !important;
+  background: linear-gradient(160deg, rgba(248,169,0,0.16) 0%, rgba(46,163,242,0.20) 55%, rgba(1,36,61,0.70) 100%) !important;
+  border: 1px solid rgba(248, 169, 0, 0.40) !important;
   border-radius: 10px !important;
-  color: rgba(255, 255, 255, 0.92) !important;
+  color: #ffffff !important;
   font-size: 0.95rem !important;
   font-weight: 600 !important;
   letter-spacing: 0.01em !important;
@@ -288,10 +290,10 @@ body:has(form.flex) form button[type="button"]::before {
 
 @media (hover: hover) and (pointer: fine) {
   body:has(form.flex) form button[type="button"]:hover {
-    background: rgba(46, 163, 242, 0.20) !important;
-    border-color: rgba(46, 163, 242, 0.58) !important;
+    background: linear-gradient(160deg, rgba(248,169,0,0.25) 0%, rgba(46,163,242,0.28) 55%, rgba(1,36,61,0.80) 100%) !important;
+    border-color: rgba(248, 169, 0, 0.65) !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 6px 24px -6px rgba(46,163,242,0.38) !important;
+    box-shadow: 0 6px 24px -6px rgba(248,169,0,0.32), 0 0 0 1px rgba(248,169,0,0.12) !important;
   }
   body:has(form.flex) form button[type="button"]:hover::before {
     left: 110% !important;
@@ -310,23 +312,40 @@ body:has(form.flex) form button[type="button"]:focus-visible {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   PANEL DERECHO — knowledge graph canvas
-   JS inyecta <canvas class="guia-canvas">; <img> oculto.
+   PANEL DERECHO — Video de fondo
+   JS inyecta <video class="guia-video"> + <div class="guia-video-overlay">
    ══════════════════════════════════════════════════════════════ */
 
 body:has(form.flex) div.bg-muted.overflow-hidden {
   position: relative !important;
+  overflow: hidden !important;
+  background: linear-gradient(160deg, #001929 0%, #02304f 100%) !important;
 }
 
 body:has(form.flex) div.bg-muted.overflow-hidden > img {
   display: none !important;
 }
 
-.guia-canvas {
+.guia-video {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+}
+
+/* Overlay: degrada el borde izquierdo para que el card no compita con el video */
+.guia-video-overlay {
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(
+    to right,
+    rgba(0, 10, 20, 0.65) 0%,
+    rgba(0, 10, 20, 0.20) 45%,
+    rgba(0, 10, 20, 0.05) 100%
+  ) !important;
+  pointer-events: none !important;
 }
 
 /* ══════════════════════════════════════════════════════════════

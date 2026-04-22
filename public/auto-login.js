@@ -99,7 +99,36 @@
     return true;
   }
 
-  // ── 3. Knowledge graph canvas ─────────────────────────────────
+  // ── 3. Video de fondo en panel derecho ───────────────────────
+  function injectVideoPanel() {
+    var panel = document.querySelector('div.bg-muted.overflow-hidden');
+    if (!panel) return false;
+    if (panel.querySelector('.guia-video')) return true;
+
+    var video = document.createElement('video');
+    video.className = 'guia-video';
+    video.autoplay = true;
+    video.loop = true;
+    video.muted = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('aria-hidden', 'true');
+
+    var source = document.createElement('source');
+    source.src = '/public/guia-bg.mp4';
+    source.type = 'video/mp4';
+    video.appendChild(source);
+
+    var overlay = document.createElement('div');
+    overlay.className = 'guia-video-overlay';
+
+    panel.appendChild(video);
+    panel.appendChild(overlay);
+
+    video.play().catch(function () {});
+    return true;
+  }
+
+  // Legacy canvas vars (kept for reference but not used)
   var NODE_DEFS = [
     // hub central — GUIA
     { rx: 0.50, ry: 0.46, r: 8.0, op: 0.90, hub: true,  po: 0,   dr: 0     },
@@ -292,7 +321,7 @@
 
       function tryInject() {
         if (!heroDone) heroDone = injectHeroContent();
-        if (!graphDone) graphDone = injectKnowledgeGraph();
+        if (!graphDone) graphDone = injectVideoPanel();
         return heroDone && graphDone;
       }
 
