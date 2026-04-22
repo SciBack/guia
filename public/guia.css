@@ -1,195 +1,351 @@
-/* ── GUIA UPeU — Login customization ───────────────────────────
-   Solo añade elementos decorativos que theme.json no puede hacer.
-   Los colores base vienen de public/theme.json.
-   Scoped con body:has(form.flex) → solo activo en /login
-   ──────────────────────────────────────────────────────────── */
+/* ── GUIA · UPeU — Tema completo (login + chat) ─────────────────
+   Inyección externa — no modifica archivos core de Chainlit 2.11.x
+   ─────────────────────────────────────────────────────────────── */
 
 :root {
-  --g-blue:   #2ea3f2;
-  --g-blue-l: #6ab0f5;
-  --g-subtle: rgba(255,255,255,0.32);
-  --g-divider:rgba(255,255,255,0.08);
-  --g-ease:   cubic-bezier(0.23, 1, 0.32, 1);
+  --g-blue:      #2ea3f2;
+  --g-blue-dim:  rgba(46, 163, 242, 0.18);
+  --g-blue-glow: rgba(46, 163, 242, 0.30);
+  --g-gold:      #f8a900;
+  --g-gold-dim:  rgba(248, 169, 0, 0.15);
+  --g-glass:     rgba(255, 255, 255, 0.04);
+  --g-line:      rgba(255, 255, 255, 0.07);
+  --g-ease:      cubic-bezier(0.23, 1, 0.32, 1);
+  --g-ease-in:   cubic-bezier(0.55, 0, 1, 0.45);
+  --upeu-gold:   #f8a900;
+  --upeu-blue:   #2ea3f2;
+  --upeu-glow:   rgba(46, 163, 242, 0.14);
 }
 
-/* ── Columna izquierda: gradiente sutil sobre el fondo base ─── */
+/* ══════════════════════════════════════════════════════════════
+   CHAT APP — micro-interacciones (activo en todas las páginas)
+   ══════════════════════════════════════════════════════════════ */
+
+button:not(:disabled) {
+  transition: transform 140ms var(--g-ease), box-shadow 180ms ease, opacity 140ms ease-out;
+}
+button:not(:disabled):active {
+  transform: scale(0.97) !important;
+  transition-duration: 70ms !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):hover { opacity: 0.85; }
+}
+
+textarea, input[type="text"] {
+  transition: box-shadow 160ms var(--g-ease) !important;
+}
+textarea:focus, input[type="text"]:focus {
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.6) !important;
+  outline: none !important;
+}
+
+.step a[href], [class*="message"] a[href], [class*="step"] a[href] {
+  color: hsl(var(--primary)) !important;
+  text-decoration: underline !important;
+  text-decoration-color: hsl(var(--primary) / 0.35) !important;
+  text-underline-offset: 3px !important;
+  transition: text-decoration-color 140ms ease, color 140ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .step a[href]:hover, [class*="message"] a[href]:hover {
+    text-decoration-color: hsl(var(--primary)) !important;
+  }
+}
+
+/* Badge caché semántico — pill gold con ⚡ */
+.step p:last-child > em:only-child,
+.step p:last-child > em:last-child,
+[class*="message"] p:last-child > em:only-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 3px 10px;
+  background: rgba(248, 169, 0, 0.09);
+  border: 1px solid rgba(248, 169, 0, 0.28);
+  border-radius: 99px;
+  color: var(--g-gold) !important;
+  font-size: 0.71rem;
+  font-style: normal !important;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+.step p:last-child > em:only-child::before,
+.step p:last-child > em:last-child::before,
+[class*="message"] p:last-child > em:only-child::before {
+  content: "⚡";
+  font-size: 0.65rem;
+}
+
+.step ol li::marker, [class*="message"] ol li::marker {
+  color: var(--g-gold);
+  font-weight: 600;
+}
+
+[class*="starter"], [class*="Starter"] {
+  transition: transform 200ms var(--g-ease), border-color 150ms ease, box-shadow 200ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  [class*="starter"]:hover, [class*="Starter"]:hover {
+    transform: translateY(-2px) !important;
+    border-color: hsl(var(--primary) / 0.45) !important;
+    box-shadow: 0 8px 24px -8px var(--upeu-glow) !important;
+  }
+}
+[class*="starter"]:active, [class*="Starter"]:active {
+  transform: scale(0.98) !important;
+  transition-duration: 80ms !important;
+}
+
+.guia-wordmark { display: inline; }
+.guia-ia { color: var(--g-gold); font-weight: 700; }
+
+.step {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 240ms var(--g-ease), transform 240ms var(--g-ease);
+}
+@starting-style {
+  .step { opacity: 0; transform: translateY(8px); }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOGIN PAGE — scoped con body:has(form.flex)
+   DOM: div.grid.min-h-svh > div:first-child (izq) + div:last-child (der)
+   ══════════════════════════════════════════════════════════════ */
+
 body:has(form.flex) div.grid > div:first-child {
   position: relative !important;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% 0%,
-      rgba(46,163,242,0.07), transparent 65%),
-    hsl(var(--background)) !important;
   overflow: hidden !important;
+  background:
+    radial-gradient(ellipse 90% 55% at 35% -5%,  rgba(46, 163, 242, 0.09), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 105%, rgba(248, 169, 0, 0.05),   transparent 55%),
+    hsl(var(--background)) !important;
 }
 
-/* Tag "PORTAL ACADÉMICO" */
-body:has(form.flex) div.grid > div:first-child::before {
-  content: '⬤  PORTAL ACADÉMICO' !important;
-  position: absolute !important;
-  top: 28px !important;
-  left: 28px !important;
-  font-size: 0.6rem !important;
-  letter-spacing: 0.18em !important;
-  text-transform: uppercase !important;
-  color: var(--g-subtle) !important;
-  font-weight: 500 !important;
-  pointer-events: none !important;
-  z-index: 2 !important;
+body:has(form.flex) img[class*="logo"],
+body:has(form.flex) img.logo {
+  width: 180px !important;
+  height: auto !important;
 }
 
-/* Ocultar logo por defecto de Chainlit */
-body:has(form.flex) div.grid > div:first-child > div:first-child {
-  display: none !important;
-}
-
-/* Ampliar max-w-xs para el card */
 body:has(form.flex) div.grid > div:first-child .max-w-xs {
-  max-width: 400px !important;
+  max-width: 420px !important;
 }
 
-/* ── Card: glassmorphism sobre el fondo de theme.json ────────── */
+/* ── Card ───────────────────────────────────────────────────── */
 body:has(form.flex) form.flex {
-  background: rgba(255,255,255,0.04) !important;
-  border: 1px solid rgba(46,163,242,0.15) !important;
-  border-radius: 20px !important;
-  backdrop-filter: blur(20px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
+  position: relative !important;
+  background: rgba(255, 255, 255, 0.038) !important;
+  border: 1px solid var(--g-blue-dim) !important;
+  border-radius: 18px !important;
+  backdrop-filter: blur(24px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
   box-shadow:
-    0 1px 0 rgba(255,255,255,0.06) inset,
-    0 20px 50px -16px rgba(0,0,0,0.5) !important;
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 28px 56px -16px rgba(0, 0, 0, 0.60),
+    0 0 0 1px rgba(46, 163, 242, 0.06),
+    0 0 40px -12px rgba(46, 163, 242, 0.14) !important;
   padding: 44px 40px 40px !important;
-  animation: g-up 360ms var(--g-ease) both !important;
+  animation: g-materialize 420ms var(--g-ease) both !important;
 }
 
-@keyframes g-up {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
-  to   { opacity: 1; transform: none; }
-}
-
-/* Wordmark "GUIA" dentro del card */
+/* Barra de acento superior */
 body:has(form.flex) form.flex::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 48px !important;
+  height: 2px !important;
+  background: linear-gradient(90deg, transparent, var(--g-blue) 30%, var(--g-blue) 70%, transparent) !important;
+  border-radius: 0 0 4px 4px !important;
+  animation: g-bar-in 600ms var(--g-ease) 200ms both !important;
+}
+
+/* Wordmark GUIA — order: -1 lo mueve al tope del card */
+body:has(form.flex) form.flex::after {
   content: 'GUIA' !important;
+  order: -1 !important;
   display: block !important;
+  flex-shrink: 0 !important;
   text-align: center !important;
-  font-size: 2.75rem !important;
-  font-weight: 800 !important;
-  letter-spacing: -0.04em !important;
+  font-size: 3rem !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.05em !important;
   line-height: 1 !important;
   margin-bottom: 4px !important;
-  background: linear-gradient(135deg, var(--g-blue) 0%, var(--g-blue-l) 100%) !important;
+  background: linear-gradient(160deg, #7cc8f8 0%, var(--g-blue) 55%, #1a85d4 100%) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
+  animation: g-wordmark-in 500ms var(--g-ease) 80ms both !important;
 }
 
-/* "UNIVERSIDAD PERUANA UNIÓN" sobre el h1 */
+@keyframes g-materialize {
+  from { opacity: 0; transform: translateY(12px) scale(0.975); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes g-bar-in {
+  from { opacity: 0; width: 0; }
+  to   { opacity: 1; width: 48px; }
+}
+@keyframes g-wordmark-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 body:has(form.flex) form h1 {
   position: relative !important;
-  padding-top: 26px !important;
-  font-size: 1rem !important;
-  font-weight: 500 !important;
-  color: hsl(var(--foreground)) !important;
+  padding-top: 22px !important;
+  font-size: 0.95rem !important;
+  font-weight: 400 !important;
+  color: rgba(255, 255, 255, 0.70) !important;
   text-align: center !important;
-  letter-spacing: -0.01em !important;
-  line-height: 1.4 !important;
+  letter-spacing: 0.01em !important;
+  line-height: 1.5 !important;
   margin-bottom: 0 !important;
+  animation: g-wordmark-in 500ms var(--g-ease) 140ms both !important;
 }
 
 body:has(form.flex) form h1::before {
   content: 'UNIVERSIDAD PERUANA UNIÓN' !important;
   position: absolute !important;
   top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
+  left: 0 !important; right: 0 !important;
   text-align: center !important;
-  font-size: 0.58rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.15em !important;
+  font-size: 0.55rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.18em !important;
   text-transform: uppercase !important;
-  color: rgba(46,163,242,0.55) !important;
-  -webkit-text-fill-color: rgba(46,163,242,0.55) !important;
-  padding-bottom: 14px !important;
-  border-bottom: 1px solid var(--g-divider) !important;
+  color: rgba(46, 163, 242, 0.50) !important;
+  -webkit-text-fill-color: rgba(46, 163, 242, 0.50) !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid var(--g-line) !important;
 }
 
 /* ── Botón OAuth ─────────────────────────────────────────────── */
 body:has(form.flex) form button[type="button"] {
   position: relative !important;
-  background: linear-gradient(135deg, #023052 0%, #1a5aaa 100%) !important;
-  border: 1px solid rgba(46,163,242,0.28) !important;
-  border-radius: 10px !important;
-  color: #ffffff !important;
-  font-size: 0.9rem !important;
-  font-weight: 500 !important;
-  padding: 13px 20px !important;
-  width: 100% !important;
   overflow: hidden !important;
+  background: linear-gradient(170deg, #0a3d63 0%, #023052 60%, #01243d 100%) !important;
+  border: 1px solid rgba(46, 163, 242, 0.25) !important;
+  border-radius: 10px !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-size: 0.88rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em !important;
+  padding: 14px 20px !important;
+  width: 100% !important;
+  cursor: pointer !important;
   transition:
-    transform 180ms var(--g-ease),
-    box-shadow 220ms ease,
-    border-color 220ms ease !important;
+    transform 160ms var(--g-ease),
+    box-shadow 200ms ease,
+    border-color 200ms ease,
+    background 200ms ease !important;
+  animation: g-wordmark-in 500ms var(--g-ease) 220ms both !important;
 }
 
-/* Shimmer overlay */
 body:has(form.flex) form button[type="button"]::before {
   content: '' !important;
   position: absolute !important;
-  inset: 0 !important;
-  background: linear-gradient(135deg, rgba(255,255,255,0.10), transparent 60%) !important;
-  opacity: 0 !important;
-  transition: opacity 200ms ease !important;
+  top: 0 !important; left: -100% !important;
+  width: 100% !important; height: 100% !important;
+  background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.07) 50%, transparent 80%) !important;
+  transition: left 400ms var(--g-ease) !important;
   pointer-events: none !important;
 }
 
-body:has(form.flex) form button[type="button"]:hover::before { opacity: 1 !important; }
-
-body:has(form.flex) form button[type="button"]:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 8px 24px -8px rgba(46,163,242,0.30) !important;
-  border-color: rgba(46,163,242,0.50) !important;
+@media (hover: hover) and (pointer: fine) {
+  body:has(form.flex) form button[type="button"]:hover::before { left: 100% !important; }
+  body:has(form.flex) form button[type="button"]:hover {
+    transform: translateY(-2px) !important;
+    background: linear-gradient(170deg, #0e4a78 0%, #034070 60%, #022d4d 100%) !important;
+    box-shadow: 0 8px 24px -6px rgba(46, 163, 242, 0.35), 0 0 0 1px rgba(46, 163, 242, 0.18) !important;
+    border-color: rgba(46, 163, 242, 0.48) !important;
+  }
 }
 
 body:has(form.flex) form button[type="button"]:active {
-  transform: scale(0.97) !important;
-  transition-duration: 80ms !important;
+  transform: translateY(0) scale(0.975) !important;
+  transition: transform 70ms var(--g-ease-in), box-shadow 70ms ease !important;
+  box-shadow: 0 2px 8px -4px rgba(46, 163, 242, 0.20) !important;
 }
 
-/* ── Columna derecha decorativa ─────────────────────────────── */
-/* bg-muted ya usa --muted de theme.json (navy oscuro) */
+body:has(form.flex) form button[type="button"]:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px var(--g-blue) !important;
+}
+
+/* ── Panel derecho — SVG animado ────────────────────────────── */
 body:has(form.flex) div.grid > div:last-child {
   position: relative !important;
   overflow: hidden !important;
 }
 
-body:has(form.flex) div.grid > div:last-child img {
-  display: none !important;
+body:has(form.flex) div.grid > div:last-child > img {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
-/* Dot grid */
 body:has(form.flex) div.grid > div:last-child::before {
   content: '' !important;
   position: absolute !important;
   inset: 0 !important;
-  background-image: radial-gradient(rgba(46,163,242,0.12) 1px, transparent 1px) !important;
+  background-image: radial-gradient(rgba(46, 163, 242, 0.10) 1px, transparent 1px) !important;
   background-size: 28px 28px !important;
-  mask-image: radial-gradient(ellipse 65% 65% at 50% 50%, #000 40%, transparent 80%) !important;
-  -webkit-mask-image: radial-gradient(ellipse 65% 65% at 50% 50%, #000 40%, transparent 80%) !important;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 30%, transparent 75%) !important;
+  -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 30%, transparent 75%) !important;
+  pointer-events: none !important;
 }
 
-/* Monograma "G" */
-body:has(form.flex) div.grid > div:last-child::after {
-  content: 'G' !important;
+body:has(form.flex) .guia-radar {
   position: absolute !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  font-family: 'Inter', sans-serif !important;
-  font-size: 55vw !important;
-  font-weight: 900 !important;
-  line-height: 0.8 !important;
-  letter-spacing: -0.08em !important;
-  color: hsl(var(--muted)) !important;
-  opacity: 0.8 !important;
-  user-select: none !important;
-  pointer-events: none !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+body:has(form.flex) .guia-radar circle[data-ring] {
+  transform-origin: 400px 420px !important;
+  animation: g-sonar-pulse 4s ease-out infinite !important;
+}
+body:has(form.flex) .guia-radar circle[data-ring="1"] { animation-delay: 0s !important; }
+body:has(form.flex) .guia-radar circle[data-ring="2"] { animation-delay: 0.8s !important; }
+body:has(form.flex) .guia-radar circle[data-ring="3"] { animation-delay: 1.6s !important; }
+body:has(form.flex) .guia-radar circle[data-ring="4"] { animation-delay: 2.4s !important; }
+
+@keyframes g-sonar-pulse {
+  0%   { opacity: 0;    transform: scale(0.92); }
+  15%  { opacity: 1;    transform: scale(1.00); }
+  60%  { opacity: 0.35; transform: scale(1.02); }
+  100% { opacity: 0;    transform: scale(1.05); }
+}
+
+body:has(form.flex) .guia-radar circle[data-center] {
+  transform-origin: 400px 420px !important;
+  animation: g-center-beat 2s ease-in-out infinite !important;
+}
+@keyframes g-center-beat {
+  0%, 100% { opacity: 0.55; transform: scale(1.0); }
+  50%      { opacity: 0.90; transform: scale(1.3); }
+}
+
+body:has(form.flex) .guia-radar circle[data-crosshair] {
+  transform-origin: 400px 420px !important;
+  animation: g-crosshair-spin 12s linear infinite !important;
+}
+@keyframes g-crosshair-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

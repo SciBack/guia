@@ -121,12 +121,12 @@ description = "GUIA — Asistente de información académica UPeU"
 # Chain of Thought (CoT) display mode. Can be "hidden", "tool_call" or "full".
 cot = "full"
 
-custom_css = "/public/upeu.css"
+custom_css = "/public/guia.css"
 
 # Specify additional attributes for a custom CSS file
 # custom_css_attributes = "media=\"print\""
 
-custom_js = "/public/guia-brand.js"
+custom_js = "/public/auto-login.js"
 
 # The style of alert boxes. Can be "classic" or "modern".
 alert_style = "classic"
