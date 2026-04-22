@@ -1,0 +1,91 @@
+/* ═══════════════════════════════════════════════════════════
+   GUIA · UPeU — Custom Login Theme
+   Solo activo en /login via body:has(form.flex)
+   No modifica ningún archivo core de Chainlit.
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  --upeu-blue:  #2ea3f2;
+  --upeu-navy:  #023052;
+  --upeu-gold:  #f8a900;
+  --upeu-ease:  cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* ── Logo UPeU ─────────────────────────────────────────────
+   Chainlit sirve el logo como <img class="logo">
+   Ajustamos tamaño para que el SVG de UPeU se vea bien.
+   ─────────────────────────────────────────────────────────── */
+body:has(form.flex) img.logo {
+  width: 200px !important;
+  height: auto !important;
+  opacity: 1 !important;
+}
+
+/* ── Columna izquierda — fondo con glow sutil ──────────────
+   Selector exacto: div.flex.flex-col.gap-4 (primer hijo del grid)
+   ─────────────────────────────────────────────────────────── */
+body:has(form.flex) div.flex.flex-col.gap-4 {
+  background:
+    radial-gradient(ellipse 70% 45% at 40% 0%,
+      rgba(46, 163, 242, 0.07), transparent 60%),
+    hsl(var(--background)) !important;
+}
+
+/* ── Ampliar el contenedor del form más allá de max-w-xs ───
+   max-w-xs = 320px; ampliamos a 400px para más espacio.
+   ─────────────────────────────────────────────────────────── */
+body:has(form.flex) div.w-full.max-w-xs {
+  max-width: 400px !important;
+}
+
+/* ── Card del formulario ───────────────────────────────────
+   form.flex.flex-col.gap-6 es el selector exacto de Chainlit
+   ─────────────────────────────────────────────────────────── */
+body:has(form.flex) form.flex.flex-col.gap-6 {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(46, 163, 242, 0.18) !important;
+  border-radius: 20px !important;
+  backdrop-filter: blur(18px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(130%) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 24px 48px -16px rgba(0, 0, 0, 0.50) !important;
+  padding: 36px 32px 32px !important;
+  animation: upeu-rise 380ms var(--upeu-ease) both !important;
+}
+
+@keyframes upeu-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Botón OAuth ───────────────────────────────────────────
+   Scoped dentro del form para no afectar otros botones.
+   ─────────────────────────────────────────────────────────── */
+body:has(form.flex) form button[type="button"] {
+  background: linear-gradient(135deg, #023052 0%, #1557a0 100%) !important;
+  border: 1px solid rgba(46, 163, 242, 0.28) !important;
+  border-radius: 10px !important;
+  color: #ffffff !important;
+  font-size: 0.9rem !important;
+  font-weight: 500 !important;
+  padding: 13px 20px !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  transition:
+    transform 160ms var(--upeu-ease),
+    box-shadow 220ms ease,
+    border-color 200ms ease !important;
+}
+
+body:has(form.flex) form button[type="button"]:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 10px 28px -8px rgba(46, 163, 242, 0.40) !important;
+  border-color: rgba(46, 163, 242, 0.50) !important;
+}
+
+body:has(form.flex) form button[type="button"]:active {
+  transform: scale(0.97) !important;
+  transition-duration: 80ms !important;
+  box-shadow: none !important;
+}
