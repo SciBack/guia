@@ -91,10 +91,10 @@
     var titleDiv = form.querySelector('div.flex.flex-col.items-center');
     if (!titleDiv) return false;
 
-    // Wordmark GUIA con IA diferenciado en gold
+    // Wordmark GUIA uniforme
     var wm = document.createElement('div');
     wm.className = 'guia-hero-wordmark';
-    wm.innerHTML = '<span class="guia-wm-gu">GU</span><span class="guia-wm-ia">IA</span>';
+    wm.textContent = 'GUIA';
     form.insertBefore(wm, form.firstChild);
 
     // Acrónimo bajo el wordmark GUIA

@@ -147,23 +147,12 @@ body:has(form.flex) form.flex::after {
   line-height: 0.88;
   margin-bottom: 0;
   flex-shrink: 0;
-  animation: g-fade-up 500ms var(--g-ease) both;
-}
-
-/* GU — gradiente blanco→azul */
-.guia-wm-gu {
   background: linear-gradient(150deg, #ffffff 0%, #e8f6ff 28%, #a8dcff 65%, var(--g-blue) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   filter: drop-shadow(0 0 22px rgba(46, 163, 242, 0.42));
-}
-
-/* IA — gold con brillo cálido */
-.guia-wm-ia {
-  -webkit-text-fill-color: var(--g-gold);
-  color: var(--g-gold);
-  filter: drop-shadow(0 0 20px rgba(248, 169, 0, 0.55));
+  animation: g-fade-up 500ms var(--g-ease) both;
 }
 
 /* ── h1 — tagline secundario ─────────────────────────────────── */
