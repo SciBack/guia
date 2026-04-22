@@ -41,6 +41,32 @@ def oauth_callback(
     return cl.User(identifier=email, metadata={"name": name, "provider": provider_id})
 
 
+@cl.set_starters
+async def set_starters() -> list[cl.Starter]:
+    return [
+        cl.Starter(
+            label="Tesis sobre IA en educación",
+            message="¿Hay tesis sobre inteligencia artificial aplicada a la educación superior?",
+            icon="/public/favicon.png",
+        ),
+        cl.Starter(
+            label="Nutrición infantil en zonas rurales",
+            message="Busca artículos recientes sobre nutrición infantil en comunidades rurales",
+            icon="/public/favicon.png",
+        ),
+        cl.Starter(
+            label="Facultad de Ingeniería — energías renovables",
+            message="¿Qué investigaciones hay de la Facultad de Ingeniería sobre energías renovables?",
+            icon="/public/favicon.png",
+        ),
+        cl.Starter(
+            label="Teología adventista post-2020",
+            message="Muéstrame trabajos sobre teología adventista publicados después de 2020",
+            icon="/public/favicon.png",
+        ),
+    ]
+
+
 @cl.on_chat_start
 async def on_chat_start() -> None:
     """Inicializa la sesión de chat."""

@@ -100,7 +100,7 @@ name = "GUIA"
 default_theme = "dark"
 
 # Force a specific language for all users (e.g., "en-US", "he-IL", "fr-FR")
-language = "es-PE"
+language = "es"
 
 # layout = "wide"
 
@@ -126,7 +126,7 @@ custom_css = "/public/upeu.css"
 # Specify additional attributes for a custom CSS file
 # custom_css_attributes = "media=\"print\""
 
-# custom_js = "/public/auto-login.js"
+custom_js = "/public/guia-brand.js"
 
 # The style of alert boxes. Can be "classic" or "modern".
 alert_style = "classic"
