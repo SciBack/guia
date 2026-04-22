@@ -1,243 +1,190 @@
-/* ── GUIA UPeU — Portal Login ──────────────────────────────────
-   Diseño generado con Claude Design + filosofía Emil Kowalski
-   Paleta extraída de upeu.edu.pe — solo CSS, sin JS, sin tocar
-   el núcleo de Chainlit. Compatible con upgrades.
+/* ── GUIA UPeU — Customización visual Chainlit 2.x ─────────────
+   Selectores basados en la estructura Tailwind real de Chainlit.
+   Solo CSS, cero JS, compatible con upgrades.
    ──────────────────────────────────────────────────────────── */
 
-/* ── Tipografía institucional (Inter) ───────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
-/* ── Design tokens UPeU ─────────────────────────────────────── */
+/* ── Design tokens ──────────────────────────────────────────── */
 :root {
-  --upeu-navy-darkest: #00263d;
-  --upeu-navy:         #023052;
-  --upeu-blue:         #2ea3f2;
-  --upeu-blue-light:   #6ab0f5;
-  --upeu-gold:         #f8a900;
-  --text-primary:      #ffffff;
-  --text-muted:        rgba(255, 255, 255, 0.60);
-  --text-subtle:       rgba(255, 255, 255, 0.38);
-  --card-bg:           rgba(255, 255, 255, 0.04);
-  --card-border:       rgba(46, 163, 242, 0.15);
-  --divider:           rgba(255, 255, 255, 0.08);
-  --ease:              cubic-bezier(0.2, 0.9, 0.3, 1);
+  --g-bg:       #07101f;
+  --g-card:     rgba(9, 17, 36, 0.90);
+  --g-blue-700: #0f3460;
+  --g-blue-500: #1a5aaa;
+  --g-blue-400: #4a90d9;
+  --g-blue-300: #6ab0f5;
+  --g-border:   rgba(74, 144, 217, 0.14);
+  --g-text:     #eef2f7;
+  --g-muted:    #8899b4;
+  --g-ease:     cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-/* ── Body global ────────────────────────────────────────────── */
+/* ── Fondo global (login + chat) ────────────────────────────── */
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-  -webkit-font-smoothing: antialiased !important;
-  background: var(--upeu-navy-darkest) !important;
+  background:
+    radial-gradient(ellipse 80% 70% at 15% 50%,
+      rgba(15, 52, 96, 0.50) 0%, transparent 65%),
+    linear-gradient(170deg, #07101f 0%, #0a1628 100%) !important;
+  min-height: 100vh !important;
 }
 
 /* ══════════════════════════════════════════════════════════════
-   LOGIN — scoped con body:has(form.flex)
-   Solo se activa en la página /login de Chainlit
+   LOGIN PAGE — scoped con :has(form.flex)
+   Solo aplica cuando existe el formulario de login en el DOM
    ══════════════════════════════════════════════════════════════ */
 
-/* ── Columna izquierda (form side) ──────────────────────────── */
-body:has(form.flex) div.grid > div:first-child {
-  position: relative !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 48px !important;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(46, 163, 242, 0.07), transparent 70%),
-    radial-gradient(circle at 20% 80%, rgba(46, 163, 242, 0.04), transparent 50%),
-    linear-gradient(180deg, var(--upeu-navy-darkest) 0%, var(--upeu-navy) 100%) !important;
-  overflow: hidden !important;
-}
-
-/* Tag "PORTAL ACADÉMICO" arriba a la izquierda */
-body:has(form.flex) div.grid > div:first-child::before {
-  content: '⬤  PORTAL ACADÉMICO' !important;
-  position: absolute !important;
-  top: 32px !important;
-  left: 32px !important;
-  font-size: 0.65rem !important;
-  letter-spacing: 0.2em !important;
-  text-transform: uppercase !important;
-  color: var(--text-subtle) !important;
-  font-weight: 500 !important;
-  z-index: 2 !important;
-}
-
-/* Ocultar logo Chainlit */
+/* ── Ocultar logo Chainlit ──────────────────────────────────── */
 body:has(form.flex) div.grid > div:first-child > div:first-child {
   display: none !important;
 }
 
-/* ── Columna derecha (decorativa) ───────────────────────────── */
+/* ── Columna derecha: imagen blob → fondo oscuro institucional ── */
 body:has(form.flex) div.grid > div:last-child {
-  position: relative !important;
-  background:
-    radial-gradient(circle at 70% 40%, rgba(46, 163, 242, 0.08), transparent 60%),
-    linear-gradient(135deg, var(--upeu-navy) 0%, var(--upeu-navy-darkest) 100%) !important;
-  overflow: hidden !important;
+  background: linear-gradient(
+    135deg,
+    rgba(10, 22, 50, 0.98) 0%,
+    rgba(7, 16, 31, 0.95) 100%
+  ) !important;
 }
 
-/* Ocultar imagen Chainlit */
 body:has(form.flex) div.grid > div:last-child img {
-  display: none !important;
+  opacity: 0.04 !important;
+  filter: blur(2px) grayscale(1) !important;
 }
 
-/* Dot grid pattern */
-body:has(form.flex) div.grid > div:last-child::before {
-  content: '' !important;
-  position: absolute !important;
-  inset: 0 !important;
-  background-image: radial-gradient(rgba(46, 163, 242, 0.13) 1px, transparent 1px) !important;
-  background-size: 28px 28px !important;
-  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 40%, transparent 80%) !important;
-  -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 40%, transparent 80%) !important;
-  opacity: 0.65 !important;
+/* ── Columna izquierda: centrar verticalmente ───────────────── */
+body:has(form.flex) div.grid > div:first-child {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px !important;
 }
 
-/* Monograma G + tagline */
-body:has(form.flex) div.grid > div:last-child::after {
-  content: 'G' !important;
-  position: absolute !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  font-size: 52vw !important;
-  font-weight: 900 !important;
-  line-height: 0.8 !important;
-  letter-spacing: -0.08em !important;
-  color: var(--upeu-navy) !important;
-  opacity: 0.45 !important;
-  user-select: none !important;
-  pointer-events: none !important;
-  font-family: 'Inter', sans-serif !important;
-}
-
-/* ── Card del formulario ─────────────────────────────────────── */
+/* ── Card del formulario ────────────────────────────────────── */
 body:has(form.flex) form.flex {
-  position: relative !important;
-  width: 100% !important;
-  max-width: 420px !important;
-  padding: 48px 44px 40px !important;
-  background: var(--card-bg) !important;
-  border: 1px solid var(--card-border) !important;
-  border-radius: 20px !important;
-  backdrop-filter: blur(24px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
+  background: var(--g-card) !important;
+  border: 1px solid var(--g-border) !important;
+  border-radius: 18px !important;
+  backdrop-filter: blur(28px) saturate(1.5) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(1.5) !important;
+  padding: 48px 40px !important;
+  min-width: 340px !important;
+  max-width: 400px !important;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 24px 60px -20px rgba(0, 0, 0, 0.55),
-    0 8px 24px -12px rgba(0, 0, 0, 0.4) !important;
-  animation: guia-fadeInUp 400ms var(--ease) both !important;
+    0 0 0 1px rgba(74, 144, 217, 0.05),
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    0 0 80px rgba(15, 52, 96, 0.18) !important;
+  animation: guia-enter 380ms var(--g-ease) both !important;
 }
 
-@keyframes guia-fadeInUp {
-  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+@keyframes guia-enter {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Wordmark "GUIA" inyectado via ::before */
+/* Wordmark GUIA sobre el formulario */
 body:has(form.flex) form.flex::before {
   content: 'GUIA' !important;
   display: block !important;
-  text-align: center !important;
-  font-size: 3rem !important;
+  font-size: 2.5rem !important;
   font-weight: 800 !important;
   letter-spacing: -0.04em !important;
   line-height: 1 !important;
+  text-align: center !important;
   margin-bottom: 8px !important;
-  background: linear-gradient(135deg, var(--upeu-blue) 0%, var(--upeu-blue-light) 100%) !important;
+  background: linear-gradient(
+    135deg,
+    #a8c8f0 0%,
+    #6ab0f5 40%,
+    #4a90d9 100%
+  ) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
 }
 
-/* "UNIVERSIDAD PERUANA UNIÓN" via h1::before */
-body:has(form.flex) form h1::before {
-  content: 'UNIVERSIDAD PERUANA UNIÓN' !important;
-  display: block !important;
-  text-align: center !important;
-  font-size: 0.62rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.16em !important;
-  text-transform: uppercase !important;
-  color: rgba(46, 163, 242, 0.60) !important;
-  margin-bottom: 20px !important;
-  padding-bottom: 20px !important;
-  border-bottom: 1px solid var(--divider) !important;
-}
-
-/* ── Heading "Inicia sesión..." ─────────────────────────────── */
+/* ── Título "Inicia sesión..." ──────────────────────────────── */
 body:has(form.flex) form h1 {
-  font-size: 1.1rem !important;
-  font-weight: 500 !important;
-  color: var(--text-primary) !important;
-  text-align: center !important;
+  color: var(--g-text) !important;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
   letter-spacing: -0.01em !important;
   line-height: 1.4 !important;
-  margin-bottom: 0 !important;
+  text-align: center !important;
+  margin-bottom: 28px !important;
 }
 
 /* ── Botón OAuth "Continuar con UPeU" ───────────────────────── */
 body:has(form.flex) form button[type="button"] {
-  position: relative !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 8px !important;
-  width: 100% !important;
-  padding: 14px 20px !important;
-  font-family: 'Inter', inherit !important;
-  font-size: 0.925rem !important;
-  font-weight: 500 !important;
-  letter-spacing: -0.005em !important;
-  color: var(--text-primary) !important;
-  background: linear-gradient(135deg, var(--upeu-navy) 0%, #1a5aaa 100%) !important;
-  border: 1px solid rgba(46, 163, 242, 0.30) !important;
+  background: linear-gradient(
+    135deg,
+    #0f3460 0%,
+    #16428a 60%,
+    #1a5aaa 100%
+  ) !important;
+  border: 1px solid rgba(74, 144, 217, 0.25) !important;
   border-radius: 10px !important;
+  color: #ffffff !important;
+  font-size: 0.9375rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  padding: 14px 20px !important;
+  width: 100% !important;
   cursor: pointer !important;
+  position: relative !important;
   overflow: hidden !important;
+
   transition:
-    transform 180ms var(--ease),
-    box-shadow 220ms ease,
-    border-color 220ms ease !important;
+    background 180ms var(--g-ease),
+    border-color 180ms var(--g-ease),
+    box-shadow 180ms var(--g-ease),
+    transform 160ms var(--g-ease) !important;
 }
 
-/* Shimmer on hover */
-body:has(form.flex) form button[type="button"]::before {
+/* Shimmer en hover */
+body:has(form.flex) form button[type="button"]::after {
   content: '' !important;
   position: absolute !important;
   inset: 0 !important;
-  background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent 60%) !important;
-  opacity: 0 !important;
-  transition: opacity 220ms ease !important;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.07) 50%,
+    transparent 65%
+  ) !important;
+  transform: translateX(-100%) !important;
+  transition: transform 520ms var(--g-ease) !important;
   pointer-events: none !important;
 }
 
-body:has(form.flex) form button[type="button"]:hover::before {
-  opacity: 1 !important;
+body:has(form.flex) form button[type="button"]:hover::after {
+  transform: translateX(150%) !important;
 }
 
 body:has(form.flex) form button[type="button"]:hover {
-  transform: translateY(-1px) !important;
+  background: linear-gradient(
+    135deg,
+    #1a4a8a 0%,
+    #2468cc 100%
+  ) !important;
+  border-color: rgba(74, 144, 217, 0.50) !important;
   box-shadow:
-    0 8px 24px -8px rgba(46, 163, 242, 0.28),
-    0 2px 0 rgba(255, 255, 255, 0.05) inset !important;
-  border-color: rgba(46, 163, 242, 0.55) !important;
+    0 0 0 4px rgba(74, 144, 217, 0.08),
+    0 8px 28px rgba(74, 144, 217, 0.22) !important;
+  transform: translateY(-1px) !important;
 }
 
-/* Emil Kowalski: scale(0.97) en press = feedback táctil real */
+/* Emil Kowalski: scale(0.97) en press = feedback táctil */
 body:has(form.flex) form button[type="button"]:active {
   transform: scale(0.97) !important;
-  transition-duration: 80ms !important;
+  transition-duration: 100ms !important;
 }
 
 body:has(form.flex) form button[type="button"]:focus-visible {
-  outline: 2px solid var(--upeu-blue) !important;
-  outline-offset: 2px !important;
+  outline: 2px solid rgba(74, 144, 217, 0.65) !important;
+  outline-offset: 3px !important;
 }
 
-/* ── Chat UI — sin modificaciones ───────────────────────────── */
+/* ── Chat UI — sin cambios ──────────────────────────────────── */
 #chat-header span {
   font-weight: 700 !important;
   letter-spacing: 0.3px !important;
