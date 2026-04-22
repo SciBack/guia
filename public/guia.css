@@ -321,7 +321,7 @@ body:has(form.flex) div.bg-muted.overflow-hidden > img {
   bottom: 12% !important;
   left: 0 !important;
   right: 0 !important;
-  padding: 0 52px !important;
+  padding: 0 72px !important;
   z-index: 10 !important;
   pointer-events: none !important;
 }
