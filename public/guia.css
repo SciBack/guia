@@ -172,63 +172,16 @@ body:has(form.flex) form h1::before { display: none !important; }
   animation: g-fade-up 380ms var(--g-ease) 60ms both;
 }
 
-/* ── Ejemplos de consultas (inyectados por JS) ──────────────── */
-.guia-queries {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.guia-queries-label {
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.20);
-  margin-bottom: 3px;
-  animation: g-fade-up 380ms var(--g-ease) 140ms both;
-}
-
-.guia-query-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 9px 12px;
-  background: rgba(46, 163, 242, 0.05);
-  border: 1px solid rgba(46, 163, 242, 0.12);
-  border-radius: 8px;
-  font-size: 0.77rem;
-  color: rgba(255, 255, 255, 0.50);
-  line-height: 1.4;
-  opacity: 0;
-  animation: g-fade-up 380ms var(--g-ease) both;
-  animation-fill-mode: both;
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
-  cursor: default;
-}
-
-/* Stagger: cada query entra 45ms después de la anterior */
-.guia-query-item:nth-child(2) { animation-delay: 170ms; }
-.guia-query-item:nth-child(3) { animation-delay: 215ms; }
-.guia-query-item:nth-child(4) { animation-delay: 260ms; }
-.guia-query-item:nth-child(5) { animation-delay: 305ms; }
-.guia-query-item:nth-child(6) { animation-delay: 350ms; }
-.guia-query-item:nth-child(7) { animation-delay: 395ms; }
-
-.guia-query-item::before {
-  content: '›';
-  color: rgba(46, 163, 242, 0.40);
-  font-size: 0.88rem;
-  line-height: 1.35;
-  flex-shrink: 0;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .guia-query-item:hover {
-    background: rgba(46, 163, 242, 0.10);
-    border-color: rgba(46, 163, 242, 0.26);
-    color: rgba(255, 255, 255, 0.75);
-  }
+/* ── Descripción breve (reemplaza queries en panel izquierdo) ── */
+.guia-description {
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+  line-height: 1.65;
+  padding: 0 4px;
+  margin: 0 0 8px;
+  animation: g-fade-up 380ms var(--g-ease) 120ms both;
 }
 
 /* ── Separador antes del botón ───────────────────────────────── */
@@ -343,6 +296,65 @@ body:has(form.flex) div.bg-muted.overflow-hidden > img {
   ) !important;
   pointer-events: none !important;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   QUERIES ROTATIVAS — overlay sobre el video (panel derecho)
+   ══════════════════════════════════════════════════════════════ */
+
+.guia-qoverlay {
+  position: absolute !important;
+  bottom: 40px !important;
+  left: 0 !important;
+  right: 0 !important;
+  padding: 0 32px !important;
+  z-index: 10 !important;
+  pointer-events: none !important;
+}
+
+.guia-qoverlay-label {
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--g-gold);
+  opacity: 0.70;
+  margin-bottom: 10px;
+  animation: g-fade-up 400ms var(--g-ease) 600ms both;
+}
+
+.guia-qoverlay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.guia-qoverlay-item {
+  padding: 10px 14px;
+  background: rgba(0, 10, 20, 0.55);
+  border: 1px solid rgba(46, 163, 242, 0.18);
+  border-left: 2px solid rgba(46, 163, 242, 0.50);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.80);
+  line-height: 1.4;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  /* Transición de opacidad + slide para la rotación */
+  transition: opacity 350ms var(--g-ease), transform 350ms var(--g-ease);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Estado de salida — JS añade .exiting para animar la rotación */
+.guia-qoverlay-item.exiting {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* Entrada escalonada inicial */
+.guia-qoverlay-item:nth-child(1) { animation: g-fade-up 380ms var(--g-ease) 700ms both; }
+.guia-qoverlay-item:nth-child(2) { animation: g-fade-up 380ms var(--g-ease) 820ms both; }
+.guia-qoverlay-item:nth-child(3) { animation: g-fade-up 380ms var(--g-ease) 940ms both; }
 
 /* ══════════════════════════════════════════════════════════════
    ACCESIBILIDAD

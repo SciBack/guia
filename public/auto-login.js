@@ -1,7 +1,7 @@
 // GUIA UPeU — inyección externa
 // 1. Wordmark "IA" gold en header del chat
-// 2. Hero content en login (acrónimo, queries de ejemplo, icono usuario)
-// 3. Knowledge graph animado en panel derecho
+// 2. Hero login: acrónimo + descripción + icono usuario en botón
+// 3. Panel derecho: video de fondo + queries rotativas
 
 (function () {
   'use strict';
@@ -37,10 +37,16 @@
     });
   });
 
-  // ── 2. Hero content en login ──────────────────────────────────
+  // ── Datos ────────────────────────────────────────────────────
   function isLoginPage() {
     return /^\/(login)?$/.test(window.location.pathname);
   }
+
+  var DESCRIPTION =
+    'Tu asistente académico UPeU. Consulta notas, ' +
+    'horarios, préstamos de biblioteca, eventos del ' +
+    'campus y repositorio de investigación — todo en ' +
+    'lenguaje natural.';
 
   var QUERIES = [
     '¿Cuáles son mis notas del semestre actual?',
@@ -57,6 +63,7 @@
     '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>' +
     '<circle cx="12" cy="7" r="4"/></svg>';
 
+  // ── 2. Hero content en login ──────────────────────────────────
   function injectHeroContent() {
     if (document.querySelector('.guia-acronym')) return true;
 
@@ -66,40 +73,26 @@
     var titleDiv = form.querySelector('div.flex.flex-col.items-center');
     if (!titleDiv) return false;
 
-    // Acrónimo bajo el h1
+    // Acrónimo bajo el wordmark GUIA
     var acronym = document.createElement('p');
     acronym.className = 'guia-acronym';
     acronym.textContent = 'Gateway Universitario · Información y Asistencia';
     titleDiv.appendChild(acronym);
-
-    // Cambiar alineación del div de título a izquierda
     titleDiv.style.alignItems = 'center';
     titleDiv.style.textAlign = 'center';
 
-    // Queries de ejemplo
-    var section = document.createElement('div');
-    section.className = 'guia-queries';
-
-    var label = document.createElement('div');
-    label.className = 'guia-queries-label';
-    label.textContent = 'Pregúntale a GUIA';
-    section.appendChild(label);
-
-    QUERIES.forEach(function (q) {
-      var item = document.createElement('div');
-      item.className = 'guia-query-item';
-      item.textContent = q;
-      section.appendChild(item);
-    });
+    // Descripción breve en lugar de la lista de queries
+    var desc = document.createElement('p');
+    desc.className = 'guia-description';
+    desc.textContent = DESCRIPTION;
 
     var grid = form.querySelector('div.grid');
-    if (grid) form.insertBefore(section, grid);
+    if (grid) form.insertBefore(desc, grid);
 
-    // Icono usuario en el botón OAuth
+    // Icono + texto en botón OAuth
     var btn = form.querySelector('button[type="button"]');
     if (btn) {
       btn.insertAdjacentHTML('afterbegin', USER_ICON);
-      // Reemplazar texto del botón (Chainlit lo genera desde el nombre del provider)
       var nodes = btn.childNodes;
       for (var i = 0; i < nodes.length; i++) {
         if (nodes[i].nodeType === 3 && nodes[i].textContent.trim()) {
@@ -112,12 +105,13 @@
     return true;
   }
 
-  // ── 3. Video de fondo en panel derecho ───────────────────────
+  // ── 3. Panel derecho: video + queries rotativas ───────────────
   function injectVideoPanel() {
     var panel = document.querySelector('div.bg-muted.overflow-hidden');
     if (!panel) return false;
     if (panel.querySelector('.guia-video')) return true;
 
+    // Video de fondo
     var video = document.createElement('video');
     video.className = 'guia-video';
     video.autoplay = true;
@@ -125,201 +119,76 @@
     video.muted = true;
     video.setAttribute('playsinline', '');
     video.setAttribute('aria-hidden', 'true');
-
     var source = document.createElement('source');
     source.src = '/public/guia-bg.mp4';
     source.type = 'video/mp4';
     video.appendChild(source);
+    panel.appendChild(video);
+    video.play().catch(function () {});
 
+    // Overlay oscuro
     var overlay = document.createElement('div');
     overlay.className = 'guia-video-overlay';
-
-    panel.appendChild(video);
     panel.appendChild(overlay);
 
-    video.play().catch(function () {});
-    return true;
-  }
+    // Queries rotativas sobre el video
+    var qbox = document.createElement('div');
+    qbox.className = 'guia-qoverlay';
 
-  // Legacy canvas vars (kept for reference but not used)
-  var NODE_DEFS = [
-    // hub central — GUIA
-    { rx: 0.50, ry: 0.46, r: 8.0, op: 0.90, hub: true,  po: 0,   dr: 0     },
-    // primer nivel
-    { rx: 0.30, ry: 0.23, r: 5.0, op: 0.65, hub: false, po: 1.1, dr: 0.012 },
-    { rx: 0.63, ry: 0.19, r: 4.0, op: 0.55, hub: false, po: 2.3, dr: 0.010 },
-    { rx: 0.77, ry: 0.37, r: 5.5, op: 0.68, hub: false, po: 0.7, dr: 0.011 },
-    { rx: 0.73, ry: 0.64, r: 3.5, op: 0.50, hub: false, po: 3.1, dr: 0.013 },
-    { rx: 0.55, ry: 0.75, r: 4.5, op: 0.58, hub: false, po: 1.8, dr: 0.010 },
-    { rx: 0.32, ry: 0.72, r: 4.0, op: 0.55, hub: false, po: 2.7, dr: 0.012 },
-    { rx: 0.19, ry: 0.54, r: 5.0, op: 0.62, hub: false, po: 0.4, dr: 0.009 },
-    { rx: 0.21, ry: 0.33, r: 3.5, op: 0.50, hub: false, po: 3.8, dr: 0.011 },
-    // segundo nivel
-    { rx: 0.43, ry: 0.13, r: 2.5, op: 0.38, hub: false, po: 1.5, dr: 0.016 },
-    { rx: 0.83, ry: 0.23, r: 3.0, op: 0.38, hub: false, po: 2.1, dr: 0.014 },
-    { rx: 0.87, ry: 0.59, r: 2.5, op: 0.33, hub: false, po: 0.9, dr: 0.015 },
-    { rx: 0.13, ry: 0.17, r: 2.5, op: 0.30, hub: false, po: 4.2, dr: 0.013 },
-    { rx: 0.11, ry: 0.73, r: 3.0, op: 0.35, hub: false, po: 3.4, dr: 0.012 },
-    { rx: 0.61, ry: 0.89, r: 2.5, op: 0.30, hub: false, po: 1.9, dr: 0.014 },
-  ];
+    var qlabel = document.createElement('div');
+    qlabel.className = 'guia-qoverlay-label';
+    qlabel.textContent = 'Pregúntale a GUIA';
+    qbox.appendChild(qlabel);
 
-  var CONNECTIONS = [
-    [0,1,0.22],[0,2,0.18],[0,3,0.24],[0,4,0.17],[0,5,0.20],
-    [0,6,0.18],[0,7,0.22],[0,8,0.17],
-    [1,2,0.12],[2,3,0.13],[3,4,0.12],[4,5,0.11],
-    [5,6,0.12],[6,7,0.11],[7,8,0.12],[8,1,0.11],
-    [1,9,0.09],[2,10,0.09],[3,11,0.08],
-    [1,12,0.08],[7,13,0.08],[5,14,0.08],
-    [2,5,0.09],[1,6,0.08],[3,7,0.09],[4,8,0.08],
-  ];
+    var qlist = document.createElement('div');
+    qlist.className = 'guia-qoverlay-list';
 
-  function injectKnowledgeGraph() {
-    var panel = document.querySelector('div.bg-muted.overflow-hidden');
-    if (!panel) return false;
-    if (panel.querySelector('.guia-canvas')) return true;
+    // 3 slots visibles en todo momento
+    for (var s = 0; s < 3; s++) {
+      var item = document.createElement('div');
+      item.className = 'guia-qoverlay-item';
+      item.textContent = QUERIES[s];
+      qlist.appendChild(item);
+    }
+    qbox.appendChild(qlist);
+    panel.appendChild(qbox);
 
-    var canvas = document.createElement('canvas');
-    canvas.className = 'guia-canvas';
-    panel.appendChild(canvas);
+    // Rotación rolling: un item cambia cada 2s en cascada
+    // Slot 0 cambia a t=0, slot 1 a t=2s, slot 2 a t=4s, repite
+    var indices = [0, 1, 2];   // índice actual de cada slot
+    var nextIdx = 3;           // próximo query a mostrar
 
-    var ctx = canvas.getContext('2d');
-    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function rotateSlot(slotPos) {
+      var items = qlist.querySelectorAll('.guia-qoverlay-item');
+      var el = items[slotPos];
+      if (!el) return;
 
-    // Estado de fade-in de cada conexión
-    var connState = CONNECTIONS.map(function (c, i) {
-      return { cur: 0, max: c[2], delay: i * 0.09 };
-    });
-
-    var t0 = Date.now();
-
-    function draw() {
-      var W = panel.offsetWidth;
-      var H = panel.offsetHeight;
-      if (!W || !H) { requestAnimationFrame(draw); return; }
-      canvas.width = W;
-      canvas.height = H;
-
-      var t = (Date.now() - t0) / 1000;
-
-      // ── Fondo ────────────────────────────────────────────────
-      var bg = ctx.createLinearGradient(0, 0, W * 0.5, H);
-      bg.addColorStop(0, '#001626');
-      bg.addColorStop(1, '#012d4e');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, W, H);
-
-      // Glows de ambiente
-      var g1 = ctx.createRadialGradient(W*0.32, H*0.25, 0, W*0.32, H*0.25, W*0.52);
-      g1.addColorStop(0, 'rgba(46,163,242,0.11)'); g1.addColorStop(1, 'transparent');
-      ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
-
-      var g2 = ctx.createRadialGradient(W*0.70, H*0.80, 0, W*0.70, H*0.80, W*0.38);
-      g2.addColorStop(0, 'rgba(248,169,0,0.06)'); g2.addColorStop(1, 'transparent');
-      ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
-
-      // ── Posiciones de nodos con drift orgánico ────────────────
-      var nodes = NODE_DEFS.map(function (n) {
-        var pulse = reduced ? 0 : Math.sin(t * 1.1 + n.po) * 0.20;
-        var dx = reduced ? 0 : Math.sin(t * 0.19 + n.po * 1.73) * n.dr * W;
-        var dy = reduced ? 0 : Math.cos(t * 0.16 + n.po * 1.41) * n.dr * H;
-        return {
-          x: n.rx * W + (n.hub ? 0 : dx),
-          y: n.ry * H + (n.hub ? 0 : dy),
-          r: n.r + (n.hub ? Math.abs(pulse) * 2.8 : Math.abs(pulse) * 0.9),
-          op: Math.max(0.18, Math.min(1, n.op + pulse * 0.30)),
-          hub: n.hub
-        };
-      });
-
-      var hub = nodes[0];
-
-      // ── Pulsos radiales desde el hub (3 anillos en fases) ─────
-      if (!reduced) {
-        for (var p = 0; p < 3; p++) {
-          var pt = ((t * 0.20 + p / 3) % 1);
-          var pr = pt * 130;
-          var po = Math.pow(1 - pt, 1.5) * 0.18;
-          ctx.beginPath();
-          ctx.arc(hub.x, hub.y, pr, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(46,163,242,' + po + ')';
-          ctx.lineWidth = 1.2;
-          ctx.stroke();
-        }
-      }
-
-      // ── Conexiones con fade-in escalonado ─────────────────────
-      CONNECTIONS.forEach(function (c, i) {
-        var a = nodes[c[0]], b = nodes[c[1]];
-        var cs = connState[i];
-        var elapsed = t - cs.delay;
-        if (elapsed < 0) return;
-        cs.cur = Math.min(cs.max, cs.cur + 0.005);
-        var op = cs.cur;
-        if (!reduced) op *= (0.60 + 0.40 * Math.sin(t * 0.32 + i * 0.68));
-
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = 'rgba(46,163,242,' + op + ')';
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
-      });
-
-      // ── Partículas de datos viajando por conexiones ───────────
-      if (!reduced) {
-        CONNECTIONS.forEach(function (c, i) {
-          var cs = connState[i];
-          if (cs.cur < cs.max * 0.4) return;
-          var a = nodes[c[0]], b = nodes[c[1]];
-          var speed = 0.28 + (i % 7) * 0.04;
-          var phase = (t * speed + i * 0.43) % 1;
-          var px = a.x + (b.x - a.x) * phase;
-          var py = a.y + (b.y - a.y) * phase;
-          var particleOp = 0.5 + 0.5 * Math.sin(t * 1.5 + i);
-          var gp = ctx.createRadialGradient(px, py, 0, px, py, 3.5);
-          gp.addColorStop(0, 'rgba(46,163,242,' + particleOp + ')');
-          gp.addColorStop(1, 'transparent');
-          ctx.fillStyle = gp;
-          ctx.beginPath();
-          ctx.arc(px, py, 3.5, 0, Math.PI * 2);
-          ctx.fill();
-        });
-      }
-
-      // ── Nodos ─────────────────────────────────────────────────
-      nodes.forEach(function (n) {
-        // Glow exterior
-        var glowR = n.hub ? n.r * 6 : n.r * 5;
-        var gr = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glowR);
-        gr.addColorStop(0, 'rgba(46,163,242,' + (n.op * (n.hub ? 0.28 : 0.18)) + ')');
-        gr.addColorStop(1, 'transparent');
-        ctx.fillStyle = gr;
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, glowR, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Punto central
-        ctx.fillStyle = n.hub
-          ? 'rgba(46,163,242,' + Math.min(1, n.op) + ')'
-          : 'rgba(46,163,242,' + Math.min(0.95, n.op) + ')';
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Ring extra en hub
-        if (n.hub) {
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, n.r + 4, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(46,163,242,0.30)';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-        }
-      });
-
-      requestAnimationFrame(draw);
+      el.classList.add('exiting');
+      setTimeout(function () {
+        el.textContent = QUERIES[nextIdx % QUERIES.length];
+        indices[slotPos] = nextIdx % QUERIES.length;
+        nextIdx++;
+        el.classList.remove('exiting');
+      }, 350);
     }
 
-    draw();
+    // Stagger: slot 0 → 0ms, slot 1 → 2000ms, slot 2 → 4000ms, luego cicla
+    var INTERVAL = 2000;
+    setTimeout(function () {
+      rotateSlot(0);
+      setInterval(function () { rotateSlot(0); }, INTERVAL * 3);
+    }, INTERVAL);
+
+    setTimeout(function () {
+      rotateSlot(1);
+      setInterval(function () { rotateSlot(1); }, INTERVAL * 3);
+    }, INTERVAL * 2);
+
+    setTimeout(function () {
+      rotateSlot(2);
+      setInterval(function () { rotateSlot(2); }, INTERVAL * 3);
+    }, INTERVAL * 3);
+
     return true;
   }
 
@@ -330,12 +199,12 @@
 
     if (isLoginPage()) {
       var heroDone = false;
-      var graphDone = false;
+      var videoDone = false;
 
       function tryInject() {
         if (!heroDone) heroDone = injectHeroContent();
-        if (!graphDone) graphDone = injectVideoPanel();
-        return heroDone && graphDone;
+        if (!videoDone) videoDone = injectVideoPanel();
+        return heroDone && videoDone;
       }
 
       if (!tryInject()) {
