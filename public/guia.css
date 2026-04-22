@@ -153,15 +153,7 @@ body:has(form.flex) form.flex::after {
 
 /* ── h1 — tagline secundario ─────────────────────────────────── */
 body:has(form.flex) form h1 {
-  font-size: 0.85rem !important;
-  font-weight: 400 !important;
-  color: rgba(255, 255, 255, 0.65) !important;
-  text-align: left !important;
-  letter-spacing: 0.01em !important;
-  line-height: 1.5 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  animation: g-fade-up 380ms var(--g-ease) 100ms both !important;
+  display: none !important;
 }
 
 body:has(form.flex) form h1::before { display: none !important; }
