@@ -1,73 +1,53 @@
 /* ── GUIA UPeU — Portal Login ──────────────────────────────────
-   CSS traducido del prototipo Claude Design al DOM real de Chainlit 2.x
-   Selector map:
-     .portal      → div.grid (layout raíz)
-     .form-side   → div.grid > div:first-child
-     .card        → form.flex.flex-col.gap-6
-     .wordmark    → form.flex::before  (pseudo)
-     .institution → form h1::before   (pseudo)
-     .heading     → form h1
-     .oauth-button→ form button[type="button"]
-     .deco-side   → div.grid > div:last-child
-     .monogram    → div:last-child::after (pseudo)
-     .deco-grid   → div:last-child::before (pseudo)
-   Todo scoped con body:has(form.flex) → solo activo en /login
+   Solo CSS, sin tocar núcleo Chainlit, compatible con upgrades.
+   Scoped con body:has(form.flex) → solo activo en /login
    ──────────────────────────────────────────────────────────── */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-/* ── Design tokens (idénticos al prototipo) ─────────────────── */
+/* ── Design tokens ─────────────────────────────────────────── */
 :root {
-  --upeu-navy-darkest: #00263d;
-  --upeu-navy:         #023052;
-  --upeu-blue:         #2ea3f2;
-  --upeu-blue-light:   #6ab0f5;
-  --upeu-gold:         #f8a900;
-  --text-primary:      #ffffff;
-  --text-muted:        rgba(255, 255, 255, 0.60);
-  --text-subtle:       rgba(255, 255, 255, 0.38);
-  --card-bg:           rgba(255, 255, 255, 0.04);
-  --card-border:       rgba(46, 163, 242, 0.15);
-  --divider:           rgba(255, 255, 255, 0.08);
-  --ease:              cubic-bezier(0.23, 1, 0.32, 1);
+  --g-navy:    #023052;
+  --g-dark:    #00263d;
+  --g-blue:    #2ea3f2;
+  --g-blue-l:  #6ab0f5;
+  --g-card:    rgba(255,255,255,0.04);
+  --g-border:  rgba(46,163,242,0.15);
+  --g-divider: rgba(255,255,255,0.08);
+  --g-subtle:  rgba(255,255,255,0.35);
+  --g-ease:    cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-/* ── Body global ────────────────────────────────────────────── */
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
   -webkit-font-smoothing: antialiased !important;
 }
 
 /* ══════════════════════════════════════════════════════════════
-   LOGIN — scoped con body:has(form.flex)
+   LOGIN — scoped
    ══════════════════════════════════════════════════════════════ */
 
-/* ── .form-side → columna izquierda ────────────────────────── */
+/* ── Columna izquierda: solo fondo, Chainlit centra el contenido */
 body:has(form.flex) div.grid > div:first-child {
   position: relative !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 48px !important;
   background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(46, 163, 242, 0.07), transparent 70%),
-    radial-gradient(circle at 20% 80%, rgba(46, 163, 242, 0.04), transparent 50%),
-    linear-gradient(180deg, var(--upeu-navy-darkest) 0%, var(--upeu-navy) 100%) !important;
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(46,163,242,0.07), transparent 70%),
+    linear-gradient(180deg, var(--g-dark) 0%, var(--g-navy) 100%) !important;
   overflow: hidden !important;
 }
 
-/* Tag "PORTAL ACADÉMICO" via ::before */
+/* Tag "PORTAL ACADÉMICO" */
 body:has(form.flex) div.grid > div:first-child::before {
   content: '⬤  PORTAL ACADÉMICO' !important;
   position: absolute !important;
-  top: 32px !important;
-  left: 32px !important;
-  font-size: 0.62rem !important;
+  top: 28px !important;
+  left: 28px !important;
+  font-size: 0.6rem !important;
   letter-spacing: 0.18em !important;
   text-transform: uppercase !important;
-  color: var(--text-subtle) !important;
+  color: var(--g-subtle) !important;
   font-weight: 500 !important;
+  pointer-events: none !important;
   z-index: 2 !important;
 }
 
@@ -76,106 +56,103 @@ body:has(form.flex) div.grid > div:first-child > div:first-child {
   display: none !important;
 }
 
-/* Centrar el contenedor del form */
-body:has(form.flex) div.grid > div:first-child > div:last-child {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex: 1 !important;
-  width: 100% !important;
+/* Ampliar el contenedor max-w-xs → permite card más ancho */
+body:has(form.flex) div.grid > div:first-child .max-w-xs {
+  max-width: 420px !important;
 }
 
-/* ── .card → form ───────────────────────────────────────────── */
+/* ── Card del formulario ────────────────────────────────────── */
 body:has(form.flex) form.flex {
   position: relative !important;
-  width: 100% !important;
-  max-width: 420px !important;
-  padding: 48px 44px 44px !important;
-  background: var(--card-bg) !important;
-  border: 1px solid var(--card-border) !important;
+  padding: 44px 40px 40px !important;
+  background: var(--g-card) !important;
+  border: 1px solid var(--g-border) !important;
   border-radius: 20px !important;
   backdrop-filter: blur(24px) saturate(140%) !important;
   -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 24px 60px -20px rgba(0, 0, 0, 0.55),
-    0 8px 24px -12px rgba(0, 0, 0, 0.40) !important;
-  animation: guia-fadeInUp 400ms var(--ease) both !important;
+    0 1px 0 rgba(255,255,255,0.06) inset,
+    0 24px 60px -20px rgba(0,0,0,0.55),
+    0 8px 24px -12px rgba(0,0,0,0.40) !important;
+  animation: g-fadeInUp 380ms var(--g-ease) both !important;
 }
 
-@keyframes guia-fadeInUp {
-  from { opacity: 0; transform: translateY(14px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0)   scale(1); }
+@keyframes g-fadeInUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── .wordmark → "GUIA" via ::before ───────────────────────── */
+/* Wordmark "GUIA" */
 body:has(form.flex) form.flex::before {
   content: 'GUIA' !important;
   display: block !important;
   text-align: center !important;
-  font-size: 3rem !important;
+  font-size: 2.8rem !important;
   font-weight: 800 !important;
   letter-spacing: -0.04em !important;
   line-height: 1 !important;
-  margin-bottom: 6px !important;
-  background: linear-gradient(135deg, var(--upeu-blue) 0%, var(--upeu-blue-light) 100%) !important;
+  margin-bottom: 4px !important;
+  background: linear-gradient(135deg, var(--g-blue) 0%, var(--g-blue-l) 100%) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
 }
 
-/* ── .institution → "UNIVERSIDAD PERUANA UNIÓN" via h1::before */
-body:has(form.flex) form h1::before {
-  content: 'UNIVERSIDAD PERUANA UNIÓN' !important;
-  display: block !important;
-  text-align: center !important;
-  font-size: 0.60rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.16em !important;
-  text-transform: uppercase !important;
-  color: rgba(46, 163, 242, 0.55) !important;
-  margin-bottom: 20px !important;
-  padding-bottom: 20px !important;
-  border-bottom: 1px solid var(--divider) !important;
-}
-
-/* ── .heading → h1 ─────────────────────────────────────────── */
+/* "UNIVERSIDAD PERUANA UNIÓN" — antes del span dentro del h1 */
 body:has(form.flex) form h1 {
-  font-size: 1.05rem !important;
+  position: relative !important;
+  font-size: 1rem !important;
   font-weight: 500 !important;
-  color: var(--text-primary) !important;
+  color: #ffffff !important;
   text-align: center !important;
   letter-spacing: -0.01em !important;
   line-height: 1.4 !important;
   margin-bottom: 0 !important;
+  padding-top: 28px !important;
 }
 
-/* ── .oauth-button → button[type="button"] ─────────────────── */
+body:has(form.flex) form h1::before {
+  content: 'UNIVERSIDAD PERUANA UNIÓN' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  text-align: center !important;
+  font-size: 0.58rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+  color: rgba(46,163,242,0.55) !important;
+  padding-bottom: 16px !important;
+  border-bottom: 1px solid var(--g-divider) !important;
+  -webkit-text-fill-color: rgba(46,163,242,0.55) !important;
+}
+
+/* Separador debajo del h1 para dar espacio al botón */
+body:has(form.flex) form h1 + div {
+  margin-top: 8px !important;
+}
+
+/* ── Botón OAuth ─────────────────────────────────────────────── */
 body:has(form.flex) form button[type="button"] {
   position: relative !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 10px !important;
   width: 100% !important;
-  padding: 14px 20px !important;
+  padding: 13px 20px !important;
   font-family: 'Inter', inherit !important;
-  font-size: 0.925rem !important;
+  font-size: 0.9rem !important;
   font-weight: 500 !important;
-  letter-spacing: -0.005em !important;
-  color: var(--text-primary) !important;
-  background: linear-gradient(135deg, var(--upeu-navy) 0%, #1a5aaa 100%) !important;
-  border: 1px solid rgba(46, 163, 242, 0.28) !important;
+  color: #ffffff !important;
+  background: linear-gradient(135deg, var(--g-navy) 0%, #1a5aaa 100%) !important;
+  border: 1px solid rgba(46,163,242,0.28) !important;
   border-radius: 10px !important;
   cursor: pointer !important;
   overflow: hidden !important;
   transition:
-    transform 180ms var(--ease),
+    transform 180ms var(--g-ease),
     box-shadow 220ms ease,
     border-color 220ms ease !important;
 }
 
-/* Shimmer on hover */
 body:has(form.flex) form button[type="button"]::before {
   content: '' !important;
   position: absolute !important;
@@ -192,10 +169,8 @@ body:has(form.flex) form button[type="button"]:hover::before {
 
 body:has(form.flex) form button[type="button"]:hover {
   transform: translateY(-1px) !important;
-  box-shadow:
-    0 8px 24px -8px rgba(46, 163, 242, 0.25),
-    0 2px 0 rgba(255, 255, 255, 0.05) inset !important;
-  border-color: rgba(46, 163, 242, 0.50) !important;
+  box-shadow: 0 8px 24px -8px rgba(46,163,242,0.28) !important;
+  border-color: rgba(46,163,242,0.50) !important;
 }
 
 body:has(form.flex) form button[type="button"]:active {
@@ -204,56 +179,46 @@ body:has(form.flex) form button[type="button"]:active {
 }
 
 body:has(form.flex) form button[type="button"]:focus-visible {
-  outline: 2px solid var(--upeu-blue) !important;
+  outline: 2px solid var(--g-blue) !important;
   outline-offset: 2px !important;
 }
 
-/* ── .deco-side → columna derecha ──────────────────────────── */
+/* ── Columna derecha decorativa ─────────────────────────────── */
 body:has(form.flex) div.grid > div:last-child {
   position: relative !important;
-  background:
-    radial-gradient(circle at 70% 40%, rgba(46, 163, 242, 0.08), transparent 60%),
-    linear-gradient(135deg, var(--upeu-navy) 0%, var(--upeu-navy-darkest) 100%) !important;
+  background: linear-gradient(135deg, var(--g-navy) 0%, var(--g-dark) 100%) !important;
   overflow: hidden !important;
 }
 
-/* Ocultar imagen Chainlit */
 body:has(form.flex) div.grid > div:last-child img {
   display: none !important;
 }
 
-/* .deco-grid → dot grid via ::before */
+/* Dot grid */
 body:has(form.flex) div.grid > div:last-child::before {
   content: '' !important;
   position: absolute !important;
   inset: 0 !important;
-  background-image: radial-gradient(rgba(46, 163, 242, 0.13) 1px, transparent 1px) !important;
+  background-image: radial-gradient(rgba(46,163,242,0.12) 1px, transparent 1px) !important;
   background-size: 28px 28px !important;
   mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 40%, transparent 80%) !important;
   -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 40%, transparent 80%) !important;
-  opacity: 0.65 !important;
 }
 
-/* .monogram → "G" via ::after */
+/* Monograma "G" */
 body:has(form.flex) div.grid > div:last-child::after {
   content: 'G' !important;
   position: absolute !important;
   top: 50% !important;
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
-  font-size: 52vw !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 55vw !important;
   font-weight: 900 !important;
   line-height: 0.8 !important;
   letter-spacing: -0.08em !important;
-  color: var(--upeu-navy) !important;
-  opacity: 0.45 !important;
+  color: var(--g-navy) !important;
+  opacity: 0.5 !important;
   user-select: none !important;
   pointer-events: none !important;
-  font-family: 'Inter', sans-serif !important;
-}
-
-/* ── Chat UI — sin modificaciones ───────────────────────────── */
-#chat-header span {
-  font-weight: 700 !important;
-  letter-spacing: 0.3px !important;
 }
