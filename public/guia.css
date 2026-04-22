@@ -131,31 +131,24 @@ body:has(form.flex) form.flex {
 
 body:has(form.flex) form.flex::before { display: none !important; }
 
-/* ── Hero wordmark GUIA — JS inyecta .guia-hero-wordmark, ::after oculto ── */
+/* ── Hero wordmark GUIA ──────────────────────────────────────── */
 body:has(form.flex) form.flex::after {
-  display: none !important;
-  content: '' !important;
-}
-
-.guia-hero-wordmark {
-  order: -1;
-  display: block;
-  text-align: center;
-  font-size: clamp(6.5rem, 14vw, 9.5rem);
-  font-weight: 900;
-  letter-spacing: -0.07em;
-  line-height: 0.88;
-  margin-bottom: 0;
-  flex-shrink: 0;
-  animation: g-fade-up 500ms var(--g-ease) both;
-}
-
-.guia-wm-text {
-  background: linear-gradient(to bottom, #ffffff 0%, #c8e8ff 45%, var(--g-blue) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 0 22px rgba(46, 163, 242, 0.42));
+  content: 'GUIA' !important;
+  order: -1 !important;
+  display: block !important;
+  flex-shrink: 0 !important;
+  text-align: center !important;
+  font-size: clamp(6.5rem, 14vw, 9.5rem) !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.07em !important;
+  line-height: 0.88 !important;
+  margin-bottom: 0 !important;
+  background: linear-gradient(150deg, #ffffff 0%, #e8f6ff 28%, #a8dcff 65%, var(--g-blue) 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  filter: drop-shadow(0 0 24px rgba(46, 163, 242, 0.45)) !important;
+  animation: g-fade-up 500ms var(--g-ease) both !important;
 }
 
 /* ── h1 — tagline secundario ─────────────────────────────────── */

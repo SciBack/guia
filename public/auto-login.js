@@ -91,12 +91,6 @@
     var titleDiv = form.querySelector('div.flex.flex-col.items-center');
     if (!titleDiv) return false;
 
-    // Wordmark GUIA uniforme
-    var wm = document.createElement('div');
-    wm.className = 'guia-hero-wordmark';
-    wm.innerHTML = '<span class="guia-wm-text">GUIA</span>';
-    form.insertBefore(wm, form.firstChild);
-
     // Acrónimo bajo el wordmark GUIA
     var acronym = document.createElement('p');
     acronym.className = 'guia-acronym';
