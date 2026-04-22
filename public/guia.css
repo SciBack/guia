@@ -303,58 +303,71 @@ body:has(form.flex) div.bg-muted.overflow-hidden > img {
 
 .guia-qoverlay {
   position: absolute !important;
-  bottom: 40px !important;
+  bottom: 0 !important;
   left: 0 !important;
   right: 0 !important;
-  padding: 0 32px !important;
+  padding: 40px 36px 44px !important;
   z-index: 10 !important;
   pointer-events: none !important;
+  /* Degradado desde abajo para que las queries sean legibles sobre el video */
+  background: linear-gradient(to top,
+    rgba(0, 8, 18, 0.88) 0%,
+    rgba(0, 8, 18, 0.55) 60%,
+    transparent 100%) !important;
 }
 
 .guia-qoverlay-label {
-  font-size: 0.52rem;
+  font-size: 0.55rem;
   font-weight: 700;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--g-gold);
-  opacity: 0.70;
-  margin-bottom: 10px;
+  opacity: 0.80;
+  margin-bottom: 14px;
   animation: g-fade-up 400ms var(--g-ease) 600ms both;
 }
 
 .guia-qoverlay-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 .guia-qoverlay-item {
-  padding: 10px 14px;
-  background: rgba(0, 10, 20, 0.55);
-  border: 1px solid rgba(46, 163, 242, 0.18);
-  border-left: 2px solid rgba(46, 163, 242, 0.50);
-  border-radius: 6px;
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.80);
-  line-height: 1.4;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  /* Transición de opacidad + slide para la rotación */
-  transition: opacity 350ms var(--g-ease), transform 350ms var(--g-ease);
+  padding: 14px 18px;
+  background: rgba(0, 15, 30, 0.52);
+  border: 1px solid rgba(46, 163, 242, 0.22);
+  border-left: 3px solid rgba(46, 163, 242, 0.60);
+  border-radius: 8px;
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.45;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  /* Estado base — visible */
   opacity: 1;
   transform: translateY(0);
+  transition: opacity 420ms var(--g-ease), transform 420ms var(--g-ease);
 }
 
-/* Estado de salida — JS añade .exiting para animar la rotación */
-.guia-qoverlay-item.exiting {
-  opacity: 0;
-  transform: translateY(-6px);
+/* Salida: sube y desaparece */
+.guia-qoverlay-item.q-exit {
+  opacity: 0 !important;
+  transform: translateY(-18px) !important;
+}
+
+/* Posición inicial antes de entrar (desde abajo) — sin transición */
+.guia-qoverlay-item.q-enter {
+  opacity: 0 !important;
+  transform: translateY(22px) !important;
+  transition: none !important;
 }
 
 /* Entrada escalonada inicial */
-.guia-qoverlay-item:nth-child(1) { animation: g-fade-up 380ms var(--g-ease) 700ms both; }
-.guia-qoverlay-item:nth-child(2) { animation: g-fade-up 380ms var(--g-ease) 820ms both; }
-.guia-qoverlay-item:nth-child(3) { animation: g-fade-up 380ms var(--g-ease) 940ms both; }
+.guia-qoverlay-item:nth-child(1) { animation: g-fade-up 400ms var(--g-ease) 700ms both; }
+.guia-qoverlay-item:nth-child(2) { animation: g-fade-up 400ms var(--g-ease) 840ms both; }
+.guia-qoverlay-item:nth-child(3) { animation: g-fade-up 400ms var(--g-ease) 980ms both; }
 
 /* ══════════════════════════════════════════════════════════════
    ACCESIBILIDAD

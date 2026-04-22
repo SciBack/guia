@@ -49,12 +49,29 @@
     'lenguaje natural.';
 
   var QUERIES = [
+    // Notas y académico
     '¿Cuáles son mis notas del semestre actual?',
+    '¿Cuál es mi promedio ponderado acumulado?',
+    '¿Cuántos créditos me faltan para graduarme?',
+    // Horarios y campus
     '¿Dónde es mi próxima clase y a qué hora?',
+    '¿Cuál es mi horario completo de esta semana?',
+    '¿En qué aula tengo el examen de mañana?',
+    // Biblioteca Koha
     '¿Tengo libros prestados o multas en biblioteca?',
+    '¿Cuándo vence el plazo de devolución de mis préstamos?',
+    '¿Está disponible "Cálculo de Stewart" en biblioteca?',
+    // Repositorio DSpace / OJS
+    'Busca tesis sobre inteligencia artificial en el repositorio UPeU',
+    '¿Qué investigaciones publicó la Facultad de Ingeniería este año?',
+    '¿En qué revistas UPeU puedo publicar mi artículo?',
+    // Eventos Indico
     '¿Qué eventos hay esta semana en el salón de actos?',
-    'Busca tesis sobre machine learning en el repositorio UPeU',
-    '¿Dónde consigo una laptop o proyector para mi sustentación?'
+    '¿Cuándo es el próximo congreso de investigación UPeU?',
+    // Recursos
+    '¿Dónde consigo un proyector para mi sustentación?',
+    '¿Cuáles son los horarios de atención de la biblioteca CRAI?',
+    '¿Cómo accedo a las bases de datos digitales de biblioteca?'
   ];
 
   var USER_ICON = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" ' +
@@ -131,7 +148,7 @@
     overlay.className = 'guia-video-overlay';
     panel.appendChild(overlay);
 
-    // Queries rotativas sobre el video
+    // Queries rotativas sobre el video — grupos de 3
     var qbox = document.createElement('div');
     qbox.className = 'guia-qoverlay';
 
@@ -143,7 +160,6 @@
     var qlist = document.createElement('div');
     qlist.className = 'guia-qoverlay-list';
 
-    // 3 slots visibles en todo momento
     for (var s = 0; s < 3; s++) {
       var item = document.createElement('div');
       item.className = 'guia-qoverlay-item';
@@ -153,41 +169,61 @@
     qbox.appendChild(qlist);
     panel.appendChild(qbox);
 
-    // Rotación rolling: un item cambia cada 2s en cascada
-    // Slot 0 cambia a t=0, slot 1 a t=2s, slot 2 a t=4s, repite
-    var indices = [0, 1, 2];   // índice actual de cada slot
-    var nextIdx = 3;           // próximo query a mostrar
+    // Rotación por grupos de 3
+    // Transición: salida hacia arriba (exit-up) → entrada desde abajo (enter-down)
+    var groupIdx = 1; // próximo grupo a mostrar (grupo 0 ya visible)
+    var GROUPS = Math.ceil(QUERIES.length / 3);
+    var EXIT_MS = 420;
+    var PAUSE_MS = 80;
+    var VISIBLE_MS = 3200;
 
-    function rotateSlot(slotPos) {
+    function rotateGroup() {
       var items = qlist.querySelectorAll('.guia-qoverlay-item');
-      var el = items[slotPos];
-      if (!el) return;
 
-      el.classList.add('exiting');
+      // 1. Salida: todos suben y desaparecen
+      items.forEach(function (el) { el.classList.add('q-exit'); });
+
       setTimeout(function () {
-        el.textContent = QUERIES[nextIdx % QUERIES.length];
-        indices[slotPos] = nextIdx % QUERIES.length;
-        nextIdx++;
-        el.classList.remove('exiting');
-      }, 350);
+        // 2. Reposicionar abajo sin transición
+        items.forEach(function (el) {
+          el.classList.remove('q-exit');
+          el.classList.add('q-enter');
+        });
+
+        // 3. Actualizar texto del nuevo grupo
+        var base = (groupIdx % GROUPS) * 3;
+        items.forEach(function (el, i) {
+          var qi = base + i;
+          el.textContent = qi < QUERIES.length ? QUERIES[qi] : '';
+        });
+
+        groupIdx++;
+
+        // 4. Forzar reflow para que la transición de entrada sea visible
+        void qlist.offsetHeight;
+
+        // 5. Entrada: suben desde abajo al sitio
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            items.forEach(function (el, i) {
+              el.classList.remove('q-enter');
+              el.style.transitionDelay = (i * 60) + 'ms';
+            });
+            // Limpiar delay después de la transición
+            setTimeout(function () {
+              items.forEach(function (el) { el.style.transitionDelay = ''; });
+            }, EXIT_MS + 200);
+          });
+        });
+
+      }, EXIT_MS + PAUSE_MS);
     }
 
-    // Stagger: slot 0 → 0ms, slot 1 → 2000ms, slot 2 → 4000ms, luego cicla
-    var INTERVAL = 2000;
+    // Primera rotación después de VISIBLE_MS, luego ciclo continuo
     setTimeout(function () {
-      rotateSlot(0);
-      setInterval(function () { rotateSlot(0); }, INTERVAL * 3);
-    }, INTERVAL);
-
-    setTimeout(function () {
-      rotateSlot(1);
-      setInterval(function () { rotateSlot(1); }, INTERVAL * 3);
-    }, INTERVAL * 2);
-
-    setTimeout(function () {
-      rotateSlot(2);
-      setInterval(function () { rotateSlot(2); }, INTERVAL * 3);
-    }, INTERVAL * 3);
+      rotateGroup();
+      setInterval(rotateGroup, VISIBLE_MS + EXIT_MS + PAUSE_MS + 100);
+    }, VISIBLE_MS);
 
     return true;
   }
