@@ -207,10 +207,13 @@ body:has(form.flex) form h1::before { display: none !important; }
   cursor: default;
 }
 
-/* Stagger Emil-style: cada query entra 55ms después de la anterior */
+/* Stagger: cada query entra 45ms después de la anterior */
 .guia-query-item:nth-child(2) { animation-delay: 170ms; }
-.guia-query-item:nth-child(3) { animation-delay: 225ms; }
-.guia-query-item:nth-child(4) { animation-delay: 280ms; }
+.guia-query-item:nth-child(3) { animation-delay: 215ms; }
+.guia-query-item:nth-child(4) { animation-delay: 260ms; }
+.guia-query-item:nth-child(5) { animation-delay: 305ms; }
+.guia-query-item:nth-child(6) { animation-delay: 350ms; }
+.guia-query-item:nth-child(7) { animation-delay: 395ms; }
 
 .guia-query-item::before {
   content: '›';

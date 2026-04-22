@@ -43,9 +43,12 @@
   }
 
   var QUERIES = [
-    '¿Qué tesis de inteligencia artificial hay en UPeU?',
-    'Analiza los artículos de medicina publicados este año',
-    '¿Qué revistas UPeU están indexadas en Scopus?'
+    '¿Cuáles son mis notas del semestre actual?',
+    '¿Dónde es mi próxima clase y a qué hora?',
+    '¿Tengo libros prestados o multas en biblioteca?',
+    '¿Qué eventos hay esta semana en el salón de actos?',
+    'Busca tesis sobre machine learning en el repositorio UPeU',
+    '¿Dónde consigo una laptop o proyector para mi sustentación?'
   ];
 
   var USER_ICON = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" ' +
