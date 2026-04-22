@@ -121,8 +121,7 @@ description = "GUIA — Asistente de información académica UPeU"
 # Chain of Thought (CoT) display mode. Can be "hidden", "tool_call" or "full".
 cot = "full"
 
-# Customización visual GUIA — sin modificar comportamiento de Chainlit
-custom_css = "/public/guia.css"
+# custom_css = "/public/guia.css"
 
 # Specify additional attributes for a custom CSS file
 # custom_css_attributes = "media=\"print\""
