@@ -163,6 +163,17 @@ input[type="text"]:focus {
    LOGIN PAGE  ·  Scoped con body:has(form.flex)
    ══════════════════════════════════════════════════════════════ */
 
+/* ── Panel derecho — imagen de fondo ─────────────────────────
+   Chainlit usa <img src="/public/upeu-bg.svg"> dentro del panel.
+   Sin estas reglas el SVG colapsa a 0px.
+   ─────────────────────────────────────────────────────────── */
+body:has(form.flex) img[src*="upeu-bg"] {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
 /* ── Logo UPeU ─────────────────────────────────────────────── */
 body:has(form.flex) img[class*="logo"],
 body:has(form.flex) img.logo {
