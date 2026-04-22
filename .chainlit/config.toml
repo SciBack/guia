@@ -139,7 +139,7 @@ login_page_image = "/public/upeu-bg.svg"
 
 # Custom login page image filter (Tailwind internal filters, no dark/light variants)
 # login_page_image_filter = "brightness-50 grayscale"
-login_page_image_dark_filter = ""
+login_page_image_dark_filter = "brightness-100"
 
 # Specify a custom meta URL (used for meta tags like og:url)
 # custom_meta_url = "https://github.com/Chainlit/chainlit"
