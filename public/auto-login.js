@@ -71,7 +71,8 @@
     // Recursos
     '¿Dónde consigo un proyector para mi sustentación?',
     '¿Cuáles son los horarios de atención de la biblioteca CRAI?',
-    '¿Cómo accedo a las bases de datos digitales de biblioteca?'
+    '¿Cómo accedo a las bases de datos digitales de biblioteca?',
+    '¿Hay actividades culturales o deportivas esta semana?'
   ];
 
   var USER_ICON = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" ' +
