@@ -15,6 +15,7 @@ from sciback_core.ports.llm import LLMMessage, LLMPort
 
 from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
 from guia.services.intent import IntentClassifier
+from guia.services.router import ModelRouter, QueryTier
 
 if TYPE_CHECKING:
     from sciback_core.ports.vector_store import VectorRecord, VectorStorePort
@@ -116,10 +117,12 @@ class ChatService:
     M4: answer() es async — no bloquea el event loop.
 
     Args:
-        synthesis_llm: LLM para síntesis de respuesta.
+        synthesis_llm: LLM completo para queries complejas (ej: qwen2.5:7b / Claude).
         store: Vector store para búsqueda semántica (pgvector).
         embedder: E5 para generar embeddings de queries.
         classifier_llm: LLM ligero para clasificación de intents.
+        fast_llm: LLM rápido para queries simples/conversacionales (ej: qwen2.5:3b).
+        router: ModelRouter para elegir el LLM según complejidad de la query.
         cache: Caché semántico opcional (Redis).
         institution: Nombre de la institución (para el system prompt).
         search_adapter: SearchAdapter OpenSearch (usa hybrid_dicts async).
@@ -132,11 +135,15 @@ class ChatService:
         embedder: E5EmbeddingAdapter,
         *,
         classifier_llm: LLMPort | None = None,
+        fast_llm: LLMPort | None = None,
+        router: ModelRouter | None = None,
         cache: SemanticCache | None = None,
         institution: str = "la universidad",
         search_adapter: SearchAdapter | None = None,
     ) -> None:
         self._synthesis_llm = synthesis_llm
+        self._fast_llm = fast_llm
+        self._router = router
         self._store = store
         self._embedder = embedder
         self._classifier = IntentClassifier(classifier_llm or synthesis_llm)
@@ -219,7 +226,21 @@ class ChatService:
             )
             context_text, sources = _records_to_context(records)
 
-        # 6. Síntesis LLM (sync → thread)
+        # 6. Elegir LLM de síntesis según complejidad de la query
+        # RESEARCH siempre usa el modelo completo (RAG + razonamiento complejo).
+        # GENERAL: el router decide según similitud semántica — reutiliza query_vector.
+        if (
+            intent != Intent.RESEARCH
+            and self._fast_llm is not None
+            and self._router is not None
+            and self._router.ready
+        ):
+            tier = self._router.route(query_vector)
+            synthesis_llm = self._fast_llm if tier == QueryTier.FAST else self._synthesis_llm
+        else:
+            synthesis_llm = self._synthesis_llm
+
+        # 7. Síntesis LLM (sync → thread)
         system = _SYSTEM_PROMPT.format(
             institution=self._institution,
             context=context_text if context_text else "No se encontraron documentos relevantes.",
@@ -229,7 +250,7 @@ class ChatService:
             LLMMessage(role="user", content=query),
         ]
         llm_response = await asyncio.to_thread(
-            self._synthesis_llm.complete, messages, max_tokens=1024, temperature=0.1
+            synthesis_llm.complete, messages, max_tokens=1024, temperature=0.1
         )
 
         response = ChatResponse(
@@ -241,7 +262,7 @@ class ChatService:
             tokens_used=llm_response.input_tokens + llm_response.output_tokens,
         )
 
-        # 7. Guardar en caché (sync Redis → thread)
+        # 8. Guardar en caché (sync Redis → thread)
         if self._cache is not None:
             await asyncio.to_thread(
                 self._cache.set, query, response, query_vector=query_vector

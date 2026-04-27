@@ -23,6 +23,15 @@ logger = get_logger(__name__)
 _container = GUIAContainer(_settings)
 
 
+@cl.on_app_start
+async def on_app_start() -> None:
+    """Pre-calienta el ModelRouter al arrancar la app."""
+    if _container.router is not None:
+        logger.info("model_router_warmup_start")
+        await _container.router.warm_up()
+        logger.info("model_router_warmup_done")
+
+
 @cl.oauth_callback
 def oauth_callback(
     provider_id: str,

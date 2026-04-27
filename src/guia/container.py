@@ -16,6 +16,7 @@ from guia.services.cache import SemanticCache
 from guia.services.chat import ChatService
 from guia.services.harvester import HarvesterService
 from guia.services.profile import UserProfileRepository
+from guia.services.router import ModelRouter
 from guia.services.search import SearchService
 
 
@@ -52,15 +53,17 @@ class GUIAContainer:
         if mode == LLMMode.CLOUD:
             self.synthesis_llm = self._build_claude()
             self.classifier_llm: LLMPort = self.synthesis_llm
+            self.fast_llm: LLMPort | None = None  # Cloud: sin fast path local
 
         elif mode == LLMMode.LOCAL:
-            ollama = self._build_ollama()
-            self.synthesis_llm = ollama
-            self.classifier_llm = ollama
+            self.synthesis_llm = self._build_ollama()       # qwen2.5:7b
+            self.fast_llm = self._build_ollama_fast()       # qwen2.5:3b
+            self.classifier_llm = self.fast_llm             # 3b también clasifica
 
         else:  # HYBRID (default)
-            self.synthesis_llm = self._build_claude()
-            self.classifier_llm = self._build_ollama()
+            self.synthesis_llm = self._build_claude()       # Claude para síntesis compleja
+            self.fast_llm = self._build_ollama_fast()       # 3b para queries simples
+            self.classifier_llm = self.fast_llm             # 3b clasifica intent
 
         # Adapters de fuentes (opcionales)
         self.dspace_adapter = self._try_build_dspace()
@@ -83,6 +86,12 @@ class GUIAContainer:
     def _build_ollama(self) -> LLMPort:
         from sciback_llm_ollama import OllamaConfig, OllamaLLMAdapter
         return OllamaLLMAdapter(OllamaConfig(_env_file=None))
+
+    def _build_ollama_fast(self) -> LLMPort:
+        from sciback_llm_ollama import OllamaConfig, OllamaLLMAdapter
+        # Instancia separada con qwen2.5:3b — override del modelo por defecto
+        cfg = OllamaConfig(_env_file=None, default_model="qwen2.5:3b")
+        return OllamaLLMAdapter(cfg)
 
     def _try_build_dspace(self) -> object:
         try:
@@ -116,12 +125,20 @@ class GUIAContainer:
             threshold=self.settings.semantic_cache_threshold,
         )
 
+        # ModelRouter: usa embeddings para elegir fast vs full LLM
+        # Solo activo cuando fast_llm está disponible (LOCAL y HYBRID)
+        self.router: ModelRouter | None = (
+            ModelRouter(self.embedder) if self.fast_llm is not None else None
+        )
+
         # M4: ChatService async — usa hybrid_dicts() con await
         self.chat_service = ChatService(
             synthesis_llm=self.synthesis_llm,
             store=self.store,
             embedder=self.embedder,
             classifier_llm=self.classifier_llm,
+            fast_llm=self.fast_llm,
+            router=self.router,
             cache=self.cache,
             search_adapter=self.search_adapter,
         )
