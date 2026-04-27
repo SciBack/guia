@@ -26,7 +26,8 @@ COPY guia/pyproject.toml .
 COPY guia/uv.lock* ./
 
 # Copiar sciback-core completo (path deps: ../sciback-core/packages/*)
-COPY sciback-core/ /build/sciback-core/
+# WORKDIR es /app → ../sciback-core resuelve a /sciback-core (raíz)
+COPY sciback-core/ /sciback-core/
 
 # Instalar dependencias (sin el proyecto, para cachear esta capa)
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -45,8 +46,8 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 
 # Copiar sciback-core al mismo path que el venv espera
-# (editable installs tienen .pth files apuntando a /build/sciback-core/)
-COPY --from=builder /build/sciback-core /build/sciback-core
+# (editable installs tienen .pth files apuntando a /sciback-core/)
+COPY --from=builder /sciback-core /sciback-core
 
 # Copiar código fuente de guia
 COPY guia/src/ ./src/
