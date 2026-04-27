@@ -27,8 +27,8 @@ logger = get_logger(__name__)
 _container = GUIAContainer(_settings)
 
 
-@cl.on_app_start
-async def on_app_start() -> None:
+@cl.on_app_startup
+async def on_app_startup() -> None:
     """Pre-calienta el ModelRouter al arrancar la app."""
     if _container.router is not None:
         logger.info("model_router_warmup_start")
