@@ -161,20 +161,20 @@ default_avatar_file_url = ""
 # Be careful: If this is a relative path, it should not start with a slash.
 # custom_build = "./public/build"
 
-# Links adicionales en el header
-[[UI.header_links]]
-    name = "repositorio"
-    display_name = "Repositorio UPeU"
-    icon_url = "/public/favicon.png"
-    url = "https://repositorio.upeu.edu.pe"
-    target = "_blank"
-
-[[UI.header_links]]
-    name = "portal"
-    display_name = "Portal UPeU"
-    icon_url = "/public/favicon.png"
-    url = "https://www.upeu.edu.pe"
-    target = "_blank"
+# Links adicionales en el header (descomentar cuando se necesiten)
+# [[UI.header_links]]
+#     name = "repositorio"
+#     display_name = "Repositorio UPeU"
+#     icon_url = "/public/favicon.png"
+#     url = "https://repositorio.upeu.edu.pe"
+#     target = "_blank"
+#
+# [[UI.header_links]]
+#     name = "portal"
+#     display_name = "Portal UPeU"
+#     icon_url = "/public/favicon.png"
+#     url = "https://www.upeu.edu.pe"
+#     target = "_blank"
 
 [meta]
 generated_by = "2.11.0"
