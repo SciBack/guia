@@ -1197,6 +1197,7 @@ dependencies = [
     { name = "redis" },
     { name = "sciback-adapter-alicia" },
     { name = "sciback-adapter-dspace" },
+    { name = "sciback-adapter-koha" },
     { name = "sciback-adapter-ojs" },
     { name = "sciback-core" },
     { name = "sciback-embeddings-e5" },
@@ -1240,6 +1241,7 @@ requires-dist = [
     { name = "redis", specifier = ">=5.0" },
     { name = "sciback-adapter-alicia", editable = "../sciback-core/packages/sciback-adapter-alicia" },
     { name = "sciback-adapter-dspace", editable = "../sciback-core/packages/sciback-adapter-dspace" },
+    { name = "sciback-adapter-koha", editable = "../sciback-core/packages/sciback-adapter-koha" },
     { name = "sciback-adapter-ojs", editable = "../sciback-core/packages/sciback-adapter-ojs" },
     { name = "sciback-core", editable = "../sciback-core/packages/sciback-core" },
     { name = "sciback-embeddings-e5", editable = "../sciback-core/packages/sciback-embeddings-e5" },
@@ -3717,6 +3719,25 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.5" },
     { name = "sciback-core", editable = "../sciback-core/packages/sciback-core" },
     { name = "sickle", specifier = ">=0.7" },
+]
+
+[[package]]
+name = "sciback-adapter-koha"
+version = "0.1.0"
+source = { editable = "../sciback-core/packages/sciback-adapter-koha" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "sciback-core" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "pydantic-settings", specifier = ">=2.5" },
+    { name = "sciback-core", editable = "../sciback-core/packages/sciback-core" },
 ]
 
 [[package]]
