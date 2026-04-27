@@ -331,8 +331,30 @@
     }
   }
 
+  // ── 5. Logout → Keycloak end_session (top-level navigation) ────
+  // fetch() no envía cookies cross-origin al seguir redirects, así que
+  // on_logout devuelve JSON con la URL y aquí navegamos el browser.
+  function patchFetchForLogout() {
+    var _orig = window.fetch.bind(window);
+    window.fetch = function (url, opts) {
+      var p = _orig(url, opts);
+      var path = typeof url === 'string' ? url : (url && url.url) || '';
+      if (path === '/logout' || path.endsWith('/logout')) {
+        p.then(function (resp) {
+          resp.clone().json().then(function (data) {
+            if (data && data.keycloak_logout) {
+              window.location.href = data.keycloak_logout;
+            }
+          }).catch(function () {});
+        }).catch(function () {});
+      }
+      return p;
+    };
+  }
+
   // ── Bootstrap ──────────────────────────────────────────────────
   function init() {
+    patchFetchForLogout();
     walkForGuia(document.body);
     guiaObs.observe(document.body, { childList: true, subtree: true });
 

@@ -13,7 +13,7 @@ import os
 
 import chainlit as cl
 from fastapi import Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse
 
 from guia.config import GUIASettings
 from guia.container import GUIAContainer
@@ -38,11 +38,14 @@ async def on_app_startup() -> None:
 
 
 @cl.on_logout
-def on_logout(request: Request, response: Response) -> RedirectResponse:
-    """RP-Initiated Logout: cierra sesión en Keycloak además de en Chainlit."""
-    base   = os.environ.get("OAUTH_KEYCLOAK_BASE_URL", "").rstrip("/")
-    realm  = os.environ.get("OAUTH_KEYCLOAK_REALM", "upeu")
-    client = os.environ.get("OAUTH_KEYCLOAK_CLIENT_ID", "guia-node")
+def on_logout(request: Request, response: Response) -> JSONResponse:
+    """RP-Initiated Logout: devuelve la URL de end_session de Keycloak.
+    El JS (auto-login.js) hace la navegación top-level para que el browser
+    envíe la cookie de sesión de Keycloak correctamente.
+    """
+    base    = os.environ.get("OAUTH_KEYCLOAK_BASE_URL", "").rstrip("/")
+    realm   = os.environ.get("OAUTH_KEYCLOAK_REALM", "upeu")
+    client  = os.environ.get("OAUTH_KEYCLOAK_CLIENT_ID", "guia-node")
     app_url = os.environ.get("CHAINLIT_URL", "").rstrip("/")
 
     end_session = (
@@ -50,8 +53,8 @@ def on_logout(request: Request, response: Response) -> RedirectResponse:
         f"?client_id={client}"
         f"&post_logout_redirect_uri={app_url}"
     )
-    logger.info("keycloak_logout_redirect", url=end_session)
-    return RedirectResponse(url=end_session)
+    logger.info("keycloak_logout_url", url=end_session)
+    return JSONResponse({"keycloak_logout": end_session})
 
 
 @cl.oauth_callback
