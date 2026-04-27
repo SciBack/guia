@@ -9,7 +9,11 @@ Arranque:
 
 from __future__ import annotations
 
+import os
+
 import chainlit as cl
+from fastapi import Request, Response
+from fastapi.responses import RedirectResponse
 
 from guia.config import GUIASettings
 from guia.container import GUIAContainer
@@ -30,6 +34,23 @@ async def on_app_start() -> None:
         logger.info("model_router_warmup_start")
         await _container.router.warm_up()
         logger.info("model_router_warmup_done")
+
+
+@cl.on_logout
+def on_logout(request: Request, response: Response) -> RedirectResponse:
+    """RP-Initiated Logout: cierra sesión en Keycloak además de en Chainlit."""
+    base   = os.environ.get("OAUTH_KEYCLOAK_BASE_URL", "").rstrip("/")
+    realm  = os.environ.get("OAUTH_KEYCLOAK_REALM", "upeu")
+    client = os.environ.get("OAUTH_KEYCLOAK_CLIENT_ID", "guia-node")
+    app_url = os.environ.get("CHAINLIT_URL", "").rstrip("/")
+
+    end_session = (
+        f"{base}/realms/{realm}/protocol/openid-connect/logout"
+        f"?client_id={client}"
+        f"&post_logout_redirect_uri={app_url}"
+    )
+    logger.info("keycloak_logout_redirect", url=end_session)
+    return RedirectResponse(url=end_session)
 
 
 @cl.oauth_callback
