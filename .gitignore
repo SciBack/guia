@@ -46,7 +46,7 @@ htmlcov/
 .chainlit/translations/*.json
 !.chainlit/translations/es-PE.json
 .chainlit/*.json
-chainlit.md
+# chainlit.md — versionado intencionalmente (guía de usuario)
 
 # Docker compose override
 docker-compose.override.yml
