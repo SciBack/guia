@@ -12,6 +12,8 @@ from __future__ import annotations
 import os
 
 import chainlit as cl
+from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
+from chainlit.types import ThreadDict
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 
@@ -25,6 +27,18 @@ configure_logging(level=_settings.log_level, json_logs=False)
 logger = get_logger(__name__)
 
 _container = GUIAContainer(_settings)
+
+# URL asyncpg para el Data Layer nativo de Chainlit
+_PG_URL = os.environ.get(
+    "PGVECTOR_DATABASE_URL",
+    "postgresql+psycopg://guia:changeme@postgres:5432/guia_db",
+).replace("postgresql+psycopg://", "postgresql+asyncpg://")
+
+
+@cl.data_layer
+def get_data_layer() -> SQLAlchemyDataLayer:
+    """Data Layer nativo de Chainlit — habilita sidebar de historial de threads."""
+    return SQLAlchemyDataLayer(conninfo=_PG_URL)
 
 
 @cl.on_app_startup
@@ -159,48 +173,36 @@ async def set_starters() -> list[cl.Starter]:
 
 @cl.on_chat_start
 async def on_chat_start() -> None:
-    """Inicializa la sesión y restaura historial previo del usuario."""
+    """Inicializa una sesión nueva — Chainlit gestiona la persistencia via Data Layer."""
     user = cl.user_session.get("user")
-    session_id = cl.context.session.id
-    cl.user_session.set("session_id", session_id)
-
-    email = user.identifier if user else None
     name = user.metadata.get("name", "usuario") if user else "usuario"
+    cl.user_session.set("history", [])
 
-    repo = _container.conversation_repository
-    await repo.ensure_session(session_id, email=email)
+    await cl.Message(
+        content=(
+            f"Hola **{name}**, soy **GUIA**, tu asistente universitario UPeU. "
+            "Puedo ayudarte a encontrar tesis, artículos y publicaciones "
+            "del repositorio institucional. ¿En qué te ayudo?"
+        )
+    ).send()
 
-    # Cargar historial previo del usuario (todas sus sesiones)
+
+@cl.on_chat_resume
+async def on_chat_resume(thread: ThreadDict) -> None:
+    """Restaura el historial cuando el usuario retoma una conversación del sidebar."""
     history: list[ConversationMessage] = []
-    has_history = False
-    if email:
-        stored = await repo.get_user_history(email)
-        if stored:
-            has_history = True
-            history = [ConversationMessage(role=m.role, content=m.content) for m in stored]
-            # Restaurar mensajes anteriores en la UI de Chainlit
-            for msg in stored:
-                await cl.Message(
-                    content=msg.content,
-                    author=name if msg.role == "user" else "GUIA",
-                ).send()
-
-    cl.user_session.set("history", history)
-
-    if not has_history:
-        await cl.Message(
-            content=(
-                f"Hola **{name}**, soy **GUIA**, tu asistente universitario UPeU. "
-                "Puedo ayudarte a encontrar tesis, artículos y publicaciones "
-                "del repositorio institucional. ¿En qué te ayudo?"
-            )
-        ).send()
+    for step in thread.get("steps", []):
+        if step.get("type") == "user_message":
+            history.append(ConversationMessage(role="user", content=step.get("output", "")))
+        elif step.get("type") == "assistant_message":
+            history.append(ConversationMessage(role="assistant", content=step.get("output", "")))
+    cl.user_session.set("history", history[-20:])
+    logger.info("chat_resumed", thread_id=thread.get("id"), steps=len(history))
 
 
 @cl.on_message
 async def on_message(message: cl.Message) -> None:
-    """Procesa cada mensaje del usuario y persiste el turno."""
-    session_id: str = cl.user_session.get("session_id", "")
+    """Procesa cada mensaje del usuario."""
     history: list[ConversationMessage] = cl.user_session.get("history", [])
 
     thinking_msg = cl.Message(content="")
@@ -209,7 +211,7 @@ async def on_message(message: cl.Message) -> None:
     try:
         request = ChatRequest(
             query=message.content,
-            session_id=session_id,
+            session_id=cl.context.session.id,
             language="es",
             history=history,
         )
@@ -229,17 +231,7 @@ async def on_message(message: cl.Message) -> None:
         thinking_msg.content = answer_text
         await thinking_msg.update()
 
-        # Persistir turno en Postgres
-        repo = _container.conversation_repository
-        await repo.save_message(session_id, "user", message.content)
-        await repo.save_message(
-            session_id, "assistant", response.answer,
-            intent=response.intent,
-            model_used=response.model_used,
-            cached=response.cached,
-        )
-
-        # Actualizar historial en sesión (bounded a los últimos 20 mensajes)
+        # Actualizar historial en memoria de sesión (bounded a 20 mensajes = 10 turnos)
         history = history + [
             ConversationMessage(role="user", content=message.content),
             ConversationMessage(role="assistant", content=response.answer),
@@ -258,4 +250,4 @@ async def on_message(message: cl.Message) -> None:
 @cl.on_chat_end
 async def on_chat_end() -> None:
     """Limpieza al finalizar sesión."""
-    logger.info("chainlit_session_end", session_id=cl.user_session.get("session_id", ""))
+    logger.info("chainlit_session_end", session_id=cl.context.session.id)
