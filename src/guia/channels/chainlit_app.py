@@ -148,6 +148,18 @@ def oauth_callback(
     return cl.User(identifier=email, metadata={"name": name, "provider": provider_id})
 
 
+@cl.author_rename
+def rename_author(orig_author: str) -> str:
+    """Renombra autores de steps CoT a nombres legibles."""
+    return {
+        "retrieval": "Búsqueda académica",
+        "embedding": "Indexación semántica",
+        "rerank": "Clasificación de resultados",
+        "llm": "Síntesis IA",
+        "tool": "Herramienta",
+    }.get(orig_author, orig_author)
+
+
 @cl.set_starters
 async def set_starters() -> list[cl.Starter]:
     return [
@@ -239,20 +251,36 @@ async def on_message(message: cl.Message) -> None:
             language="es",
             history=history,
         )
-        response = await _container.chat_service.answer(request)
+
+        async with cl.Step(name="Búsqueda académica", type="retrieval") as rag_step:
+            rag_step.input = message.content
+            response = await _container.chat_service.answer(request)
+            source_count = len(response.sources)
+            rag_step.output = (
+                "Caché semántico"
+                if response.cached
+                else f"{source_count} fuente(s) académica(s) encontrada(s)"
+            )
 
         answer_text = response.answer
+        elements: list[cl.Element] = []
         if response.sources:
             answer_text += "\n\n**Fuentes:**\n"
             for i, source in enumerate(response.sources, 1):
                 if source.url:
                     answer_text += f"{i}. [{source.title}]({source.url})\n"
+                    if source.url.lower().endswith(".pdf"):
+                        elements.append(
+                            cl.Pdf(name=source.title[:50], url=source.url, display="side")
+                        )
                 else:
                     answer_text += f"{i}. {source.title}\n"
         if response.cached:
             answer_text += "\n\n*Respuesta desde caché semántico*"
 
         thinking_msg.content = answer_text
+        if elements:
+            thinking_msg.elements = elements
         await thinking_msg.update()
 
         # Primer turno: generar título descriptivo para el thread en el sidebar
