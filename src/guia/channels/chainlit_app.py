@@ -39,24 +39,78 @@ async def on_app_startup() -> None:
 
 @cl.on_logout
 def on_logout(request: Request, response: Response) -> JSONResponse:
-    """RP-Initiated Logout: devuelve la URL de end_session de Keycloak.
-    El JS (auto-login.js) hace la navegación top-level para que el browser
-    envíe la cookie de sesión de Keycloak correctamente.
+    """Cierra la sesión de Keycloak vía admin API (sin pantalla de confirmación)
+    y devuelve la URL de logout de Microsoft para que el JS encadene el cierre.
     """
-    base    = os.environ.get("OAUTH_KEYCLOAK_BASE_URL", "").rstrip("/")
-    realm   = os.environ.get("OAUTH_KEYCLOAK_REALM", "upeu")
-    client  = os.environ.get("OAUTH_KEYCLOAK_CLIENT_ID", "guia-node")
-    app_url = os.environ.get("CHAINLIT_URL", "").rstrip("/")
+    import urllib.request
+    import urllib.parse
 
-    # Keycloak redirige a ?logout=1 — el JS detecta ese flag y encadena
-    # el logout de Microsoft antes de mostrar la pantalla de login
-    end_session = (
-        f"{base}/realms/{realm}/protocol/openid-connect/logout"
-        f"?client_id={client}"
-        f"&post_logout_redirect_uri={app_url}%3Flogout%3D1"
+    base   = os.environ.get("OAUTH_KEYCLOAK_BASE_URL", "").rstrip("/")
+    realm  = os.environ.get("OAUTH_KEYCLOAK_REALM", "upeu")
+    client = os.environ.get("OAUTH_KEYCLOAK_CLIENT_ID", "guia-node")
+    secret = os.environ.get("OAUTH_KEYCLOAK_CLIENT_SECRET", "")
+
+    # 1. Obtener token de service account (client_credentials)
+    try:
+        token_data = urllib.parse.urlencode({
+            "grant_type": "client_credentials",
+            "client_id": client,
+            "client_secret": secret,
+        }).encode()
+        req = urllib.request.Request(
+            f"{base}/realms/{realm}/protocol/openid-connect/token",
+            data=token_data,
+        )
+        req.add_header("Content-Type", "application/x-www-form-urlencoded")
+        with urllib.request.urlopen(req, timeout=5) as r:  # noqa: S310
+            admin_token = __import__("json").loads(r.read())["access_token"]
+
+        # 2. Identificar usuario desde la cookie de Chainlit (antes de que se borre)
+        import jwt as pyjwt
+        from chainlit.config import config as cl_config
+        auth_cookie = request.cookies.get("chainlit_auth", "")
+        if auth_cookie:
+            payload = pyjwt.decode(
+                auth_cookie,
+                cl_config.auth.jwt_secret,
+                algorithms=["HS256"],
+                options={"verify_exp": False},
+            )
+            email = payload.get("identifier", "")
+
+            if email:
+                # 3. Buscar user en Keycloak
+                users_url = (
+                    f"{base}/admin/realms/{realm}/users"
+                    f"?email={urllib.parse.quote(email)}&exact=true"
+                )
+                req2 = urllib.request.Request(users_url)
+                req2.add_header("Authorization", f"Bearer {admin_token}")
+                with urllib.request.urlopen(req2, timeout=5) as r:  # noqa: S310
+                    users = __import__("json").loads(r.read())
+
+                if users:
+                    user_id = users[0]["id"]
+                    # 4. Eliminar todas sus sesiones en Keycloak
+                    del_req = urllib.request.Request(
+                        f"{base}/admin/realms/{realm}/users/{user_id}/sessions",
+                        method="DELETE",
+                    )
+                    del_req.add_header("Authorization", f"Bearer {admin_token}")
+                    urllib.request.urlopen(del_req, timeout=5)  # noqa: S310
+                    logger.info("keycloak_sessions_deleted", email=email)
+
+    except Exception as exc:  # pragma: no cover
+        logger.warning("keycloak_logout_admin_failed", error=str(exc))
+
+    # 5. Devolver URL de logout de Microsoft para que el JS encadene
+    ms_tenant = os.environ.get("AZURE_TENANT_ID", "cfbd88b4-94bc-4fba-98bd-64d0726394a3")
+    app_url   = os.environ.get("CHAINLIT_URL", "").rstrip("/")
+    ms_logout = (
+        f"https://login.microsoftonline.com/{ms_tenant}/oauth2/v2.0/logout"
+        f"?post_logout_redirect_uri={urllib.parse.quote(app_url)}"
     )
-    logger.info("keycloak_logout_url", url=end_session)
-    return JSONResponse({"keycloak_logout": end_session})
+    return JSONResponse({"keycloak_logout": ms_logout})
 
 
 @cl.oauth_callback
