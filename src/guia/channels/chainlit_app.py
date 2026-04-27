@@ -9,6 +9,7 @@ Arranque:
 
 from __future__ import annotations
 
+import asyncio
 import os
 
 import chainlit as cl
@@ -16,6 +17,8 @@ from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
 from chainlit.types import ThreadDict
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
+
+from sciback_core.ports.llm import LLMMessage
 
 from guia.config import GUIASettings
 from guia.container import GUIAContainer
@@ -200,6 +203,27 @@ async def on_chat_resume(thread: ThreadDict) -> None:
     logger.info("chat_resumed", thread_id=thread.get("id"), steps=len(history))
 
 
+async def _generate_thread_title(query: str) -> str:
+    """Genera un título corto (≤6 palabras) para el thread basado en la primera pregunta."""
+    try:
+        llm = _container.classifier_llm
+        messages = [
+            LLMMessage(
+                role="system",
+                content=(
+                    "Genera un título muy corto (máximo 6 palabras) que resuma esta pregunta. "
+                    "Solo el título, sin puntos, comillas ni explicaciones."
+                ),
+            ),
+            LLMMessage(role="user", content=query),
+        ]
+        result = await asyncio.to_thread(llm.complete, messages, max_tokens=20, temperature=0.1)
+        title = result.content.strip().strip("\"'").strip()
+        return title[:60] if title else query[:60]
+    except Exception:
+        return query[:60]
+
+
 @cl.on_message
 async def on_message(message: cl.Message) -> None:
     """Procesa cada mensaje del usuario."""
@@ -230,6 +254,11 @@ async def on_message(message: cl.Message) -> None:
 
         thinking_msg.content = answer_text
         await thinking_msg.update()
+
+        # Primer turno: generar título descriptivo para el thread en el sidebar
+        if not history:
+            title = await _generate_thread_title(message.content)
+            await cl.context.emitter.update_thread(name=title)
 
         # Actualizar historial en memoria de sesión (bounded a 20 mensajes = 10 turnos)
         history = history + [
