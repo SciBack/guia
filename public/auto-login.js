@@ -216,6 +216,121 @@
     return true;
   }
 
+  // ── 4. README modal ──────────────────────────────────────────────
+  var _rmModal = null;
+
+  function buildReadmeModal() {
+    if (_rmModal) return _rmModal;
+
+    // Backdrop
+    var backdrop = document.createElement('div');
+    backdrop.id = 'guia-rm-backdrop';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+    backdrop.setAttribute('aria-labelledby', 'guia-rm-title');
+
+    // Modal box
+    var modal = document.createElement('div');
+    modal.id = 'guia-rm-modal';
+
+    // Header
+    var header = document.createElement('div');
+    header.id = 'guia-rm-header';
+
+    var titleEl = document.createElement('h2');
+    titleEl.id = 'guia-rm-title';
+    titleEl.textContent = 'Guía rápida de GUIA';
+
+    var closeBtn = document.createElement('button');
+    closeBtn.id = 'guia-rm-close';
+    closeBtn.setAttribute('aria-label', 'Cerrar');
+    closeBtn.innerHTML =
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+      ' stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
+      '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+    header.appendChild(titleEl);
+    header.appendChild(closeBtn);
+
+    // Body
+    var body = document.createElement('div');
+    body.id = 'guia-rm-body';
+    body.innerHTML = '<p style="color:hsl(var(--muted-foreground));padding:1rem 0">Cargando…</p>';
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    backdrop.appendChild(modal);
+    document.body.appendChild(backdrop);
+
+    function closeModal() {
+      backdrop.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function openModal() {
+      // Re-trigger animation
+      modal.classList.remove('guia-rm-animate');
+      void modal.offsetWidth;
+      modal.classList.add('guia-rm-animate');
+
+      backdrop.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      closeBtn.focus();
+
+      if (!body.dataset.loaded) {
+        fetch('/public/readme-content.html')
+          .then(function (r) { return r.text(); })
+          .then(function (html) {
+            body.innerHTML = html;
+            body.dataset.loaded = '1';
+          })
+          .catch(function () {
+            body.innerHTML = '<p>No se pudo cargar el contenido. Recarga la página.</p>';
+          });
+      }
+    }
+
+    closeBtn.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', function (e) {
+      if (e.target === backdrop) closeModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && backdrop.classList.contains('open')) closeModal();
+    });
+
+    _rmModal = { open: openModal };
+    return _rmModal;
+  }
+
+  function interceptReadmeButton(btn) {
+    if (btn.dataset.guiaRm) return;
+    btn.dataset.guiaRm = '1';
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      buildReadmeModal().open();
+    }, true); // capture — antes de que React lo procese
+  }
+
+  function scanReadmeButtons() {
+    var all = document.querySelectorAll('button, [role="button"], a');
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el.dataset.guiaRm) continue;
+      var text  = (el.textContent || '').trim();
+      var label = (el.getAttribute('aria-label') || '').toLowerCase();
+      var title = (el.getAttribute('title') || '').toLowerCase();
+      if (
+        text === 'Léeme' || text === 'Readme' || text === 'Read me' ||
+        label.includes('readme') || label.includes('léeme') || label.includes('leeme') ||
+        title.includes('readme') || title.includes('léeme') || title.includes('leeme')
+      ) {
+        interceptReadmeButton(el);
+      }
+    }
+  }
+
   // ── Bootstrap ──────────────────────────────────────────────────
   function init() {
     walkForGuia(document.body);
@@ -238,6 +353,11 @@
         obs.observe(document.body, { childList: true, subtree: true });
         setTimeout(function () { obs.disconnect(); }, 15000);
       }
+    } else {
+      // En el chat: interceptar el botón "Léeme" de Chainlit
+      scanReadmeButtons();
+      var rmObs = new MutationObserver(scanReadmeButtons);
+      rmObs.observe(document.body, { childList: true, subtree: true });
     }
   }
 
