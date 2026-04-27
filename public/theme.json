@@ -33,6 +33,37 @@
       "--sidebar-accent-foreground":   "204 30% 85%",
       "--sidebar-border":              "204 55% 16%",
       "--sidebar-ring":                "204 88% 56%"
+    },
+    "light": {
+      "--font-sans":                  "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      "--background":                  "210 40% 98%",
+      "--foreground":                  "203 60% 12%",
+      "--card":                        "0 0% 100%",
+      "--card-foreground":             "203 60% 12%",
+      "--popover":                     "0 0% 100%",
+      "--popover-foreground":          "203 60% 12%",
+      "--primary":                     "204 88% 38%",
+      "--primary-foreground":          "0 0% 100%",
+      "--secondary":                   "204 35% 92%",
+      "--secondary-foreground":        "203 60% 18%",
+      "--muted":                       "204 25% 93%",
+      "--muted-foreground":            "203 30% 42%",
+      "--accent":                      "204 35% 90%",
+      "--accent-foreground":           "203 60% 18%",
+      "--destructive":                 "0 72% 46%",
+      "--destructive-foreground":      "0 0% 100%",
+      "--border":                      "204 25% 86%",
+      "--input":                       "204 25% 86%",
+      "--ring":                        "204 88% 38%",
+      "--radius":                      "0.75rem",
+      "--sidebar-background":          "204 35% 95%",
+      "--sidebar-foreground":          "203 50% 20%",
+      "--sidebar-primary":             "204 88% 38%",
+      "--sidebar-primary-foreground":  "0 0% 100%",
+      "--sidebar-accent":              "204 30% 88%",
+      "--sidebar-accent-foreground":   "203 50% 20%",
+      "--sidebar-border":              "204 25% 83%",
+      "--sidebar-ring":                "204 88% 38%"
     }
   }
 }
