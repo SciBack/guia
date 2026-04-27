@@ -353,12 +353,12 @@
         obs.observe(document.body, { childList: true, subtree: true });
         setTimeout(function () { obs.disconnect(); }, 15000);
       }
-    } else {
-      // En el chat: interceptar el botón "Léeme" de Chainlit
-      scanReadmeButtons();
-      var rmObs = new MutationObserver(scanReadmeButtons);
-      rmObs.observe(document.body, { childList: true, subtree: true });
     }
+
+    // Siempre escanear — el botón Léeme solo existe en el chat, no en el login
+    scanReadmeButtons();
+    var rmObs = new MutationObserver(scanReadmeButtons);
+    rmObs.observe(document.body, { childList: true, subtree: true });
   }
 
   if (document.body) { init(); }
