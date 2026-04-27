@@ -70,6 +70,7 @@ class GUIAContainer:
         self.dspace_adapter = self._try_build_dspace()
         self.ojs_adapter = self._try_build_ojs()
         self.alicia_harvester = self._try_build_alicia()
+        self.koha_adapter = self._try_build_koha()
 
         # M4: SearchAdapter async (ADR-029) — None si backend=pgvector
         self.search_adapter: SearchAdapter | None = get_search_adapter(
@@ -118,6 +119,13 @@ class GUIAContainer:
         except Exception:
             return None
 
+    def _try_build_koha(self) -> object:
+        try:
+            from sciback_adapter_koha import KohaAdapter, KohaSettings
+            return KohaAdapter(KohaSettings(_env_file=None))
+        except Exception:
+            return None
+
     def _init_services(self) -> None:
         """Construye servicios de aplicación usando los adapters."""
         self.cache = SemanticCache(
@@ -155,6 +163,7 @@ class GUIAContainer:
             dspace=self.dspace_adapter,  # type: ignore[arg-type]
             ojs=self.ojs_adapter,  # type: ignore[arg-type]
             alicia=self.alicia_harvester,  # type: ignore[arg-type]
+            koha=self.koha_adapter,  # type: ignore[arg-type]
         )
 
         # M4: UserProfileRepository — perfiles persistentes en Postgres (ADR-034)

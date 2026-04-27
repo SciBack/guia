@@ -13,6 +13,7 @@ dependencies = [
     "sciback-adapter-dspace>=0.1",
     "sciback-adapter-ojs>=0.1",
     "sciback-adapter-alicia>=0.1",
+    "sciback-adapter-koha>=0.1",
     "sciback-llm-claude>=0.1",
     "sciback-llm-ollama>=0.1",
     "sciback-embeddings-e5>=0.1",

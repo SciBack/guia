@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
     from sciback_adapter_alicia import AliciaHarvester
     from sciback_adapter_dspace import DSpaceAdapter
+    from sciback_adapter_koha import KohaAdapter
     from sciback_adapter_ojs import OjsAdapter
     from sciback_core.entities.publication import Publication
     from sciback_core.ports.vector_store import VectorStorePort
@@ -78,12 +79,14 @@ class HarvesterService:
         dspace: DSpaceAdapter | None = None,
         ojs: OjsAdapter | None = None,
         alicia: AliciaHarvester | None = None,
+        koha: KohaAdapter | None = None,
     ) -> None:
         self._store = store
         self._embedder = embedder
         self._dspace = dspace
         self._ojs = ojs
         self._alicia = alicia
+        self._koha = koha
 
     def harvest_dspace(
         self,
@@ -138,12 +141,25 @@ class HarvesterService:
             batch_size=batch_size,
         )
 
+    def harvest_koha(self, *, batch_size: int = 50) -> dict[str, int]:
+        """Cosecha el catálogo bibliográfico de Koha vía REST API."""
+        if self._koha is None:
+            logger.warning("Koha adapter not configured — skipping")
+            return {"total": 0, "ok": 0, "error": 0}
+
+        return self._harvest_source(
+            source_name="koha",
+            iterator=self._koha.harvest(),
+            batch_size=batch_size,
+        )
+
     def harvest_all(self, *, from_date: str | None = None) -> dict[str, dict[str, int]]:
         """Cosecha todas las fuentes configuradas."""
         return {
             "dspace": self.harvest_dspace(from_date=from_date),
             "ojs": self.harvest_ojs(),
             "alicia": self.harvest_alicia(from_date=from_date),
+            "koha": self.harvest_koha(),
         }
 
     def _harvest_source(
