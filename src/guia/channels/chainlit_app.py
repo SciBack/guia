@@ -30,9 +30,10 @@ _container = GUIAContainer(_settings)
 @cl.on_app_startup
 async def on_app_startup() -> None:
     """Pre-calienta el ModelRouter al arrancar la app."""
-    if _container.router is not None:
+    router = getattr(_container, "router", None)
+    if router is not None:
         logger.info("model_router_warmup_start")
-        await _container.router.warm_up()
+        await router.warm_up()
         logger.info("model_router_warmup_done")
 
 
