@@ -15,6 +15,7 @@ from guia.search.backend import SearchAdapter, get_search_adapter
 from guia.services.cache import SemanticCache
 from guia.services.chat import ChatService
 from guia.services.harvester import HarvesterService
+from guia.services.history import ConversationRepository
 from guia.services.profile import UserProfileRepository
 from guia.services.router import ModelRouter
 from guia.services.search import SearchService
@@ -162,6 +163,11 @@ class GUIAContainer:
         )
         self.profile_repository.initialize()
 
+        self.conversation_repository = ConversationRepository(
+            database_url=self.settings.pgvector_database_url,  # type: ignore[attr-defined]
+        )
+        self.conversation_repository.initialize()
+
     def close(self) -> None:
         """Libera recursos (conexiones pool, etc.)."""
         if hasattr(self._pg_store_concrete, "close"):
@@ -170,4 +176,5 @@ class GUIAContainer:
             import asyncio
             asyncio.run(self.search_adapter.close())
         self.profile_repository.close()
+        self.conversation_repository.close()
         self._redis.close()

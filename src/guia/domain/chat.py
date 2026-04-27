@@ -39,6 +39,15 @@ class Source(BaseModel):
     source_type: str = "publication"  # publication | thesis | article
 
 
+class ConversationMessage(BaseModel):
+    """Turno previo de la conversación, para contexto del LLM."""
+
+    model_config = ConfigDict(frozen=True)
+
+    role: str  # "user" | "assistant"
+    content: str
+
+
 class ChatRequest(BaseModel):
     """Request entrante al ChatService."""
 
@@ -49,6 +58,7 @@ class ChatRequest(BaseModel):
     session_id: str | None = None
     language: str = "es"
     intent_hint: Intent | None = None
+    history: list[ConversationMessage] = Field(default_factory=list)
 
 
 class ChatResponse(BaseModel):

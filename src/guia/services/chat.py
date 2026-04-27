@@ -245,10 +245,10 @@ class ChatService:
             institution=self._institution,
             context=context_text if context_text else "No se encontraron documentos relevantes.",
         )
-        messages = [
-            LLMMessage(role="system", content=system),
-            LLMMessage(role="user", content=query),
-        ]
+        messages = [LLMMessage(role="system", content=system)]
+        for turn in request.history:
+            messages.append(LLMMessage(role=turn.role, content=turn.content))
+        messages.append(LLMMessage(role="user", content=query))
         llm_response = await asyncio.to_thread(
             synthesis_llm.complete, messages, max_tokens=1024, temperature=0.1
         )

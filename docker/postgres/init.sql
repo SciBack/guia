@@ -40,3 +40,29 @@ CREATE TABLE IF NOT EXISTS cache_stats (
 
 COMMENT ON TABLE harvest_runs IS 'Registro de corridas de cosecha OAI-PMH por fuente';
 COMMENT ON TABLE cache_stats IS 'Estadísticas de hit/miss del caché semántico Redis';
+
+-- ── Historial de conversaciones ────────────────────────────────
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT,
+    email       TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id  TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    role        VARCHAR(10) NOT NULL CHECK (role IN ('user', 'assistant')),
+    content     TEXT NOT NULL,
+    intent      VARCHAR(20),
+    model_used  VARCHAR(80),
+    cached      BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_email   ON chat_sessions(email, updated_at DESC);
+
+COMMENT ON TABLE chat_sessions IS 'Sesiones de chat — una por conexión Chainlit/Telegram';
+COMMENT ON TABLE chat_messages IS 'Historial de mensajes persistidos para memoria conversacional';

@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 
 from guia.config import GUIASettings
 from guia.container import GUIAContainer
-from guia.domain.chat import ChatRequest
+from guia.domain.chat import ChatRequest, ConversationMessage
 from guia.logging import configure_logging, get_logger
 
 _settings = GUIASettings()
@@ -159,26 +159,50 @@ async def set_starters() -> list[cl.Starter]:
 
 @cl.on_chat_start
 async def on_chat_start() -> None:
-    """Inicializa la sesión de chat."""
+    """Inicializa la sesión y restaura historial previo del usuario."""
     user = cl.user_session.get("user")
-    cl.user_session.set("session_id", cl.context.session.id)
+    session_id = cl.context.session.id
+    cl.user_session.set("session_id", session_id)
 
+    email = user.identifier if user else None
     name = user.metadata.get("name", "usuario") if user else "usuario"
-    await cl.Message(
-        content=(
-            f"Hola **{name}**, soy **GUIA**, tu asistente universitario UPeU. "
-            "Puedo ayudarte a encontrar tesis, artículos y publicaciones "
-            "del repositorio institucional. ¿En qué te ayudo?"
-        )
-    ).send()
+
+    repo = _container.conversation_repository
+    await repo.ensure_session(session_id, email=email)
+
+    # Cargar historial previo del usuario (todas sus sesiones)
+    history: list[ConversationMessage] = []
+    has_history = False
+    if email:
+        stored = await repo.get_user_history(email)
+        if stored:
+            has_history = True
+            history = [ConversationMessage(role=m.role, content=m.content) for m in stored]
+            # Restaurar mensajes anteriores en la UI de Chainlit
+            for msg in stored:
+                await cl.Message(
+                    content=msg.content,
+                    author=name if msg.role == "user" else "GUIA",
+                ).send()
+
+    cl.user_session.set("history", history)
+
+    if not has_history:
+        await cl.Message(
+            content=(
+                f"Hola **{name}**, soy **GUIA**, tu asistente universitario UPeU. "
+                "Puedo ayudarte a encontrar tesis, artículos y publicaciones "
+                "del repositorio institucional. ¿En qué te ayudo?"
+            )
+        ).send()
 
 
 @cl.on_message
 async def on_message(message: cl.Message) -> None:
-    """Procesa cada mensaje del usuario."""
+    """Procesa cada mensaje del usuario y persiste el turno."""
     session_id: str = cl.user_session.get("session_id", "")
+    history: list[ConversationMessage] = cl.user_session.get("history", [])
 
-    # Indicador de "pensando"
     thinking_msg = cl.Message(content="")
     await thinking_msg.send()
 
@@ -187,12 +211,11 @@ async def on_message(message: cl.Message) -> None:
             query=message.content,
             session_id=session_id,
             language="es",
+            history=history,
         )
         response = await _container.chat_service.answer(request)
 
-        # Construir respuesta con fuentes
         answer_text = response.answer
-
         if response.sources:
             answer_text += "\n\n**Fuentes:**\n"
             for i, source in enumerate(response.sources, 1):
@@ -200,12 +223,28 @@ async def on_message(message: cl.Message) -> None:
                     answer_text += f"{i}. [{source.title}]({source.url})\n"
                 else:
                     answer_text += f"{i}. {source.title}\n"
-
         if response.cached:
             answer_text += "\n\n*Respuesta desde caché semántico*"
 
         thinking_msg.content = answer_text
         await thinking_msg.update()
+
+        # Persistir turno en Postgres
+        repo = _container.conversation_repository
+        await repo.save_message(session_id, "user", message.content)
+        await repo.save_message(
+            session_id, "assistant", response.answer,
+            intent=response.intent,
+            model_used=response.model_used,
+            cached=response.cached,
+        )
+
+        # Actualizar historial en sesión (bounded a los últimos 20 mensajes)
+        history = history + [
+            ConversationMessage(role="user", content=message.content),
+            ConversationMessage(role="assistant", content=response.answer),
+        ]
+        cl.user_session.set("history", history[-20:])
 
     except Exception as exc:
         logger.exception("chainlit_error", exc_info=exc)
