@@ -36,8 +36,8 @@ services:
   # ── GUIA servicios ────────────────────────────────────────────
   api:
     build:
-      context: .
-      dockerfile: docker/api/Dockerfile
+      context: ..
+      dockerfile: guia/docker/api/Dockerfile.prod
     command: python -m guia serve
     env_file: .env
     ports:
@@ -55,11 +55,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
 
   chainlit:
     build:
-      context: .
-      dockerfile: docker/api/Dockerfile
+      context: ..
+      dockerfile: guia/docker/api/Dockerfile.prod
     command: chainlit run src/guia/channels/chainlit_app.py --host 0.0.0.0 --port 8001
     env_file: .env
     ports:
@@ -77,11 +78,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
 
   telegram:
     build:
-      context: .
-      dockerfile: docker/api/Dockerfile
+      context: ..
+      dockerfile: guia/docker/api/Dockerfile.prod
     command: python -m guia.channels.telegram_bot
     env_file: .env
     depends_on:
@@ -90,11 +92,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
 
   scheduler:
     build:
-      context: .
-      dockerfile: docker/api/Dockerfile
+      context: ..
+      dockerfile: guia/docker/api/Dockerfile.prod
     command: python -m guia.scheduler
     env_file: .env
     depends_on:
@@ -105,11 +108,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
 
   dashboard:
     build:
-      context: .
-      dockerfile: docker/api/Dockerfile
+      context: ..
+      dockerfile: guia/docker/api/Dockerfile.prod
     command: streamlit run src/guia/dashboard/app.py --server.port 8501 --server.address 0.0.0.0
     env_file: .env
     ports:
@@ -125,6 +129,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
 
   # ── Sprint 0.4: PDF extraction ────────────────────────────────
   grobid:
@@ -220,8 +225,8 @@ services:
   # ── M1: Celery workers (ADR-013) ─────────────────────────────
   celery-worker-indexer:
     build:
-      context: .
-      dockerfile: docker/api/Dockerfile
+      context: ..
+      dockerfile: guia/docker/api/Dockerfile.prod
     command: celery -A guia.worker.celery_app worker -Q indexer -c 4 --loglevel=info --prefetch-multiplier=1
     env_file: .env
     depends_on:
@@ -236,11 +241,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
 
   celery-worker-harvester:
     build:
-      context: .
-      dockerfile: docker/api/Dockerfile
+      context: ..
+      dockerfile: guia/docker/api/Dockerfile.prod
     command: celery -A guia.worker.celery_app worker -Q harvester -c 2 --loglevel=info --prefetch-multiplier=1
     env_file: .env
     depends_on:
@@ -253,11 +259,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
 
   celery-worker-grobid:
     build:
-      context: .
-      dockerfile: docker/api/Dockerfile
+      context: ..
+      dockerfile: guia/docker/api/Dockerfile.prod
     command: celery -A guia.worker.celery_app worker -Q grobid -c 1 --loglevel=info --prefetch-multiplier=1 --time-limit=600
     env_file: .env
     depends_on:
@@ -270,11 +277,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
 
   celery-worker-misc:
     build:
-      context: .
-      dockerfile: docker/api/Dockerfile
+      context: ..
+      dockerfile: guia/docker/api/Dockerfile.prod
     command: celery -A guia.worker.celery_app worker -Q profile,health -c 4 --loglevel=info --prefetch-multiplier=1
     env_file: .env
     depends_on:
@@ -287,11 +295,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
 
   celery-beat:
     build:
-      context: .
-      dockerfile: docker/api/Dockerfile
+      context: ..
+      dockerfile: guia/docker/api/Dockerfile.prod
     command: celery -A guia.worker.celery_app beat --loglevel=info --scheduler celery.beat:PersistentScheduler
     env_file: .env
     depends_on:
@@ -304,6 +313,7 @@ services:
     volumes:
       - celery_beat_data:/var/lib/celery
       - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
     restart: unless-stopped
 
   # ── Reverse proxy ─────────────────────────────────────────────
