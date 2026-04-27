@@ -66,3 +66,76 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_email   ON chat_sessions(email, upd
 
 COMMENT ON TABLE chat_sessions IS 'Sesiones de chat — una por conexión Chainlit/Telegram';
 COMMENT ON TABLE chat_messages IS 'Historial de mensajes persistidos para memoria conversacional';
+
+-- ── Tablas nativas del Data Layer de Chainlit 2.x ─────────────
+-- Habilitan el sidebar de historial de threads y persistencia nativa.
+CREATE TABLE IF NOT EXISTS users (
+    id           TEXT PRIMARY KEY,
+    identifier   TEXT NOT NULL UNIQUE,
+    "createdAt"  TEXT,
+    metadata     JSONB DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS threads (
+    id               TEXT PRIMARY KEY,
+    "createdAt"      TEXT,
+    name             TEXT,
+    "userId"         TEXT REFERENCES users(id) ON DELETE CASCADE,
+    "userIdentifier" TEXT,
+    tags             TEXT[],
+    metadata         JSONB DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS steps (
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    type            TEXT NOT NULL,
+    "threadId"      TEXT REFERENCES threads(id) ON DELETE CASCADE,
+    "parentId"      TEXT,
+    streaming       BOOLEAN DEFAULT FALSE,
+    "waitForAnswer" BOOLEAN,
+    "isError"       BOOLEAN DEFAULT FALSE,
+    metadata        JSONB DEFAULT '{}',
+    tags            TEXT[],
+    input           TEXT DEFAULT '',
+    output          TEXT DEFAULT '',
+    "createdAt"     TEXT,
+    start           TEXT,
+    "end"           TEXT,
+    generation      JSONB,
+    "showInput"     TEXT,
+    language        TEXT,
+    "defaultOpen"   BOOLEAN DEFAULT FALSE,
+    "autoCollapse"  BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS feedbacks (
+    id       TEXT PRIMARY KEY,
+    "forId"  TEXT REFERENCES steps(id) ON DELETE CASCADE,
+    value    INTEGER NOT NULL,
+    comment  TEXT
+);
+
+CREATE TABLE IF NOT EXISTS elements (
+    id             TEXT PRIMARY KEY,
+    "threadId"     TEXT REFERENCES threads(id) ON DELETE CASCADE,
+    type           TEXT,
+    name           TEXT NOT NULL,
+    display        TEXT,
+    url            TEXT,
+    "objectKey"    TEXT,
+    "chainlitKey"  TEXT,
+    size           TEXT,
+    language       TEXT,
+    page           INTEGER,
+    "autoPlay"     BOOLEAN,
+    "playerConfig" JSONB,
+    props          JSONB DEFAULT '{}',
+    "forId"        TEXT,
+    mime           TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_threads_userId     ON threads("userId");
+CREATE INDEX IF NOT EXISTS idx_steps_threadId     ON steps("threadId");
+CREATE INDEX IF NOT EXISTS idx_elements_threadId  ON elements("threadId");
+CREATE INDEX IF NOT EXISTS idx_feedbacks_forId    ON feedbacks("forId");
