@@ -352,8 +352,30 @@
     };
   }
 
+  // ── 6. Logout en cadena: Keycloak → Microsoft → GUIA ────────────
+  // Keycloak redirige a ?logout=1 tras cerrar su sesión.
+  // Desde aquí navegamos al end_session de Microsoft para cerrar también
+  // la sesión de Entra ID (Teams, Outlook, etc.).
+  var MS_TENANT = 'cfbd88b4-94bc-4fba-98bd-64d0726394a3';
+
+  function handleMicrosoftLogoutChain() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('logout') !== '1') return;
+
+    // Limpiar el parámetro de la URL sin recargar
+    var cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, '', cleanUrl);
+
+    // Redirigir a Microsoft logout → vuelve a GUIA limpio
+    var msLogout = 'https://login.microsoftonline.com/' + MS_TENANT +
+      '/oauth2/v2.0/logout' +
+      '?post_logout_redirect_uri=' + encodeURIComponent(window.location.origin);
+    window.location.href = msLogout;
+  }
+
   // ── Bootstrap ──────────────────────────────────────────────────
   function init() {
+    handleMicrosoftLogoutChain(); // primero — si hay ?logout=1 redirige y para
     patchFetchForLogout();
     walkForGuia(document.body);
     guiaObs.observe(document.body, { childList: true, subtree: true });

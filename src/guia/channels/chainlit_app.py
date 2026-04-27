@@ -48,10 +48,12 @@ def on_logout(request: Request, response: Response) -> JSONResponse:
     client  = os.environ.get("OAUTH_KEYCLOAK_CLIENT_ID", "guia-node")
     app_url = os.environ.get("CHAINLIT_URL", "").rstrip("/")
 
+    # Keycloak redirige a ?logout=1 — el JS detecta ese flag y encadena
+    # el logout de Microsoft antes de mostrar la pantalla de login
     end_session = (
         f"{base}/realms/{realm}/protocol/openid-connect/logout"
         f"?client_id={client}"
-        f"&post_logout_redirect_uri={app_url}"
+        f"&post_logout_redirect_uri={app_url}%3Flogout%3D1"
     )
     logger.info("keycloak_logout_url", url=end_session)
     return JSONResponse({"keycloak_logout": end_session})
