@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-_MAX_EMBEDDING_CHARS = 1500  # multilingual-e5 soporta ~512 tokens ≈ 1500 chars
+_MAX_EMBEDDING_CHARS = 1900  # ~500 tokens netos para multilingual-e5 (512 tok - prefijo "passage: ")
 
 
 def _publication_to_text(pub: Publication) -> str:
