@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+_MAX_EMBEDDING_CHARS = 1500  # multilingual-e5 soporta ~512 tokens ≈ 1500 chars
+
+
 def _publication_to_text(pub: Publication) -> str:
     """Extrae texto relevante de una Publication para embedding."""
     parts: list[str] = []
@@ -34,7 +37,8 @@ def _publication_to_text(pub: Publication) -> str:
         if isinstance(keywords, list):
             parts.append(" ".join(str(k) for k in keywords))
 
-    return " ".join(parts) if parts else ""
+    text = " ".join(parts) if parts else ""
+    return text[:_MAX_EMBEDDING_CHARS]
 
 
 def _publication_to_metadata(pub: Publication) -> dict[str, object]:
