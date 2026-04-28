@@ -162,6 +162,8 @@ class HarvesterService:
             "koha": self.harvest_koha(),
         }
 
+    _PROGRESS_INTERVAL = 500  # loguear progreso cada N registros
+
     def _harvest_source(
         self,
         source_name: str,
@@ -169,9 +171,11 @@ class HarvesterService:
         batch_size: int,
     ) -> dict[str, int]:
         """Implementación común de cosecha con batching de embeddings."""
+        import time
         total = 0
         ok = 0
         error = 0
+        t_start = time.monotonic()
 
         batch_texts: list[str] = []
         batch_ids: list[str] = []
@@ -189,7 +193,6 @@ class HarvesterService:
                     meta["source"] = source_name
                     self._store.upsert(pub_id, vector, metadata=meta)
                 ok += len(batch_ids)
-                logger.info("batch_indexed", extra={"source": source_name, "count": len(batch_ids)})
             except Exception:
                 logger.exception("batch_error", extra={"source": source_name})
                 error += len(batch_ids)
@@ -202,7 +205,6 @@ class HarvesterService:
             total += 1
             text = _publication_to_text(pub)
             if not text:
-                logger.debug("empty_text", extra={"pub_id": getattr(pub, "id", "?")})
                 error += 1
                 continue
 
@@ -216,10 +218,44 @@ class HarvesterService:
             if len(batch_texts) >= batch_size:
                 flush_batch()
 
+            if total % self._PROGRESS_INTERVAL == 0:
+                elapsed = time.monotonic() - t_start
+                rate = total / elapsed if elapsed > 0 else 0
+                logger.info(
+                    "harvest_progress",
+                    extra={
+                        "source": source_name,
+                        "processed": total,
+                        "ok": ok,
+                        "error": error,
+                        "rate_per_sec": round(rate, 1),
+                        "elapsed_s": round(elapsed),
+                    },
+                )
+                print(
+                    f"[{source_name}] {total} procesados — {ok} OK, {error} err "
+                    f"— {rate:.1f} reg/s — {round(elapsed)}s",
+                    flush=True,
+                )
+
         flush_batch()
 
+        elapsed = time.monotonic() - t_start
+        rate = total / elapsed if elapsed > 0 else 0
         logger.info(
             "harvest_complete",
-            extra={"source": source_name, "total": total, "ok": ok, "error": error},
+            extra={
+                "source": source_name,
+                "total": total,
+                "ok": ok,
+                "error": error,
+                "elapsed_s": round(elapsed),
+                "rate_per_sec": round(rate, 1),
+            },
+        )
+        print(
+            f"[{source_name}] COMPLETO — {total} procesados, {ok} OK, {error} err "
+            f"— {rate:.1f} reg/s — {round(elapsed)}s",
+            flush=True,
         )
         return {"total": total, "ok": ok, "error": error}
