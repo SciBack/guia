@@ -18,6 +18,7 @@ from guia.services.intent import IntentClassifier
 from guia.services.router import ModelRouter, QueryTier
 
 if TYPE_CHECKING:
+    from sciback_adapter_koha import KohaAdapter
     from sciback_core.ports.vector_store import VectorRecord, VectorStorePort
     from sciback_embeddings_e5 import E5EmbeddingAdapter
 
@@ -36,9 +37,9 @@ Contexto de documentos relevantes:
 {context}"""
 
 _CAMPUS_UNAVAILABLE = (
-    "Los servicios de campus (biblioteca, notas, matrícula) estarán disponibles "
+    "Los servicios de campus (notas, matrícula) estarán disponibles "
     "próximamente. Por ahora puedo ayudarte con búsquedas en el repositorio "
-    "institucional y publicaciones académicas."
+    "institucional, publicaciones académicas y el catálogo de la biblioteca."
 )
 
 _OUT_OF_SCOPE = (
@@ -140,6 +141,7 @@ class ChatService:
         cache: SemanticCache | None = None,
         institution: str = "la universidad",
         search_adapter: SearchAdapter | None = None,
+        koha_adapter: KohaAdapter | None = None,
     ) -> None:
         self._synthesis_llm = synthesis_llm
         self._fast_llm = fast_llm
@@ -150,6 +152,7 @@ class ChatService:
         self._cache = cache
         self._institution = institution
         self._search_adapter = search_adapter
+        self._koha = koha_adapter
 
     async def answer(self, request: ChatRequest) -> ChatResponse:
         """Genera una respuesta para el ChatRequest del usuario (async).
@@ -198,6 +201,59 @@ class ChatService:
             return response
 
         if intent == Intent.CAMPUS:
+            # Si hay Koha conectado, buscar en el catálogo y enriquecer con disponibilidad
+            if self._koha is not None:
+                koha_results = await asyncio.to_thread(self._koha.search, query, per_page=5)
+                if koha_results:
+                    sources: list[Source] = []
+                    avail_lines: list[str] = []
+                    for pub in koha_results:
+                        biblio_id = next(
+                            (
+                                int(eid.value.split(":")[1])
+                                for eid in getattr(pub, "external_ids", [])
+                                if "koha:" in str(eid.value)
+                            ),
+                            None,
+                        )
+                        avail = (
+                            await asyncio.to_thread(self._koha.get_availability, biblio_id)
+                            if biblio_id is not None
+                            else {}
+                        )
+                        title = pub.title.primary_value if pub.title else "Sin título"
+                        total_copies = avail.get("total", 0)
+                        available = avail.get("available", 0)
+                        avail_str = (
+                            f"{available}/{total_copies} ejemplares disponibles"
+                            if total_copies
+                            else "sin ejemplares registrados"
+                        )
+                        avail_lines.append(f"- **{title}** — {avail_str}")
+                        sources.append(
+                            Source(
+                                id=str(biblio_id or pub.title.primary_value[:20]),
+                                title=title,
+                                source_type="book",
+                            )
+                        )
+                    answer = (
+                        f"Encontré estos libros en el catálogo de la biblioteca:\n\n"
+                        + "\n".join(avail_lines)
+                    )
+                    response = ChatResponse(
+                        answer=answer,
+                        intent=intent,
+                        sources=sources,
+                        model_used="koha",
+                        cached=False,
+                    )
+                    if self._cache is not None:
+                        await asyncio.to_thread(
+                            self._cache.set, query, response, query_vector=query_vector
+                        )
+                    return response
+
             response = ChatResponse(
                 answer=_CAMPUS_UNAVAILABLE,
                 intent=intent,

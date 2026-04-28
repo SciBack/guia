@@ -150,6 +150,7 @@ class GUIAContainer:
             router=self.router,
             cache=self.cache,
             search_adapter=self.search_adapter,
+            koha_adapter=self.koha_adapter,  # type: ignore[arg-type]
         )
 
         self.search_service = SearchService(

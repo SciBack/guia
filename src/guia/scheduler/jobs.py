@@ -54,6 +54,19 @@ def harvest_daily_job(container: GUIAContainer) -> None:
         logger.exception("harvest_daily_error")
 
 
+def harvest_koha_weekly_job(container: GUIAContainer) -> None:
+    """Job: re-indexación completa del catálogo Koha (semanal, domingos 1am).
+
+    Koha no tiene OAI-PMH incremental, así que se re-cosecha completo.
+    """
+    logger.info("harvest_koha_weekly_start")
+    try:
+        result = container.harvester_service.harvest_koha()
+        logger.info("harvest_koha_weekly_complete", result=result)
+    except Exception:
+        logger.exception("harvest_koha_weekly_error")
+
+
 def backup_s3_job(container: GUIAContainer) -> None:
     """Job: backup de la base de datos vectorial a S3 (placeholder Sprint 0.7).
 
@@ -113,6 +126,16 @@ def run_scheduler() -> None:
         misfire_grace_time=3600,
     )
 
+    # Job: re-indexación completa Koha (domingos 1am Lima)
+    scheduler.add_job(
+        harvest_koha_weekly_job,
+        trigger=CronTrigger(hour=1, minute=0, day_of_week="sun"),
+        args=[container],
+        id="harvest_koha_weekly",
+        name="Re-indexación semanal Koha",
+        misfire_grace_time=7200,
+    )
+
     # Job: backup S3 (3am Lima)
     scheduler.add_job(
         backup_s3_job,
@@ -135,7 +158,7 @@ def run_scheduler() -> None:
 
     logger.info(
         "scheduler_jobs_registered",
-        jobs=["harvest_daily", "backup_s3", "metrics_report"],
+        jobs=["harvest_daily", "harvest_koha_weekly", "backup_s3", "metrics_report"],
         harvest_cron=_settings.harvest_cron,
     )
 
