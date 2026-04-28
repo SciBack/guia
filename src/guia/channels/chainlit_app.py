@@ -14,9 +14,11 @@ import os
 
 import chainlit as cl
 from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
+from chainlit.server import app as _chainlit_app
 from chainlit.types import ThreadDict
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from sciback_core.ports.llm import LLMMessage
 
@@ -30,6 +32,20 @@ configure_logging(level=_settings.log_level, json_logs=False)
 logger = get_logger(__name__)
 
 _container = GUIAContainer(_settings)
+
+
+class _NoCacheSettingsMiddleware(BaseHTTPMiddleware):
+    """/project/settings nunca debe ser cacheado por el browser ni por proxies."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path == "/project/settings":
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+        return response
+
+
+_chainlit_app.add_middleware(_NoCacheSettingsMiddleware)
 
 # URL asyncpg para el Data Layer nativo de Chainlit
 _PG_URL = os.environ.get(
