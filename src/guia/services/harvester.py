@@ -19,43 +19,110 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _localized_str(val: object) -> str:
+    """Extrae el primary_value de un LocalizedText o devuelve str(val)."""
+    pv = getattr(val, "primary_value", None)
+    return str(pv) if pv is not None else str(val)
+
+
 def _publication_to_text(pub: Publication) -> str:
     """Extrae texto relevante de una Publication para embedding."""
     parts: list[str] = []
 
-    if hasattr(pub, "title") and pub.title:
-        parts.append(str(pub.title))
+    if getattr(pub, "title", None):
+        parts.append(_localized_str(pub.title))
 
-    if hasattr(pub, "abstract") and pub.abstract:
-        parts.append(str(pub.abstract))
+    if getattr(pub, "abstract", None):
+        parts.append(_localized_str(pub.abstract))
 
-    if hasattr(pub, "keywords") and pub.keywords:
-        keywords = pub.keywords
-        if isinstance(keywords, list):
-            parts.append(" ".join(str(k) for k in keywords))
+    keywords = getattr(pub, "keywords", None)
+    if isinstance(keywords, list) and keywords:
+        parts.append(" ".join(str(k) for k in keywords))
 
     return " ".join(parts) if parts else ""
+
+
+def _stable_pub_id(pub: Publication, source_name: str, fallback_idx: int) -> str:
+    """Devuelve un identificador determinístico para upserts idempotentes.
+
+    Prioriza external_ids con prefijo conocido (koha:, doi:, handle:) sobre el
+    UUID interno de la Publication. Fallback al UUID o al índice si nada existe.
+    """
+    ext_ids = getattr(pub, "external_ids", None) or []
+    for eid in ext_ids:
+        value = str(getattr(eid, "value", ""))
+        # Si ya viene con prefijo "fuente:..." lo usamos tal cual.
+        if value.startswith(f"{source_name}:"):
+            return value
+        # DOI/handle son globalmente únicos: úsalos también
+        scheme = str(getattr(eid, "scheme", "")).lower()
+        if scheme in ("doi", "handle") and value:
+            return f"{scheme}:{value}"
+
+    pub_uuid = getattr(pub, "id", None)
+    if pub_uuid:
+        return f"{source_name}:uuid:{pub_uuid}"
+    return f"{source_name}:idx:{fallback_idx}"
 
 
 def _publication_to_metadata(pub: Publication) -> dict[str, object]:
     """Extrae metadatos relevantes para almacenar junto al vector."""
     meta: dict[str, object] = {}
 
-    for attr in ("title", "abstract", "year", "doi", "handle", "language"):
-        val = getattr(pub, attr, None)
-        if val is not None:
-            meta[attr] = str(val) if not isinstance(val, int | float) else val
+    if getattr(pub, "title", None):
+        meta["title"] = _localized_str(pub.title)
 
-    if hasattr(pub, "authorships"):
-        authors = []
-        for a in pub.authorships or []:
-            if hasattr(a, "person") and hasattr(a.person, "full_name"):
-                authors.append(str(a.person.full_name))
-        if authors:
-            meta["authors"] = authors
+    if getattr(pub, "abstract", None):
+        # Recortar abstract para no inflar la columna jsonb
+        meta["abstract"] = _localized_str(pub.abstract)[:1000]
 
-    if hasattr(pub, "id"):
-        meta["pub_id"] = str(pub.id)
+    pub_date = getattr(pub, "publication_date", None)
+    year = getattr(pub_date, "year_int", None) if pub_date else None
+    if year and year != 1000:
+        meta["year"] = int(year)
+
+    kind = getattr(pub, "kind", None)
+    if kind is not None:
+        meta["kind"] = str(getattr(kind, "value", kind))
+
+    primary_lang = getattr(pub, "primary_language", None)
+    if primary_lang:
+        meta["language"] = str(primary_lang)
+
+    # External identifiers: ISBN/DOI/handle/koha-id, etc.
+    ext_ids = getattr(pub, "external_ids", None) or []
+    if ext_ids:
+        ids_dict: dict[str, list[str]] = {}
+        for eid in ext_ids:
+            scheme = str(getattr(eid, "scheme", "")).lower()
+            value = str(getattr(eid, "value", ""))
+            if scheme and value:
+                ids_dict.setdefault(scheme, []).append(value)
+        if ids_dict:
+            meta["external_ids"] = ids_dict
+
+    # Authorships
+    authorships = getattr(pub, "authorships", None) or []
+    authors: list[str] = []
+    for a in authorships:
+        person = getattr(a, "person", None)
+        full_name = getattr(person, "full_name", None) if person else None
+        if full_name:
+            authors.append(_localized_str(full_name))
+    # Fallback: keywords con autor (Koha mete el autor ahí)
+    keywords = getattr(pub, "keywords", None) or []
+    if not authors and keywords:
+        # En Koha, la primera keyword es el autor
+        authors = [str(keywords[0])]
+    if authors:
+        meta["authors"] = authors
+
+    if keywords:
+        meta["keywords"] = [str(k) for k in keywords]
+
+    pub_uuid = getattr(pub, "id", None)
+    if pub_uuid:
+        meta["pub_uuid"] = str(pub_uuid)
 
     return meta
 
@@ -214,7 +281,7 @@ class HarvesterService:
                 error += 1
                 continue
 
-            pub_id = str(getattr(pub, "id", f"{source_name}:{total}"))
+            pub_id = _stable_pub_id(pub, source_name, total)
             meta = _publication_to_metadata(pub)
 
             batch_texts.append(text)

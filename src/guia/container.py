@@ -38,7 +38,6 @@ class GUIAContainer:
 
     def _init_adapters(self) -> None:
         """Instancia todos los adapters concretos según configuración."""
-        from sciback_embeddings_e5 import E5Config, E5EmbeddingAdapter
         from sciback_vectorstore_pgvector import PgVectorConfig, PgVectorStore
 
         # _env_file=None: evita que cada adapter lea el .env completo de GUIA
@@ -46,7 +45,7 @@ class GUIAContainer:
         self.store: VectorStorePort = PgVectorStore(pg_config)
         self._pg_store_concrete = self.store  # para cleanup
 
-        self.embedder = E5EmbeddingAdapter(E5Config(_env_file=None))
+        self.embedder = self._build_embedder()
 
         # LLMs según modo
         mode = self.settings.guia_llm_mode
@@ -80,6 +79,14 @@ class GUIAContainer:
 
         # Redis para caché semántico y sesiones
         self._redis = redis.from_url(self.settings.redis_url, decode_responses=True)
+
+    def _build_embedder(self) -> object:
+        """Embeddings backend: ollama (E5 remoto) o fastembed (local ONNX)."""
+        if self.settings.embedding_backend == "fastembed":
+            from sciback_embeddings_fastembed import FastEmbedAdapter, FastEmbedConfig
+            return FastEmbedAdapter(FastEmbedConfig(_env_file=None))
+        from sciback_embeddings_e5 import E5Config, E5EmbeddingAdapter
+        return E5EmbeddingAdapter(E5Config(_env_file=None))
 
     def _build_claude(self) -> LLMPort:
         from sciback_llm_claude import ClaudeConfig, ClaudeLLMAdapter

@@ -91,3 +91,7 @@ class GUIASettings(BaseSettings):
     # El adapter pgvector lee PGVECTOR_DATABASE_URL; lo espejamos aquí para
     # que GUIAContainer pueda pasárselo a UserProfileRepository sin instanciar pgvector config.
     pgvector_database_url: str = "postgresql+psycopg://guia:changeme@postgres:5432/guia_db"
+
+    # Embedding backend: "ollama" (default — usa E5EmbeddingAdapter remoto)
+    # o "fastembed" (local ONNX, sin red, 10× más rápido para harvest)
+    embedding_backend: Literal["ollama", "fastembed"] = "ollama"

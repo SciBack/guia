@@ -17,6 +17,7 @@ dependencies = [
     "sciback-llm-claude>=0.1",
     "sciback-llm-ollama>=0.1",
     "sciback-embeddings-e5>=0.1",
+    "sciback-embeddings-fastembed>=0.1",
     "sciback-vectorstore-pgvector>=0.1",
     # M2: nuevos adapters (ADR-029 / ADR-033 / ADR-034)
     "sciback-search-opensearch>=0.1",
@@ -71,6 +72,7 @@ sciback-adapter-koha = { path = "../sciback-core/packages/sciback-adapter-koha",
 sciback-llm-claude = { path = "../sciback-core/packages/sciback-llm-claude", editable = true }
 sciback-llm-ollama = { path = "../sciback-core/packages/sciback-llm-ollama", editable = true }
 sciback-embeddings-e5 = { path = "../sciback-core/packages/sciback-embeddings-e5", editable = true }
+sciback-embeddings-fastembed = { path = "../sciback-core/packages/sciback-embeddings-fastembed", editable = true }
 sciback-vectorstore-pgvector = { path = "../sciback-core/packages/sciback-vectorstore-pgvector", editable = true }
 sciback-search-opensearch = { path = "../sciback-core/packages/sciback-search-opensearch", editable = true }
 sciback-storage-s3 = { path = "../sciback-core/packages/sciback-storage-s3", editable = true }
