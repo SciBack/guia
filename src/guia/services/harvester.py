@@ -142,7 +142,13 @@ class HarvesterService:
         )
 
     def harvest_koha(self, *, batch_size: int = 50) -> dict[str, int]:
-        """Cosecha el catálogo bibliográfico de Koha vía REST API."""
+        """Cosecha el catálogo bibliográfico de Koha vía REST API.
+
+        Nota: Koha tiene búsqueda directa vía REST API (KohaAdapter.search).
+        Este harvest solo es necesario si se quiere que libros de Koha aparezcan
+        también en consultas RESEARCH/GENERAL de pgvector. Para disponibilidad
+        en tiempo real usar get_availability() directamente desde ChatService.
+        """
         if self._koha is None:
             logger.warning("Koha adapter not configured — skipping")
             return {"total": 0, "ok": 0, "error": 0}
