@@ -286,7 +286,11 @@ async def on_message(message: cl.Message) -> None:
         # Primer turno: generar título descriptivo para el thread en el sidebar
         if not history:
             title = await _generate_thread_title(message.content)
-            await cl.context.emitter.update_thread(name=title)
+            try:
+                # Chainlit 2.x: emit socket event para renombrar el thread
+                await cl.context.emitter.emit("update_thread", {"name": title})
+            except Exception:
+                pass  # cosmético — no interrumpe la respuesta
 
         # Actualizar historial en memoria de sesión (bounded a 20 mensajes = 10 turnos)
         history = history + [
