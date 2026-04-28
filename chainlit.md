@@ -6,12 +6,19 @@
 
 ## ✅ Lo que puedo hacer ahora
 
-### 📚 Repositorio e investigación
-Busco en el repositorio institucional DSpace y las revistas académicas OJS de UPeU.
+### 📖 Catálogo de biblioteca (Koha)
+Busco entre más de 34,000 libros del catálogo de la biblioteca UPeU.
 
-> *"Busca tesis sobre inteligencia artificial en educación superior"*
-> *"¿Qué publicaciones recientes hay de la Facultad de Ingeniería?"*
-> *"Muéstrame artículos sobre teología adventista después de 2020"*
+> *"¿Tienen libros de cálculo diferencial?"*
+> *"Busca libros de administración de empresas"*
+> *"¿Qué libros de ingeniería civil hay disponibles?"*
+> *"Necesito bibliografía sobre psicología educativa"*
+
+### 📰 Revistas académicas OJS
+Busco artículos publicados en las revistas científicas de UPeU (revistas.upeu.edu.pe).
+
+> *"Artículos sobre teología adventista"*
+> *"¿Qué investigaciones hay sobre educación en UPeU?"*
 > *"¿En qué revistas de UPeU puedo publicar mi artículo?"*
 
 ### 🏛️ Información institucional general
@@ -30,9 +37,9 @@ Estas funciones están en desarrollo y estarán disponibles en las siguientes ve
 |---|---|
 | 📊 **Mis notas** | Consultar calificaciones del semestre desde el SIS |
 | 📅 **Horarios** | Ver horario de clases y aulas en tiempo real |
-| 📖 **Biblioteca** | Préstamos activos, multas y disponibilidad de libros en Koha |
 | 🎓 **Mi avance académico** | Créditos acumulados, promedio ponderado y estado de carrera |
 | 📣 **Eventos del campus** | Actividades, conferencias y eventos en Indico UPeU |
+| 🗂️ **Repositorio institucional** | Tesis y trabajos de investigación desde DSpace UPeU |
 | 💬 **WhatsApp** | Acceder a GUIA directamente desde tu WhatsApp |
 
 ---
