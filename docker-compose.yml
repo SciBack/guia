@@ -81,6 +81,7 @@ services:
       - ./src:/app/src:ro
       - ../sciback-core:/sciback-core:ro
       - fastembed_cache:/tmp/fastembed_cache
+      - ./chainlit.md:/app/chainlit.md:ro
 
   telegram:
     build:
