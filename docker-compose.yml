@@ -56,6 +56,7 @@ services:
     volumes:
       - ./src:/app/src:ro
       - ../sciback-core:/sciback-core:ro
+      - fastembed_cache:/tmp/fastembed_cache
 
   chainlit:
     build:
@@ -79,6 +80,7 @@ services:
     volumes:
       - ./src:/app/src:ro
       - ../sciback-core:/sciback-core:ro
+      - fastembed_cache:/tmp/fastembed_cache
 
   telegram:
     build:
@@ -340,3 +342,4 @@ volumes:
   opensearch_data:
   rabbitmq_data:
   celery_beat_data:
+  fastembed_cache:
