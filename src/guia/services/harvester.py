@@ -120,6 +120,24 @@ def _publication_to_metadata(pub: Publication) -> dict[str, object]:
     if keywords:
         meta["keywords"] = [str(k) for k in keywords]
 
+    # Publisher (campo nativo de Publication desde v0.8)
+    publisher = getattr(pub, "publisher", None)
+    if publisher:
+        meta["publisher"] = str(publisher)
+
+    # Extra: datos de cita específicos del adapter (subtitle, place, edition, …)
+    extra = getattr(pub, "extra", None) or {}
+    if extra:
+        # subtitle va en metadata propio para que el LLM lo use en citas
+        for field in ("subtitle", "place", "edition", "series", "pages", "call_number"):
+            val = extra.get(field)
+            if val:
+                meta[field] = str(val)
+        # subjects como lista separada (útil para filtros futuros)
+        subjects = extra.get("subjects")
+        if subjects and isinstance(subjects, list):
+            meta["subjects"] = [str(s) for s in subjects]
+
     pub_uuid = getattr(pub, "id", None)
     if pub_uuid:
         meta["pub_uuid"] = str(pub_uuid)
