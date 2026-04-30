@@ -182,22 +182,22 @@ async def set_starters() -> list[cl.Starter]:
         cl.Starter(
             label="Tesis sobre IA en educación",
             message="¿Hay tesis sobre inteligencia artificial aplicada a la educación superior?",
-            icon="/public/logo_upeu.svg",
+            icon="/favicon",
         ),
         cl.Starter(
             label="Nutrición infantil en zonas rurales",
             message="Busca artículos recientes sobre nutrición infantil en comunidades rurales",
-            icon="/public/logo_upeu.svg",
+            icon="/favicon",
         ),
         cl.Starter(
             label="Facultad de Ingeniería — energías renovables",
             message="¿Qué investigaciones hay de la Facultad de Ingeniería sobre energías renovables?",
-            icon="/public/logo_upeu.svg",
+            icon="/favicon",
         ),
         cl.Starter(
             label="Teología adventista post-2020",
             message="Muéstrame trabajos sobre teología adventista publicados después de 2020",
-            icon="/public/logo_upeu.svg",
+            icon="/favicon",
         ),
     ]
 
