@@ -46,7 +46,8 @@ def test_indexable_record_to_search_document() -> None:
     assert doc["publication_year"] == 2024
     assert doc["external_resource_uri"] == "http://repo.upeu.edu.pe/handle/123"
     assert doc["source"] == "dspace"
-    assert doc["vector"] == [0.1, 0.2, 0.3]
+    assert doc["embedding"] == [0.1, 0.2, 0.3]
+    assert "vector" not in doc  # field name correcto es "embedding" (sciback-core mapping)
     assert doc["kind"] == "thesis"
     assert doc["subjects_ocde"] == ["1.02 Computación"]
 
