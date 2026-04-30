@@ -48,7 +48,8 @@ edit_message = true
 allow_thread_sharing = false
 
 # Enable favorite messages
-favorites = true
+# Desactivado: Chainlit hace LIKE sobre columna JSONB → error asyncpg
+favorites = false
 
 [features.slack]
 # Add emoji reaction when message is received (requires reactions:write OAuth scope)

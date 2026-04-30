@@ -18,7 +18,7 @@ from chainlit.server import app as _chainlit_app
 from chainlit.types import ThreadDict
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from sciback_core.ports.llm import LLMMessage
 
@@ -34,15 +34,30 @@ logger = get_logger(__name__)
 _container = GUIAContainer(_settings)
 
 
-class _NoCacheSettingsMiddleware(BaseHTTPMiddleware):
-    """/project/settings nunca debe ser cacheado por el browser ni por proxies."""
+class _NoCacheSettingsMiddleware:
+    """/project/settings nunca debe ser cacheado.
 
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        if request.url.path == "/project/settings":
-            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
-            response.headers["Pragma"] = "no-cache"
-        return response
+    ASGI puro — no usa BaseHTTPMiddleware para no interferir con
+    WebSocket ni streaming (Socket.io long-polling).
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope.get("path") != "/project/settings":
+            await self.app(scope, receive, send)
+            return
+
+        async def _send_with_nocache(message: dict) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"cache-control", b"no-store, no-cache, must-revalidate"))
+                headers.append((b"pragma", b"no-cache"))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, _send_with_nocache)
 
 
 _chainlit_app.add_middleware(_NoCacheSettingsMiddleware)
