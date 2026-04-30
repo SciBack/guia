@@ -64,8 +64,10 @@ services:
       dockerfile: guia/docker/api/Dockerfile.prod
     command: chainlit run src/guia/channels/chainlit_app.py --host 0.0.0.0 --port 8001
     env_file: .env
-    ports:
-      - "8001:8001"
+    # Puerto 8001 solo interno — acceso externo via nginx:80
+    # Exponer 8001 directamente bypasea el proxy y rompe WebSocket upgrade
+    expose:
+      - "8001"
     depends_on:
       postgres:
         condition: service_healthy
