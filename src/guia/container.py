@@ -12,6 +12,7 @@ from sciback_core.ports.vector_store import VectorStorePort
 
 from guia.audit import AuditLogRepository
 from guia.config import GUIASettings, LLMMode
+from guia.grobid import GrobidClient
 from guia.routing import CascadeRouter, EmbeddingRouter, RuleBasedRouter
 from guia.search.backend import SearchAdapter, get_search_adapter
 from guia.services.cache import SemanticCache
@@ -72,6 +73,7 @@ class GUIAContainer:
         self.ojs_adapter = self._try_build_ojs()
         self.alicia_harvester = self._try_build_alicia()
         self.koha_adapter = self._try_build_koha()
+        self.grobid_client = self._try_build_grobid()
 
         # M4: SearchAdapter async (ADR-029) — None si backend=pgvector
         self.search_adapter: SearchAdapter | None = get_search_adapter(
@@ -134,6 +136,24 @@ class GUIAContainer:
             return KohaAdapter(KohaSettings(_env_file=None))
         except Exception:
             return None
+
+    def _try_build_grobid(self) -> GrobidClient | None:
+        """Construye GrobidClient si grobid_url está configurado y el servicio responde.
+
+        Si la variable está vacía o el endpoint no contesta, retorna None
+        y el harvester opera sin full-text PDF (solo abstract/TOC).
+        """
+        url = (self.settings.grobid_url or "").strip()
+        if not url:
+            return None
+        client = GrobidClient(base_url=url)
+        if not client.is_alive():
+            import logging
+            logging.getLogger(__name__).warning(
+                "grobid_unavailable", extra={"grobid_url": url}
+            )
+            return None
+        return client
 
     def _init_services(self) -> None:
         """Construye servicios de aplicación usando los adapters."""

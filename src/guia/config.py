@@ -95,3 +95,8 @@ class GUIASettings(BaseSettings):
     # Embedding backend: "ollama" (default — usa E5EmbeddingAdapter remoto)
     # o "fastembed" (local ONNX, sin red, 10× más rápido para harvest)
     embedding_backend: Literal["ollama", "fastembed"] = "ollama"
+
+    # GROBID full-text extraction (P3.2, ADR-037).
+    # Endpoint del servicio GROBID (docker compose --profile grobid up).
+    # Vacío = GROBID deshabilitado (harvester usa solo abstract/TOC, no full-text).
+    grobid_url: str = ""
