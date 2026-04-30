@@ -1,0 +1,276 @@
+# Suite gold-standard de regresión P1.2 (50 queries representativas)
+#
+# Cada query declara la decisión esperada de la cascada (intent + privacy + tier).
+# El test test_router_regression valida:
+#   1) que cada decisión sea correcta
+#   2) que ≥70% se resuelva en Gate 1 o Gate 2 (sin LLM clasificador)
+#
+# Categorías cubiertas:
+#   - greeting (10): saludos, cortesía, meta-preguntas → Gate 1
+#   - command (3): /help, /reset → Gate 1
+#   - campus_personal (10): mis notas, mi deuda, etc → Gate 1 (ALWAYS_LOCAL)
+#   - campus_generico (8): calendario, eventos públicos → Gate 2
+#   - research_simple (10): catálogo, "¿hay X?" → Gate 2
+#   - research_deep (9): síntesis, comparativas, marcos → Gate 2
+
+# ── Greetings (10) ───────────────────────────────────────────────────────
+- query: "hola"
+  intent: greeting
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+- query: "Hola, buenos días"
+  intent: greeting
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+- query: "buenas tardes"
+  intent: greeting
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+- query: "gracias"
+  intent: greeting
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+- query: "muchas gracias!"
+  intent: greeting
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+- query: "adiós"
+  intent: greeting
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+- query: "perfecto"
+  intent: greeting
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+- query: "¿qué eres tú?"
+  intent: greeting
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+- query: "¿en qué me puedes ayudar?"
+  intent: greeting
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+- query: "¿cómo estás?"
+  intent: greeting
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+
+# ── Commands (3) ─────────────────────────────────────────────────────────
+- query: "/help"
+  intent: command
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+- query: "/reset"
+  intent: command
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+- query: "/lang es"
+  intent: command
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: rules
+
+# ── Campus personal (10) — ALWAYS_LOCAL en Gate 1 ─────────────────────────
+- query: "¿cuáles son mis notas del semestre?"
+  intent: campus_personal
+  privacy: always_local
+  tier: t1_std
+  expected_gate: rules
+- query: "muéstrame mis calificaciones"
+  intent: campus_personal
+  privacy: always_local
+  tier: t1_std
+  expected_gate: rules
+- query: "¿cuál es mi promedio ponderado?"
+  intent: campus_personal
+  privacy: always_local
+  tier: t1_std
+  expected_gate: rules
+- query: "¿cuánto debo en biblioteca?"
+  intent: campus_personal
+  privacy: always_local
+  tier: t1_std
+  expected_gate: rules
+- query: "estado de mi cuenta financiera"
+  intent: campus_personal
+  privacy: always_local
+  tier: t1_std
+  expected_gate: rules
+- query: "¿tengo libros vencidos?"
+  intent: campus_personal
+  privacy: always_local
+  tier: t1_std
+  expected_gate: rules
+- query: "mis préstamos activos"
+  intent: campus_personal
+  privacy: always_local
+  tier: t1_std
+  expected_gate: rules
+- query: "mi horario de clases"
+  intent: campus_personal
+  privacy: always_local
+  tier: t1_std
+  expected_gate: rules
+- query: "¿cuántos créditos me faltan para graduarme?"
+  intent: campus_personal
+  privacy: always_local
+  tier: t1_std
+  expected_gate: rules
+- query: "mi correo institucional"
+  intent: campus_personal
+  privacy: always_local
+  tier: t1_std
+  expected_gate: rules
+
+# ── Campus genérico (8) — Gate 2 ──────────────────────────────────────────
+- query: "calendario académico de mayo"
+  intent: campus_generico
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: embedding
+- query: "¿cuándo es la próxima feria de investigación?"
+  intent: campus_generico
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: embedding
+- query: "horario de atención del comedor universitario"
+  intent: campus_generico
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: embedding
+- query: "¿qué eventos hay esta semana en la universidad?"
+  intent: campus_generico
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: embedding
+- query: "becas disponibles este año"
+  intent: campus_generico
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: embedding
+- query: "¿cómo es el proceso de titulación?"
+  intent: campus_generico
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: embedding
+- query: "ubicación del salón de actos"
+  intent: campus_generico
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: embedding
+- query: "reglamento general de estudios"
+  intent: campus_generico
+  privacy: cloud_ok
+  tier: t0_fast
+  expected_gate: embedding
+
+# ── Research simple (10) — Gate 2 ─────────────────────────────────────────
+- query: "¿hay tesis sobre machine learning?"
+  intent: research_simple
+  privacy: cloud_ok
+  tier: t1_std
+  expected_gate: embedding
+- query: "busca artículos sobre educación virtual"
+  intent: research_simple
+  privacy: cloud_ok
+  tier: t1_std
+  expected_gate: embedding
+- query: "¿está disponible Cálculo de Stewart?"
+  intent: research_simple
+  privacy: cloud_ok
+  tier: t1_std
+  expected_gate: embedding
+- query: "tesis publicadas en 2023"
+  intent: research_simple
+  privacy: cloud_ok
+  tier: t1_std
+  expected_gate: embedding
+- query: "papers sobre IA en educación"
+  intent: research_simple
+  privacy: cloud_ok
+  tier: t1_std
+  expected_gate: embedding
+- query: "lista de revistas UPeU indexadas"
+  intent: research_simple
+  privacy: cloud_ok
+  tier: t1_std
+  expected_gate: embedding
+- query: "¿hay investigaciones sobre energías renovables?"
+  intent: research_simple
+  privacy: cloud_ok
+  tier: t1_std
+  expected_gate: embedding
+- query: "busca por autor Pérez García"
+  intent: research_simple
+  privacy: cloud_ok
+  tier: t1_std
+  expected_gate: embedding
+- query: "¿qué libros hay sobre teología sistemática?"
+  intent: research_simple
+  privacy: cloud_ok
+  tier: t1_std
+  expected_gate: embedding
+- query: "artículos sobre nutrición infantil"
+  intent: research_simple
+  privacy: cloud_ok
+  tier: t1_std
+  expected_gate: embedding
+
+# ── Research deep (9) — Gate 2 (T2_DEEP) ──────────────────────────────────
+- query: "compara metodologías de tesis sobre IA en salud entre 2020 y 2024"
+  intent: research_deep
+  privacy: cloud_ok
+  tier: t2_deep
+  expected_gate: embedding
+- query: "síntesis crítica de investigaciones sobre teología adventista"
+  intent: research_deep
+  privacy: cloud_ok
+  tier: t2_deep
+  expected_gate: embedding
+- query: "análisis bibliométrico de la facultad de ingeniería"
+  intent: research_deep
+  privacy: cloud_ok
+  tier: t2_deep
+  expected_gate: embedding
+- query: "estructura un marco teórico sobre depresión en adolescentes"
+  intent: research_deep
+  privacy: cloud_ok
+  tier: t2_deep
+  expected_gate: embedding
+- query: "evolución de los temas de investigación en nutrición"
+  intent: research_deep
+  privacy: cloud_ok
+  tier: t2_deep
+  expected_gate: embedding
+- query: "tendencias en tesis de educación virtual post-pandemia"
+  intent: research_deep
+  privacy: cloud_ok
+  tier: t2_deep
+  expected_gate: embedding
+- query: "comparativa entre métodos cuantitativos y cualitativos en psicología"
+  intent: research_deep
+  privacy: cloud_ok
+  tier: t2_deep
+  expected_gate: embedding
+- query: "redes de colaboración entre autores del repositorio"
+  intent: research_deep
+  privacy: cloud_ok
+  tier: t2_deep
+  expected_gate: embedding
+- query: "elabora un estado del arte sobre gamificación en educación universitaria"
+  intent: research_deep
+  privacy: cloud_ok
+  tier: t2_deep
+  expected_gate: embedding
