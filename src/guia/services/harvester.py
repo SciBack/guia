@@ -25,14 +25,16 @@ def _localized_str(val: object) -> str:
     return str(pv) if pv is not None else str(val)
 
 
-_MAX_TEXT_CHARS = 1500  # multilingual-e5 soporta ~512 tokens ≈ 1500 chars
+_MAX_EMBEDDING_CHARS = 1500  # multilingual-e5 soporta ~512 tokens ≈ 1500 chars
 
 
-def _publication_to_text(pub: Publication) -> str:
-    """Extrae texto relevante de una Publication para embedding.
+def _publication_to_embedding_text(pub: Publication) -> str:
+    """Extrae el texto que se manda al embedder (Capa A — vectorial, lossy).
 
-    El texto se trunca a _MAX_TEXT_CHARS para evitar exceder el context
-    limit del modelo de embeddings (multilingual-e5-large-instruct).
+    Trunca a _MAX_EMBEDDING_CHARS para no exceder el context limit del modelo
+    (multilingual-e5-large-instruct, ~512 tokens). El truncamiento es correcto
+    AQUÍ y solo aquí — el documento completo se preserva en metadata
+    (Capa B — document store) vía _publication_to_metadata. Ver ADR-037.
     """
     parts: list[str] = []
 
@@ -47,7 +49,7 @@ def _publication_to_text(pub: Publication) -> str:
         parts.append(" ".join(str(k) for k in keywords))
 
     text = " ".join(parts) if parts else ""
-    return text[:_MAX_TEXT_CHARS] if len(text) > _MAX_TEXT_CHARS else text
+    return text[:_MAX_EMBEDDING_CHARS] if len(text) > _MAX_EMBEDDING_CHARS else text
 
 
 def _stable_pub_id(pub: Publication, source_name: str, fallback_idx: int) -> str:
@@ -74,15 +76,21 @@ def _stable_pub_id(pub: Publication, source_name: str, fallback_idx: int) -> str
 
 
 def _publication_to_metadata(pub: Publication) -> dict[str, object]:
-    """Extrae metadatos relevantes para almacenar junto al vector."""
+    """Extrae metadatos COMPLETOS sin truncar (Capa B — document store).
+
+    Lossless por diseño (ADR-037): cuando el usuario pide "dame el abstract
+    completo" o "muéstrame la tabla de contenido", la respuesta sale de aquí.
+    NO truncar campos textuales en esta función — la truncación es
+    responsabilidad exclusiva de _publication_to_embedding_text.
+    """
     meta: dict[str, object] = {}
 
     if getattr(pub, "title", None):
         meta["title"] = _localized_str(pub.title)
 
     if getattr(pub, "abstract", None):
-        # Recortar abstract para no inflar la columna jsonb
-        meta["abstract"] = _localized_str(pub.abstract)[:1000]
+        # Abstract íntegro — el LLM debe poder devolverlo completo cuando lo pidan.
+        meta["abstract"] = _localized_str(pub.abstract)
 
     pub_date = getattr(pub, "publication_date", None)
     year = getattr(pub_date, "year_int", None) if pub_date else None
@@ -141,10 +149,22 @@ def _publication_to_metadata(pub: Publication) -> dict[str, object]:
             val = extra.get(field)
             if val:
                 meta[field] = str(val)
-        # subjects como lista separada (útil para filtros futuros)
+        # subjects libres (Koha keywords, OJS subjects)
         subjects = extra.get("subjects")
         if subjects and isinstance(subjects, list):
             meta["subjects"] = [str(s) for s in subjects]
+        # subjects OCDE (clasificación CONCYTEC, separada de subjects libres)
+        subjects_ocde = extra.get("subjects_ocde")
+        if subjects_ocde and isinstance(subjects_ocde, list):
+            meta["subjects_ocde"] = [str(s) for s in subjects_ocde]
+        # TOC: tabla de contenido íntegra (Koha MARC 505), sin truncar
+        toc = extra.get("toc")
+        if toc:
+            meta["toc"] = str(toc) if not isinstance(toc, list) else [str(t) for t in toc]
+        # description_full: dc.description largo de DSpace, sin truncar
+        description_full = extra.get("description_full") or extra.get("description")
+        if description_full:
+            meta["description_full"] = str(description_full)
 
     pub_uuid = getattr(pub, "id", None)
     if pub_uuid:
@@ -302,15 +322,15 @@ class HarvesterService:
 
         for pub in iterator:
             total += 1
-            text = _publication_to_text(pub)
-            if not text:
+            embedding_text = _publication_to_embedding_text(pub)
+            if not embedding_text:
                 error += 1
                 continue
 
             pub_id = _stable_pub_id(pub, source_name, total)
             meta = _publication_to_metadata(pub)
 
-            batch_texts.append(text)
+            batch_texts.append(embedding_text)
             batch_ids.append(pub_id)
             batch_metas.append(meta)
 
