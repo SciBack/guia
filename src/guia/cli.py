@@ -176,14 +176,20 @@ def reindex(
         total = service.count_documents()
         typer.echo(f"Documentos en pgvector: {total}")
 
-        if rebuild_index and not dry_run:
-            typer.echo("Recreando index OpenSearch (mapping knn_vector + index.knn=true)...")
-            asyncio.run(service.setup_index_publication())
-            typer.echo("Index recreado.")
+        async def _run() -> "ReindexStats":
+            if rebuild_index and not dry_run:
+                typer.echo(
+                    "Recreando index OpenSearch (mapping knn_vector + index.knn=true)..."
+                )
+                await service.setup_index_publication()
+                typer.echo("Index recreado.")
+            return await service.reindex_all(
+                batch_size=batch_size, dry_run=dry_run
+            )
 
-        stats = asyncio.run(
-            service.reindex_all(batch_size=batch_size, dry_run=dry_run)
-        )
+        from guia.services.reindex import ReindexStats  # noqa: F401
+
+        stats = asyncio.run(_run())
 
         typer.echo("\n── Resultado ──")
         typer.echo(f"  leídos:    {stats.total_read}")
