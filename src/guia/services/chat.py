@@ -13,8 +13,9 @@ from typing import TYPE_CHECKING, Any
 
 from sciback_core.ports.llm import LLMMessage, LLMPort
 
+from guia.audit import AuditLogEntry, AuditLogRepository, hash_query
 from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
-from guia.routing import CascadeRouter, Tier, category_to_intent
+from guia.routing import CascadeRouter, RouteDecision, Tier, category_to_intent
 from guia.services.intent import IntentClassifier
 from guia.services.router import ModelRouter, QueryTier
 
@@ -48,6 +49,20 @@ _OUT_OF_SCOPE = (
     "Puedo ayudarte con información académica, investigación y servicios "
     "institucionales de la universidad."
 )
+
+
+def _detect_llm_provider(model_name: str) -> str:
+    """Heurística para clasificar el LLM en local vs cloud (audit)."""
+    if not model_name or model_name == "none":
+        return "none"
+    name = model_name.lower()
+    if "claude" in name:
+        return "anthropic-cloud"
+    if name.startswith(("qwen", "deepseek", "llama", "gemma", "mistral")):
+        return "ollama-local"
+    if name == "koha":  # respuesta directa sin LLM
+        return "none"
+    return "unknown"
 
 
 def _hits_to_context(hits: list[dict[str, Any]]) -> tuple[str, list[Source]]:
@@ -144,6 +159,7 @@ class ChatService:
         institution: str = "la universidad",
         search_adapter: SearchAdapter | None = None,
         koha_adapter: KohaAdapter | None = None,
+        audit_repo: AuditLogRepository | None = None,
     ) -> None:
         self._synthesis_llm = synthesis_llm
         self._fast_llm = fast_llm
@@ -156,6 +172,7 @@ class ChatService:
         self._institution = institution
         self._search_adapter = search_adapter
         self._koha = koha_adapter
+        self._audit_repo = audit_repo
 
     async def answer(self, request: ChatRequest) -> ChatResponse:
         """Genera una respuesta para el ChatRequest del usuario (async).
@@ -163,7 +180,12 @@ class ChatService:
         Todas las operaciones bloqueantes se ejecutan en un thread pool
         via asyncio.to_thread() para no bloquear el event loop.
         """
+        import time
+
+        t_start = time.perf_counter()
         query = request.query
+        route_decision: RouteDecision | None = None  # se setea en paso 3
+        sources_used_names: list[str] = []  # ['dspace', 'koha', ...] para audit
 
         # 1. Embed query (sync HTTP → thread)
         query_vector: list[float] = await asyncio.to_thread(
@@ -176,7 +198,7 @@ class ChatService:
                 self._cache.get, query, query_vector=query_vector
             )
             if cached is not None:
-                return ChatResponse(
+                response = ChatResponse(
                     answer=cached.answer,
                     intent=cached.intent,
                     sources=cached.sources,
@@ -184,6 +206,10 @@ class ChatService:
                     cached=True,
                     tokens_used=0,
                 )
+                await self._emit_audit(
+                    request, response, route_decision, sources_used_names, t_start
+                )
+                return response
 
         # 3. Clasificar intent + tier
         # Si el CascadeRouter está disponible (P1.2), preferirlo: ahorra
@@ -211,6 +237,9 @@ class ChatService:
                 await asyncio.to_thread(
                     self._cache.set, query, response, query_vector=query_vector
                 )
+            await self._emit_audit(
+                request, response, route_decision, sources_used_names, t_start
+            )
             return response
 
         if intent == Intent.CAMPUS:
@@ -254,6 +283,7 @@ class ChatService:
                         f"Encontré estos libros en el catálogo de la biblioteca:\n\n"
                         + "\n".join(avail_lines)
                     )
+                    sources_used_names.append("koha")
                     response = ChatResponse(
                         answer=answer,
                         intent=intent,
@@ -265,6 +295,9 @@ class ChatService:
                         await asyncio.to_thread(
                             self._cache.set, query, response, query_vector=query_vector
                         )
+                    await self._emit_audit(
+                        request, response, route_decision, sources_used_names, t_start
+                    )
                     return response
 
             response = ChatResponse(
@@ -278,6 +311,9 @@ class ChatService:
                 await asyncio.to_thread(
                     self._cache.set, query, response, query_vector=query_vector
                 )
+            await self._emit_audit(
+                request, response, route_decision, sources_used_names, t_start
+            )
             return response
 
         # 5. RAG: OpenSearch hybrid async o pgvector en thread
@@ -289,11 +325,14 @@ class ChatService:
                 limit=5,
             )
             context_text, sources = _hits_to_context(hits)
+            sources_used_names.append("opensearch")
         else:
             records = await asyncio.to_thread(
                 self._store.search, query_vector, limit=5, min_score=0.3
             )
             context_text, sources = _records_to_context(records)
+            if records:
+                sources_used_names.append("pgvector")
 
         # 6. Elegir LLM de síntesis según complejidad de la query.
         # Preferencia: usar el tier de la RouteDecision si CascadeRouter decidió.
@@ -346,4 +385,53 @@ class ChatService:
                 self._cache.set, query, response, query_vector=query_vector
             )
 
+        await self._emit_audit(
+            request, response, route_decision, sources_used_names, t_start
+        )
         return response
+
+    async def _emit_audit(
+        self,
+        request: ChatRequest,
+        response: ChatResponse,
+        route_decision: RouteDecision | None,
+        sources_used: list[str],
+        t_start: float,
+    ) -> None:
+        """Emite entrada de audit_log fire-and-forget.
+
+        No-op si no hay audit_repo configurado. La query original NUNCA
+        se persiste — solo sha256(query). Errores se loguean pero no se
+        propagan: el audit no debe romper la respuesta al usuario.
+        """
+        if self._audit_repo is None:
+            return
+
+        import time
+
+        latency_ms = int((time.perf_counter() - t_start) * 1000)
+        privacy_level = (
+            route_decision.privacy.value if route_decision is not None else "cloud_ok"
+        )
+        gate_used = (
+            route_decision.gate_used.value if route_decision is not None else "unknown"
+        )
+
+        entry = AuditLogEntry(
+            user_id=request.user_id or "anonymous",
+            session_id=request.session_id,
+            query_hash=hash_query(request.query),
+            intent=response.intent.value,
+            privacy_level=privacy_level,
+            sources_used=list(sources_used),
+            llm_model=response.model_used or "none",
+            llm_provider=_detect_llm_provider(response.model_used or ""),
+            gate_used=gate_used,
+            latency_ms=latency_ms,
+            cached=response.cached,
+        )
+        try:
+            await self._audit_repo.record(entry)
+        except Exception:
+            logger = __import__("logging").getLogger(__name__)
+            logger.warning("audit_emit_failed", exc_info=True)

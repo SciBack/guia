@@ -10,6 +10,7 @@ import redis
 from sciback_core.ports.llm import LLMPort
 from sciback_core.ports.vector_store import VectorStorePort
 
+from guia.audit import AuditLogRepository
 from guia.config import GUIASettings, LLMMode
 from guia.routing import CascadeRouter, EmbeddingRouter, RuleBasedRouter
 from guia.search.backend import SearchAdapter, get_search_adapter
@@ -161,7 +162,14 @@ class GUIAContainer:
             else None
         )
 
-        # M4 + P1.2: ChatService async con cascada opcional
+        # P1.3: AuditLogRepository — trazabilidad regulatoria (Ley 29733)
+        # Persiste sha256(query) — NUNCA la query original. Retención 24 meses.
+        self.audit_repo = AuditLogRepository(
+            database_url=self.settings.pgvector_database_url,  # type: ignore[attr-defined]
+        )
+        self.audit_repo.initialize()
+
+        # M4 + P1.2 + P1.3: ChatService async con cascada y audit
         self.chat_service = ChatService(
             synthesis_llm=self.synthesis_llm,
             store=self.store,
@@ -173,6 +181,7 @@ class GUIAContainer:
             cache=self.cache,
             search_adapter=self.search_adapter,
             koha_adapter=self.koha_adapter,  # type: ignore[arg-type]
+            audit_repo=self.audit_repo,
         )
 
         self.search_service = SearchService(
@@ -209,4 +218,5 @@ class GUIAContainer:
             asyncio.run(self.search_adapter.close())
         self.profile_repository.close()
         self.conversation_repository.close()
+        self.audit_repo.close()
         self._redis.close()
