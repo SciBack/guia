@@ -1,0 +1,32 @@
+# Gold-standard queries para evaluación A/B P3.3
+#
+# Cada entrada declara:
+#   - query: texto de búsqueda
+#   - expected: lista de doc_ids que DEBERÍAN aparecer en top-K
+#   - notes: razón de la elección (para review)
+#
+# Los doc_ids matchean el pseudo-corpus en harness.py (`_make_corpus()`).
+# Cada doc tiene metadata distintiva (title + abstract + body) para que
+# se pueda testear el efecto del full-text vs solo abstract.
+#
+# Uso: corre tests/eval/test_retrieval_quality.py para obtener NDCG@5.
+
+- query: "tesis sobre inteligencia artificial en educación"
+  expected: ["doc-ai-edu", "doc-nlp-edu", "doc-ml-aulas"]
+  notes: "Tema explícito en title de los 3 docs"
+
+- query: "métodos cuantitativos en investigación social"
+  expected: ["doc-quant-social", "doc-mixto-stats"]
+  notes: "Frase exacta solo en abstract; full-text ayuda"
+
+- query: "blockchain criptomonedas financiero"
+  expected: ["doc-blockchain-fin"]
+  notes: "Solo un doc relevante en el corpus"
+
+- query: "psicología clínica adolescentes depresión"
+  expected: ["doc-psico-adolesc", "doc-clinica-jovenes"]
+  notes: "Tema mencionado en abstract + body"
+
+- query: "energías renovables solar fotovoltaica"
+  expected: ["doc-solar-pv", "doc-eolica-mix"]
+  notes: "Solar es más relevante que eólica para esta query"
