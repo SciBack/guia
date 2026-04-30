@@ -231,6 +231,70 @@ async def test_answer_intent_hint_skips_classification() -> None:
 # ── Integración CascadeRouter (P1.2) ──────────────────────────────────────
 
 
+async def test_privacy_router_forces_local_when_pii_in_query() -> None:
+    """Si la query menciona PII personal, el LLM cloud (synthesis) NO se usa.
+
+    GUARDRAIL CRÍTICO P2.2: 'mis notas' → force_local → fast_llm (local).
+    """
+    cloud_synthesis = InMemoryLLMAdapter(canned_response="cloud response", embedding_dim=8)
+    local_fast = InMemoryLLMAdapter(canned_response="local response", embedding_dim=8)
+
+    service = ChatService(
+        synthesis_llm=cloud_synthesis,
+        fast_llm=local_fast,
+        store=InMemoryVectorStoreAdapter(dim=8),
+        embedder=FakeEmbedder(),
+        classifier_llm=InMemoryLLMAdapter(canned_response="research", embedding_dim=8),
+    )
+
+    response = await service.answer(ChatRequest(query="¿cuáles son mis notas?"))
+
+    # El cloud synthesis NO debe haberse llamado
+    assert len(cloud_synthesis.complete_calls) == 0
+    # El local fast SÍ
+    assert len(local_fast.complete_calls) == 1
+    assert response.answer == "local response"
+
+
+async def test_privacy_router_forces_local_when_dni_in_query() -> None:
+    """DNI peruano (8 dígitos) en query → force_local."""
+    cloud_synthesis = InMemoryLLMAdapter(canned_response="cloud", embedding_dim=8)
+    local_fast = InMemoryLLMAdapter(canned_response="local", embedding_dim=8)
+
+    service = ChatService(
+        synthesis_llm=cloud_synthesis,
+        fast_llm=local_fast,
+        store=InMemoryVectorStoreAdapter(dim=8),
+        embedder=FakeEmbedder(),
+        classifier_llm=InMemoryLLMAdapter(canned_response="research", embedding_dim=8),
+    )
+
+    await service.answer(ChatRequest(query="mi DNI es 70123456 ayúdame"))
+    assert len(cloud_synthesis.complete_calls) == 0
+    assert len(local_fast.complete_calls) == 1
+
+
+async def test_privacy_router_allows_cloud_for_research_no_pii() -> None:
+    """Query inocua de research → cloud_ok → synthesis_llm (no fast)."""
+    cloud_synthesis = InMemoryLLMAdapter(canned_response="cloud", embedding_dim=8)
+    local_fast = InMemoryLLMAdapter(canned_response="local", embedding_dim=8)
+
+    service = ChatService(
+        synthesis_llm=cloud_synthesis,
+        fast_llm=local_fast,
+        store=InMemoryVectorStoreAdapter(dim=8),
+        embedder=FakeEmbedder(),
+        classifier_llm=InMemoryLLMAdapter(canned_response="research", embedding_dim=8),
+    )
+
+    response = await service.answer(
+        ChatRequest(query="¿qué tesis hay sobre teología sistemática?")
+    )
+    # Cloud synthesis llamado (research sin PII → cloud OK)
+    assert len(cloud_synthesis.complete_calls) == 1
+    assert response.answer == "cloud"
+
+
 async def test_cascade_router_short_circuits_classifier_on_greeting() -> None:
     """Con CascadeRouter inyectado, un saludo se resuelve en Gate 1 sin LLM."""
     import asyncio as _asyncio

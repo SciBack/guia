@@ -15,6 +15,7 @@ from sciback_core.ports.llm import LLMMessage, LLMPort
 
 from guia.audit import AuditLogEntry, AuditLogRepository, hash_query
 from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
+from guia.privacy import PrivacyRouter, PrivacyVerdict
 from guia.routing import CascadeRouter, RouteDecision, Tier, category_to_intent
 from guia.services.intent import IntentClassifier
 from guia.services.router import ModelRouter, QueryTier
@@ -160,6 +161,7 @@ class ChatService:
         search_adapter: SearchAdapter | None = None,
         koha_adapter: KohaAdapter | None = None,
         audit_repo: AuditLogRepository | None = None,
+        privacy_router: PrivacyRouter | None = None,
     ) -> None:
         self._synthesis_llm = synthesis_llm
         self._fast_llm = fast_llm
@@ -173,6 +175,9 @@ class ChatService:
         self._search_adapter = search_adapter
         self._koha = koha_adapter
         self._audit_repo = audit_repo
+        # P2.2: PrivacyRouter — si no se inyecta, se construye uno por default.
+        # Es stateless y barato (regex + tabla lookup), no tiene sentido tenerlo opcional.
+        self._privacy_router = privacy_router or PrivacyRouter()
 
     async def answer(self, request: ChatRequest) -> ChatResponse:
         """Genera una respuesta para el ChatRequest del usuario (async).
@@ -186,6 +191,7 @@ class ChatService:
         query = request.query
         route_decision: RouteDecision | None = None  # se setea en paso 3
         sources_used_names: list[str] = []  # ['dspace', 'koha', ...] para audit
+        privacy_verdict: PrivacyVerdict | None = None  # se setea en paso 5b
 
         # 1. Embed query (sync HTTP → thread)
         query_vector: list[float] = await asyncio.to_thread(
@@ -334,11 +340,23 @@ class ChatService:
             if records:
                 sources_used_names.append("pgvector")
 
-        # 6. Elegir LLM de síntesis según complejidad de la query.
-        # Preferencia: usar el tier de la RouteDecision si CascadeRouter decidió.
-        # Caso contrario, fallback al ModelRouter legacy o synthesis_llm directo.
-        if route_decision is not None and self._fast_llm is not None:
-            # Cascade decidió: T0_FAST → fast_llm; T1_STD/T2_DEEP → synthesis_llm
+        # 5b. PrivacyRouter (P2.2) — combina sources + PII en query/docs.
+        # MAX-LEVEL-WINS: si final_level >= L2_PERSONAL → force_local.
+        privacy_verdict = self._privacy_router.evaluate(
+            query=query,
+            sources_used=sources_used_names,
+            retrieved_docs_text=context_text,
+        )
+
+        # 6. Elegir LLM de síntesis según privacidad + complejidad.
+        # Prioridad 1: privacy_verdict.force_local fuerza fast_llm si es local.
+        # Prioridad 2: tier de RouteDecision (CascadeRouter).
+        # Prioridad 3: ModelRouter legacy.
+        # Prioridad 4: synthesis_llm directo.
+        if privacy_verdict.force_local and self._fast_llm is not None:
+            # GUARDRAIL DE PRIVACIDAD: datos L2/L3 nunca van a cloud
+            synthesis_llm = self._fast_llm
+        elif route_decision is not None and self._fast_llm is not None:
             synthesis_llm = (
                 self._fast_llm
                 if route_decision.tier == Tier.T0_FAST
@@ -386,7 +404,7 @@ class ChatService:
             )
 
         await self._emit_audit(
-            request, response, route_decision, sources_used_names, t_start
+            request, response, route_decision, sources_used_names, t_start, privacy_verdict
         )
         return response
 
@@ -397,6 +415,7 @@ class ChatService:
         route_decision: RouteDecision | None,
         sources_used: list[str],
         t_start: float,
+        privacy_verdict: PrivacyVerdict | None = None,
     ) -> None:
         """Emite entrada de audit_log fire-and-forget.
 
@@ -410,9 +429,21 @@ class ChatService:
         import time
 
         latency_ms = int((time.perf_counter() - t_start) * 1000)
-        privacy_level = (
-            route_decision.privacy.value if route_decision is not None else "cloud_ok"
-        )
+
+        # P2.2: privacidad final = privacy_verdict si existe (más preciso),
+        # sino route_decision.privacy del CascadeRouter, sino default cloud_ok.
+        if privacy_verdict is not None:
+            privacy_level = (
+                "always_local" if privacy_verdict.force_local else "cloud_ok"
+            )
+            pii_detected = privacy_verdict.pii_in_query or privacy_verdict.pii_in_docs
+        elif route_decision is not None:
+            privacy_level = route_decision.privacy.value
+            pii_detected = False
+        else:
+            privacy_level = "cloud_ok"
+            pii_detected = False
+
         gate_used = (
             route_decision.gate_used.value if route_decision is not None else "unknown"
         )
@@ -427,6 +458,7 @@ class ChatService:
             llm_model=response.model_used or "none",
             llm_provider=_detect_llm_provider(response.model_used or ""),
             gate_used=gate_used,
+            pii_detected=pii_detected,
             latency_ms=latency_ms,
             cached=response.cached,
         )
