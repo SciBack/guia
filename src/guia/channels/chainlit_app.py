@@ -77,12 +77,18 @@ def get_data_layer() -> SQLAlchemyDataLayer:
 
 @cl.on_app_startup
 async def on_app_startup() -> None:
-    """Pre-calienta el ModelRouter al arrancar la app."""
+    """Pre-calienta los routers (ModelRouter legacy + CascadeRouter P1.2) al arrancar."""
     router = getattr(_container, "router", None)
     if router is not None:
         logger.info("model_router_warmup_start")
         await router.warm_up()
         logger.info("model_router_warmup_done")
+
+    cascade = getattr(_container, "cascade_router", None)
+    if cascade is not None:
+        logger.info("cascade_router_warmup_start")
+        await cascade.warm_up()
+        logger.info("cascade_router_warmup_done")
 
 
 @cl.on_logout

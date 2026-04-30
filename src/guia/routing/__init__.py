@@ -11,6 +11,7 @@ Cada gate retorna RouteDecision o None (no decidió). El CascadeRouter
 orquesta la cascada y agrega métricas de latencia por gate.
 """
 
+from guia.domain.chat import Intent
 from guia.routing.cascade import CascadeRouter
 from guia.routing.decision import (
     Gate,
@@ -22,6 +23,28 @@ from guia.routing.decision import (
 from guia.routing.embedding import EmbeddingRouter
 from guia.routing.rules import RuleBasedRouter
 
+# ── Mapeo IntentCategory (routing) → Intent legacy (domain) ──────────────
+# El dominio trabaja con 4 intents (RESEARCH/CAMPUS/GENERAL/OUT_OF_SCOPE)
+# que gobiernan el flujo de ChatService (RAG, Koha, mensajes especiales).
+# Las 8 categorías de routing son más granulares — esta tabla las colapsa.
+
+_CATEGORY_TO_INTENT: dict[IntentCategory, Intent] = {
+    IntentCategory.GREETING: Intent.GENERAL,
+    IntentCategory.COMMAND: Intent.GENERAL,
+    IntentCategory.CAMPUS_PERSONAL: Intent.CAMPUS,
+    IntentCategory.CAMPUS_GENERICO: Intent.CAMPUS,
+    IntentCategory.RESEARCH_SIMPLE: Intent.RESEARCH,
+    IntentCategory.RESEARCH_DEEP: Intent.RESEARCH,
+    IntentCategory.OUT_OF_SCOPE: Intent.OUT_OF_SCOPE,
+    IntentCategory.UNKNOWN: Intent.GENERAL,
+}
+
+
+def category_to_intent(category: IntentCategory) -> Intent:
+    """Mapea IntentCategory (8 buckets) a Intent legacy (4 buckets)."""
+    return _CATEGORY_TO_INTENT[category]
+
+
 __all__ = [
     "CascadeRouter",
     "EmbeddingRouter",
@@ -31,4 +54,5 @@ __all__ = [
     "RouteDecision",
     "RuleBasedRouter",
     "Tier",
+    "category_to_intent",
 ]

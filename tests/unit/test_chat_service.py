@@ -226,3 +226,51 @@ async def test_answer_intent_hint_skips_classification() -> None:
     assert response.intent == Intent.RESEARCH
     # El classifier no se llamó
     assert len(classifier.complete_calls) == 0
+
+
+# ── Integración CascadeRouter (P1.2) ──────────────────────────────────────
+
+
+async def test_cascade_router_short_circuits_classifier_on_greeting() -> None:
+    """Con CascadeRouter inyectado, un saludo se resuelve en Gate 1 sin LLM."""
+    import asyncio as _asyncio
+
+    from guia.routing import CascadeRouter, EmbeddingRouter, RuleBasedRouter
+    from tests.unit.test_routing_embedding import FakeEmbedder as RouteFakeEmbedder
+
+    classifier = InMemoryLLMAdapter(canned_response="research", embedding_dim=8)
+    synthesis = InMemoryLLMAdapter(canned_response="hola, soy GUIA", embedding_dim=8)
+
+    embedding_router = EmbeddingRouter(RouteFakeEmbedder())
+    await embedding_router.warm_up()
+    cascade = CascadeRouter(rules=RuleBasedRouter(), embedding=embedding_router)
+
+    # Embedder de routing produce vectores de 4 dim, pero ChatService usa
+    # el embedder de 8 dim que vino del FakeEmbedder local. Adapter:
+    class BridgeEmbedder:
+        embedding_dim = 8
+
+        def embed_query(self, q: str) -> list[float]:
+            return [0.1] * 8
+
+        def embed_passages(self, texts: list[str]) -> object:
+            from sciback_core.ports.llm import EmbeddingResponse
+            return EmbeddingResponse(
+                embeddings=[[0.1] * 8] * len(texts),
+                model="bridge",
+                input_tokens=0,
+            )
+
+    service = ChatService(
+        synthesis_llm=synthesis,
+        store=InMemoryVectorStoreAdapter(dim=8),
+        embedder=BridgeEmbedder(),  # type: ignore[arg-type]
+        classifier_llm=classifier,
+        cascade_router=cascade,
+    )
+
+    # "hola" matchea Gate 1 → no llama al classifier_llm
+    response = await service.answer(ChatRequest(query="hola"))
+
+    assert response.intent == Intent.GENERAL  # GREETING → GENERAL legacy
+    assert len(classifier.complete_calls) == 0  # CRÍTICO: ahorra latencia LLM

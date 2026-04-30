@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from sciback_core.ports.llm import LLMMessage, LLMPort
 
 from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
+from guia.routing import CascadeRouter, Tier, category_to_intent
 from guia.services.intent import IntentClassifier
 from guia.services.router import ModelRouter, QueryTier
 
@@ -138,6 +139,7 @@ class ChatService:
         classifier_llm: LLMPort | None = None,
         fast_llm: LLMPort | None = None,
         router: ModelRouter | None = None,
+        cascade_router: CascadeRouter | None = None,
         cache: SemanticCache | None = None,
         institution: str = "la universidad",
         search_adapter: SearchAdapter | None = None,
@@ -146,6 +148,7 @@ class ChatService:
         self._synthesis_llm = synthesis_llm
         self._fast_llm = fast_llm
         self._router = router
+        self._cascade = cascade_router
         self._store = store
         self._embedder = embedder
         self._classifier = IntentClassifier(classifier_llm or synthesis_llm)
@@ -182,8 +185,18 @@ class ChatService:
                     tokens_used=0,
                 )
 
-        # 3. Clasificar intent (async — LLM en thread)
-        intent = request.intent_hint or await self._classifier.classify(query)
+        # 3. Clasificar intent + tier
+        # Si el CascadeRouter está disponible (P1.2), preferirlo: ahorra
+        # ~150-300ms en queries triviales que resuelve en Gate 1 o Gate 2.
+        # El intent_hint (test override) sigue teniendo precedencia.
+        route_decision = None
+        if request.intent_hint is not None:
+            intent = request.intent_hint
+        elif self._cascade is not None:
+            route_decision = self._cascade.decide(query, query_vector)
+            intent = category_to_intent(route_decision.intent)
+        else:
+            intent = await self._classifier.classify(query)
 
         # 4. Respuestas directas sin RAG
         if intent == Intent.OUT_OF_SCOPE:
@@ -282,17 +295,26 @@ class ChatService:
             )
             context_text, sources = _records_to_context(records)
 
-        # 6. Elegir LLM de síntesis según complejidad de la query
-        # RESEARCH siempre usa el modelo completo (RAG + razonamiento complejo).
-        # GENERAL: el router decide según similitud semántica — reutiliza query_vector.
-        if (
+        # 6. Elegir LLM de síntesis según complejidad de la query.
+        # Preferencia: usar el tier de la RouteDecision si CascadeRouter decidió.
+        # Caso contrario, fallback al ModelRouter legacy o synthesis_llm directo.
+        if route_decision is not None and self._fast_llm is not None:
+            # Cascade decidió: T0_FAST → fast_llm; T1_STD/T2_DEEP → synthesis_llm
+            synthesis_llm = (
+                self._fast_llm
+                if route_decision.tier == Tier.T0_FAST
+                else self._synthesis_llm
+            )
+        elif (
             intent != Intent.RESEARCH
             and self._fast_llm is not None
             and self._router is not None
             and self._router.ready
         ):
-            tier = self._router.route(query_vector)
-            synthesis_llm = self._fast_llm if tier == QueryTier.FAST else self._synthesis_llm
+            tier_legacy = self._router.route(query_vector)
+            synthesis_llm = (
+                self._fast_llm if tier_legacy == QueryTier.FAST else self._synthesis_llm
+            )
         else:
             synthesis_llm = self._synthesis_llm
 

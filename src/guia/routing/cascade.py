@@ -67,6 +67,15 @@ class CascadeRouter:
         self._llm = llm_classifier
         self._gate3_threshold = gate3_threshold
 
+    async def warm_up(self) -> None:
+        """Pre-calcula centroides del Gate 2. Llamar al inicio de la app."""
+        await self._embedding.warm_up()
+
+    @property
+    def ready(self) -> bool:
+        """True si Gate 2 está warm (los gates 1 y 3 son stateless)."""
+        return self._embedding.ready
+
     def decide(self, query: str, query_vector: list[float]) -> RouteDecision:
         """Resuelve la cascada y retorna una RouteDecision (nunca None)."""
         t_start = time.perf_counter()

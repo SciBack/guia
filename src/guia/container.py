@@ -11,6 +11,7 @@ from sciback_core.ports.llm import LLMPort
 from sciback_core.ports.vector_store import VectorStorePort
 
 from guia.config import GUIASettings, LLMMode
+from guia.routing import CascadeRouter, EmbeddingRouter, RuleBasedRouter
 from guia.search.backend import SearchAdapter, get_search_adapter
 from guia.services.cache import SemanticCache
 from guia.services.chat import ChatService
@@ -141,13 +142,26 @@ class GUIAContainer:
             threshold=self.settings.semantic_cache_threshold,
         )
 
-        # ModelRouter: usa embeddings para elegir fast vs full LLM
-        # Solo activo cuando fast_llm está disponible (LOCAL y HYBRID)
+        # ModelRouter legacy (FAST/FULL): se mantiene por compatibilidad mientras
+        # CascadeRouter no cubra el 100% de casos. Solo activo con fast_llm.
         self.router: ModelRouter | None = (
             ModelRouter(self.embedder) if self.fast_llm is not None else None
         )
 
-        # M4: ChatService async — usa hybrid_dicts() con await
+        # P1.2: CascadeRouter (3 gates) — selección de modelo + privacidad.
+        # Sin LLM classifier todavía (Gate 3 opt-in se agrega cuando
+        # IntentCategory esté soportado nativamente por el clasificador).
+        # warm_up() debe llamarse en el lifespan de la app (cl.on_app_startup).
+        self.cascade_router: CascadeRouter | None = (
+            CascadeRouter(
+                rules=RuleBasedRouter(),
+                embedding=EmbeddingRouter(self.embedder),
+            )
+            if self.fast_llm is not None
+            else None
+        )
+
+        # M4 + P1.2: ChatService async con cascada opcional
         self.chat_service = ChatService(
             synthesis_llm=self.synthesis_llm,
             store=self.store,
@@ -155,6 +169,7 @@ class GUIAContainer:
             classifier_llm=self.classifier_llm,
             fast_llm=self.fast_llm,
             router=self.router,
+            cascade_router=self.cascade_router,
             cache=self.cache,
             search_adapter=self.search_adapter,
             koha_adapter=self.koha_adapter,  # type: ignore[arg-type]
