@@ -11,6 +11,7 @@ Cada gate retorna RouteDecision o None (no decidió). El CascadeRouter
 orquesta la cascada y agrega métricas de latencia por gate.
 """
 
+from guia.routing.cascade import CascadeRouter
 from guia.routing.decision import (
     Gate,
     IntentCategory,
@@ -18,11 +19,16 @@ from guia.routing.decision import (
     RouteDecision,
     Tier,
 )
+from guia.routing.embedding import EmbeddingRouter
+from guia.routing.rules import RuleBasedRouter
 
 __all__ = [
+    "CascadeRouter",
+    "EmbeddingRouter",
     "Gate",
     "IntentCategory",
     "PrivacyLevel",
     "RouteDecision",
+    "RuleBasedRouter",
     "Tier",
 ]
