@@ -89,7 +89,7 @@ class SearchAdapter:
             )
             return [_hit_to_dict(h) for h in result.hits[:limit]]
         except Exception as exc:
-            logger.warning("opensearch_hybrid_failed", exc=str(exc))
+            logger.warning("opensearch_hybrid_failed", extra={"exc": str(exc)})
             return await self._pgvector_fallback(vector, limit)
 
     async def _pgvector_fallback(
@@ -152,7 +152,7 @@ class SearchAdapter:
             )
             return [_hit_to_dict(h) for h in result.hits[:limit]]
         except Exception as exc:
-            logger.warning("opensearch_hybrid_failed", exc=str(exc))
+            logger.warning("opensearch_hybrid_failed", extra={"exc": str(exc)})
             if self._pg is not None:
                 logger.info("falling_back_to_pgvector")
                 records = self._pg.search(vector, limit=limit, min_score=0.3)
@@ -164,7 +164,7 @@ class SearchAdapter:
         try:
             asyncio.run(self._os.index(entity))  # type: ignore[union-attr]
         except Exception as exc:
-            logger.warning("opensearch_index_failed", exc=str(exc))
+            logger.warning("opensearch_index_failed", extra={"exc": str(exc)})
 
 
 # Alias de compatibilidad M3 → M4
@@ -191,8 +191,12 @@ def get_search_adapter(
         from sciback_search_opensearch import OpenSearchSearchPort, OpenSearchSettings
         os_port = OpenSearchSearchPort(OpenSearchSettings(_env_file=None))
         pg_fallback = pgvector_store if backend == "dual" else None
-        logger.info("search_backend_initialized", backend=backend)
+        # logger es stdlib logging.Logger (no structlog) — kwargs van en extra={}
+        logger.info("search_backend_initialized", extra={"backend": backend})
         return SearchAdapter(os_port, pg_fallback)
     except Exception as exc:
-        logger.warning("opensearch_init_failed", exc=str(exc), fallback="pgvector")
+        logger.warning(
+            "opensearch_init_failed",
+            extra={"exc": str(exc), "fallback": "pgvector"},
+        )
         return None
