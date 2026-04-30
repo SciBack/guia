@@ -54,28 +54,28 @@ def _make_service(
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
-def test_answer_returns_chat_response() -> None:
+async def test_answer_returns_chat_response() -> None:
     """answer() retorna un ChatResponse válido."""
     service = _make_service()
     request = ChatRequest(query="¿Qué tesis hay sobre IA?")
-    response = service.answer(request)
+    response = await service.answer(request)
 
     assert isinstance(response, ChatResponse)
     assert response.answer == "Respuesta de prueba"
     assert isinstance(response.intent, Intent)
 
 
-def test_answer_research_intent_calls_llm() -> None:
+async def test_answer_research_intent_calls_llm() -> None:
     """Para intent RESEARCH, se llama al LLM de síntesis."""
     service = _make_service(intent_response="research")
     request = ChatRequest(query="tesis machine learning")
-    response = service.answer(request)
+    response = await service.answer(request)
 
     assert response.intent == Intent.RESEARCH
     assert response.answer == "Respuesta de prueba"
 
 
-def test_answer_out_of_scope_no_llm_call() -> None:
+async def test_answer_out_of_scope_no_llm_call() -> None:
     """Para OUT_OF_SCOPE, no se llama al LLM de síntesis."""
     synthesis = InMemoryLLMAdapter(canned_response="no debería llamarse")
     classifier = InMemoryLLMAdapter(canned_response="out_of_scope")
@@ -89,24 +89,24 @@ def test_answer_out_of_scope_no_llm_call() -> None:
     )
 
     request = ChatRequest(query="¿Cuál es la capital de Argentina?")
-    response = service.answer(request)
+    response = await service.answer(request)
 
     assert response.intent == Intent.OUT_OF_SCOPE
     # El LLM de síntesis NO debe haberse llamado
     assert len(synthesis.complete_calls) == 0
 
 
-def test_answer_campus_returns_unavailable_message() -> None:
+async def test_answer_campus_returns_unavailable_message() -> None:
     """Para CAMPUS, retorna mensaje de no disponible (Fase 0)."""
     service = _make_service(intent_response="campus")
     request = ChatRequest(query="¿Cuánto debo en biblioteca?")
-    response = service.answer(request)
+    response = await service.answer(request)
 
     assert response.intent == Intent.CAMPUS
     assert "campus" in response.answer.lower() or "disponible" in response.answer.lower()
 
 
-def test_answer_uses_vector_store_results() -> None:
+async def test_answer_uses_vector_store_results() -> None:
     """Para RESEARCH, busca en el vector store y construye contexto."""
     store = InMemoryVectorStoreAdapter(dim=8)
     store.upsert(
@@ -129,7 +129,7 @@ def test_answer_uses_vector_store_results() -> None:
         classifier_llm=classifier,
     )
 
-    service.answer(ChatRequest(query="inteligencia artificial"))
+    await service.answer(ChatRequest(query="inteligencia artificial"))
 
     # El LLM de síntesis fue llamado con mensajes que incluyen el contexto
     assert len(synthesis.complete_calls) == 1
@@ -137,7 +137,7 @@ def test_answer_uses_vector_store_results() -> None:
     assert system_msg.role == "system"
 
 
-def test_answer_with_cache_hit_returns_cached_response() -> None:
+async def test_answer_with_cache_hit_returns_cached_response() -> None:
     """Si el caché tiene hit, se retorna la respuesta cacheada."""
     cached_response = ChatResponse(
         answer="Respuesta desde caché",
@@ -152,7 +152,7 @@ def test_answer_with_cache_hit_returns_cached_response() -> None:
     mock_cache.get.return_value = cached_response
 
     service = _make_service(cache=mock_cache)
-    response = service.answer(ChatRequest(query="consulta repetida"))
+    response = await service.answer(ChatRequest(query="consulta repetida"))
 
     assert response.cached is True
     assert response.answer == "Respuesta desde caché"
@@ -160,25 +160,25 @@ def test_answer_with_cache_hit_returns_cached_response() -> None:
     service._synthesis_llm.complete_calls == []  # type: ignore[union-attr]
 
 
-def test_answer_with_cache_miss_sets_cache() -> None:
+async def test_answer_with_cache_miss_sets_cache() -> None:
     """Con cache miss, la respuesta se almacena en caché."""
     mock_cache = MagicMock()
     mock_cache.get.return_value = None  # miss
 
     service = _make_service(cache=mock_cache, intent_response="general")
-    service.answer(ChatRequest(query="consulta nueva"))
+    await service.answer(ChatRequest(query="consulta nueva"))
 
     mock_cache.set.assert_called_once()
 
 
-def test_answer_without_cache_works() -> None:
+async def test_answer_without_cache_works() -> None:
     """ChatService funciona sin caché configurado."""
     service = _make_service(cache=None)
-    response = service.answer(ChatRequest(query="prueba sin caché"))
+    response = await service.answer(ChatRequest(query="prueba sin caché"))
     assert isinstance(response, ChatResponse)
 
 
-def test_answer_sources_from_store() -> None:
+async def test_answer_sources_from_store() -> None:
     """Las fuentes del vector store se incluyen en la respuesta."""
     store = InMemoryVectorStoreAdapter(dim=8)
     store.upsert(
@@ -202,12 +202,12 @@ def test_answer_sources_from_store() -> None:
         classifier_llm=classifier,
     )
 
-    response = service.answer(ChatRequest(query="blockchain universidad"))
+    response = await service.answer(ChatRequest(query="blockchain universidad"))
     assert len(response.sources) >= 1
     assert response.sources[0].title == "Tesis sobre blockchain"
 
 
-def test_answer_intent_hint_skips_classification() -> None:
+async def test_answer_intent_hint_skips_classification() -> None:
     """Si se provee intent_hint, no se llama al classifier."""
     classifier = InMemoryLLMAdapter(canned_response="campus", embedding_dim=8)
     synthesis = InMemoryLLMAdapter(canned_response="respuesta", embedding_dim=8)
@@ -221,7 +221,7 @@ def test_answer_intent_hint_skips_classification() -> None:
 
     # Forzar intent RESEARCH directamente
     request = ChatRequest(query="prueba", intent_hint=Intent.RESEARCH)
-    response = service.answer(request)
+    response = await service.answer(request)
 
     assert response.intent == Intent.RESEARCH
     # El classifier no se llamó
