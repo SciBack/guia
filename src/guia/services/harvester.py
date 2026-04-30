@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from guia.services.chunking import iter_chunks_for_publication
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -26,6 +28,40 @@ def _localized_str(val: object) -> str:
 
 
 _MAX_EMBEDDING_CHARS = 1500  # multilingual-e5 soporta ~512 tokens ≈ 1500 chars
+
+
+def _localized_str_or_empty(val: object) -> str:
+    """Wrapper de _localized_str que retorna '' si val es None."""
+    return _localized_str(val) if val is not None else ""
+
+
+def _publication_to_full_text(pub: Publication) -> str:
+    """Texto extendido (potencialmente largo) para chunking — Capa C (ADR-037).
+
+    Concatena title + abstract + toc + description_full. Si después del
+    truncamiento del padre (1500 chars) hay material restante, se chunkeará.
+    """
+    parts: list[str] = []
+
+    if getattr(pub, "title", None):
+        parts.append(_localized_str(pub.title))
+
+    if getattr(pub, "abstract", None):
+        parts.append(_localized_str(pub.abstract))
+
+    extra = getattr(pub, "extra", None) or {}
+    if isinstance(extra, dict):
+        toc = extra.get("toc")
+        if toc:
+            if isinstance(toc, list):
+                parts.append(" ".join(str(t) for t in toc))
+            else:
+                parts.append(str(toc))
+        desc_full = extra.get("description_full") or extra.get("description")
+        if desc_full:
+            parts.append(str(desc_full))
+
+    return " ".join(parts).strip()
 
 
 def _publication_to_embedding_text(pub: Publication) -> str:
@@ -330,9 +366,24 @@ class HarvesterService:
             pub_id = _stable_pub_id(pub, source_name, total)
             meta = _publication_to_metadata(pub)
 
+            # 1) Padre: embedding del título + abstract truncado a 1500 chars
             batch_texts.append(embedding_text)
             batch_ids.append(pub_id)
             batch_metas.append(meta)
+
+            # 2) Chunks (P3.1, ADR-037): si el full_text es sustancialmente
+            # más largo que el embedding_text, generar chunks adicionales con
+            # parent_id apuntando al padre. Permite Parent-Document Retrieval
+            # cuando el usuario hace queries que matchean partes específicas
+            # de la TOC o description_full.
+            full_text = _publication_to_full_text(pub)
+            if len(full_text) > _MAX_EMBEDDING_CHARS * 1.5:
+                for chunk_id, chunk_text, chunk_meta in iter_chunks_for_publication(
+                    pub_id, full_text, meta
+                ):
+                    batch_texts.append(chunk_text)
+                    batch_ids.append(chunk_id)
+                    batch_metas.append(chunk_meta)
 
             if len(batch_texts) >= batch_size:
                 flush_batch()
