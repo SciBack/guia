@@ -28,7 +28,17 @@ textarea, input[type="text"] {
   transition: box-shadow 160ms var(--g-ease) !important;
 }
 textarea:focus, input[type="text"]:focus {
-  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.6) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Quitar rectángulo de foco del message composer
+   Chainlit aplica focus-within:ring-2 al div contenedor del textarea + botones */
+div:has(> div > textarea):focus-within,
+div:has(> textarea):focus-within {
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  box-shadow: none !important;
   outline: none !important;
 }
 
