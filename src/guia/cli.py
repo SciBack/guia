@@ -116,6 +116,12 @@ def reindex(
         True,
         help="No reindexar chunks (is_chunk=True). Default True — solo padres.",
     ),
+    rebuild_index: bool = typer.Option(
+        False,
+        "--rebuild-index",
+        help="Borra y recrea el index OpenSearch antes de reindex (mapping knn_vector). "
+        "Usar la primera vez o tras cambios de mapping.",
+    ),
 ) -> None:
     """Reindex pgvector → OpenSearch (M3 hotfix mientras llega outbox+celery)."""
     import asyncio
@@ -169,6 +175,11 @@ def reindex(
 
         total = service.count_documents()
         typer.echo(f"Documentos en pgvector: {total}")
+
+        if rebuild_index and not dry_run:
+            typer.echo("Recreando index OpenSearch (mapping knn_vector)...")
+            asyncio.run(os_port.rebuild_index("publication"))
+            typer.echo("Index recreado.")
 
         stats = asyncio.run(
             service.reindex_all(batch_size=batch_size, dry_run=dry_run)
