@@ -32,10 +32,53 @@ def _get_yesterday_iso() -> str:
     return yesterday.strftime("%Y-%m-%d")
 
 
+def reindex_opensearch_job(container: GUIAContainer) -> None:
+    """Re-popula OpenSearch desde pgvector (M3 hotfix mientras llega outbox+celery).
+
+    Se llama desde harvest_daily_job y harvest_koha_weekly_job al final del
+    harvest, para mantener OpenSearch sincronizado con pgvector. Idempotente:
+    sobreescribe los mismos docs en OS por su _id.
+
+    No-op silencioso si SEARCH_BACKEND=pgvector o no hay OpenSearch adapter.
+    """
+    if _settings.search_backend == "pgvector":
+        logger.info("reindex_skipped", reason="search_backend=pgvector")
+        return
+    if container.search_adapter is None:
+        logger.warning("reindex_skipped", reason="no search_adapter configured")
+        return
+
+    import asyncio
+
+    from sciback_vectorstore_pgvector import PgVectorStore
+
+    from guia.services.reindex import ReindexService
+
+    if not isinstance(container.store, PgVectorStore):
+        logger.warning("reindex_skipped", reason=f"store is {type(container.store).__name__}")
+        return
+
+    os_port = container.search_adapter._os  # type: ignore[attr-defined]
+    service = ReindexService(pg_store=container.store, os_port=os_port, skip_chunks=True)
+
+    try:
+        stats = asyncio.run(service.reindex_all(batch_size=200))
+        logger.info(
+            "reindex_complete",
+            read=stats.total_read,
+            indexed=stats.total_indexed,
+            failed=stats.total_failed,
+            skipped_chunks=stats.skipped_chunks,
+        )
+    except Exception:
+        logger.exception("reindex_error")
+
+
 def harvest_daily_job(container: GUIAContainer) -> None:
     """Job: cosecha incremental desde todas las fuentes configuradas.
 
     Corre con from_date = ayer para capturar items publicados recientemente.
+    Después del harvest, reindexa OpenSearch (no-op si SEARCH_BACKEND=pgvector).
     """
     from_date = _get_yesterday_iso()
     logger.info("harvest_daily_start", from_date=from_date)
@@ -52,12 +95,17 @@ def harvest_daily_job(container: GUIAContainer) -> None:
         )
     except Exception:
         logger.exception("harvest_daily_error")
+        return
+
+    # Sincroniza OpenSearch con los nuevos docs del harvest
+    reindex_opensearch_job(container)
 
 
 def harvest_koha_weekly_job(container: GUIAContainer) -> None:
     """Job: re-indexación completa del catálogo Koha (semanal, domingos 1am).
 
     Koha no tiene OAI-PMH incremental, así que se re-cosecha completo.
+    Después del harvest, reindexa OpenSearch.
     """
     logger.info("harvest_koha_weekly_start")
     try:
@@ -65,6 +113,10 @@ def harvest_koha_weekly_job(container: GUIAContainer) -> None:
         logger.info("harvest_koha_weekly_complete", result=result)
     except Exception:
         logger.exception("harvest_koha_weekly_error")
+        return
+
+    # Sincroniza OpenSearch con el catálogo Koha actualizado
+    reindex_opensearch_job(container)
 
 
 def backup_s3_job(container: GUIAContainer) -> None:
