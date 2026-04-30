@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
+from guia.audit import AuditLogRepository
 from guia.container import GUIAContainer
 from guia.services.chat import ChatService
 from guia.services.harvester import HarvesterService
@@ -36,3 +37,10 @@ def get_search_service(
 ) -> SearchService:
     """Inyecta el SearchService."""
     return container.search_service  # type: ignore[return-value]
+
+
+def get_audit_repo(
+    container: Annotated[GUIAContainer, Depends(get_container)],
+) -> AuditLogRepository:
+    """Inyecta el AuditLogRepository (P1.3)."""
+    return container.audit_repo  # type: ignore[return-value]

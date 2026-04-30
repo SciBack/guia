@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from guia import __version__
-from guia.api.routes import chat, harvest, health, oai, profile
+from guia.api.routes import admin, chat, harvest, health, oai, profile
 from guia.config import GUIASettings
 from guia.container import GUIAContainer
 from guia.logging import configure_logging, get_logger
@@ -82,5 +82,7 @@ def create_app(settings: GUIASettings | None = None) -> FastAPI:
     # M3: nuevos routers (ADR-029 / ADR-031 / ADR-034)
     app.include_router(oai.router)
     app.include_router(profile.router)
+    # P1.3: audit admin (ADR-036)
+    app.include_router(admin.router)
 
     return app
