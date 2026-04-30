@@ -83,7 +83,8 @@ class _IndexableRecord:
             "publication_year": self._meta.get("year"),
             "external_resource_uri": self._meta.get("url"),
             "source": str(self._meta.get("source", "unknown")),
-            "vector": self._vector,
+            # Campo del mapping sciback-core es "embedding" (no "vector")
+            "embedding": self._vector,
             # Metadata adicional útil para filters
             "kind": self._meta.get("kind"),
             "language": self._meta.get("language"),
@@ -124,6 +125,62 @@ class ReindexService:
                 text("SELECT COUNT(*) FROM sciback_vectors")
             ).scalar()
             return int(result or 0)
+
+    async def setup_index_publication(self, embedding_dim: int = 1024) -> None:
+        """Borra y crea el index 'publication' con mapping knn correcto.
+
+        Workaround: el rebuild_index() de sciback-search-opensearch v0.x no
+        habilita `index.knn=true` en settings, sin lo cual OpenSearch rechaza
+        el field knn_vector con mapper_parsing_exception. Aquí aplicamos el
+        mapping correcto directamente vía cliente de bajo nivel.
+        """
+        from opensearchpy.exceptions import NotFoundError
+
+        client = self._os._client  # type: ignore[attr-defined]
+        index_name = self._os._index_name("publication")  # type: ignore[attr-defined]
+
+        try:
+            await client.indices.delete(index=index_name)
+        except NotFoundError:
+            pass
+
+        body = {
+            "settings": {
+                "index": {"knn": True},
+                "analysis": {
+                    "analyzer": {"spanish_custom": {"type": "spanish"}}
+                },
+            },
+            "mappings": {
+                "properties": {
+                    "id": {"type": "keyword"},
+                    "title": {
+                        "type": "text",
+                        "analyzer": "spanish_custom",
+                        "fields": {"keyword": {"type": "keyword"}},
+                    },
+                    "abstract": {"type": "text", "analyzer": "spanish_custom"},
+                    "authors": {"type": "keyword"},
+                    "publication_year": {"type": "integer"},
+                    "language": {"type": "keyword"},
+                    "source": {"type": "keyword"},
+                    "kind": {"type": "keyword"},
+                    "external_resource_uri": {"type": "keyword"},
+                    "subjects": {"type": "keyword"},
+                    "subjects_ocde": {"type": "keyword"},
+                    "embedding": {
+                        "type": "knn_vector",
+                        "dimension": embedding_dim,
+                        "method": {
+                            "name": "hnsw",
+                            "space_type": "cosinesimil",
+                            "engine": "lucene",
+                        },
+                    },
+                }
+            },
+        }
+        await client.indices.create(index=index_name, body=body)
 
     def _iter_batches(self, batch_size: int) -> Any:
         """Generator que produce batches de filas de pgvector ordenadas por id.

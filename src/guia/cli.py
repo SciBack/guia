@@ -177,8 +177,8 @@ def reindex(
         typer.echo(f"Documentos en pgvector: {total}")
 
         if rebuild_index and not dry_run:
-            typer.echo("Recreando index OpenSearch (mapping knn_vector)...")
-            asyncio.run(os_port.rebuild_index("publication"))
+            typer.echo("Recreando index OpenSearch (mapping knn_vector + index.knn=true)...")
+            asyncio.run(service.setup_index_publication())
             typer.echo("Index recreado.")
 
         stats = asyncio.run(
