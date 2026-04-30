@@ -15,7 +15,7 @@ from sciback_core.ports.llm import LLMMessage, LLMPort
 
 from guia.audit import AuditLogEntry, AuditLogRepository, hash_query
 from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
-from guia.privacy import PrivacyRouter, PrivacyVerdict
+from guia.privacy import PrivacyRouter, PrivacyVerdict, redact, restore
 from guia.routing import CascadeRouter, RouteDecision, Tier, category_to_intent
 from guia.services.intent import IntentClassifier
 from guia.services.router import ModelRouter, QueryTier
@@ -375,21 +375,45 @@ class ChatService:
         else:
             synthesis_llm = self._synthesis_llm
 
+        # 6b. PII redaction (P2.3) — segunda capa de defensa.
+        # Si vamos a cloud (no force_local) Y hay PII en query/contexto,
+        # reemplazar por placeholders antes de enviar; re-hidratar después.
+        # Si vamos a local (force_local=True), no redactamos: el LLM local
+        # ya está en infraestructura controlada.
+        going_to_cloud = synthesis_llm is self._synthesis_llm and not (
+            privacy_verdict and privacy_verdict.force_local
+        )
+        pii_replacements: dict[str, str] = {}
+        query_for_llm = query
+        context_for_llm = context_text
+        if going_to_cloud:
+            d_query = redact(query)
+            d_context = redact(context_text) if context_text else redact("")
+            if d_query.has_pii or d_context.has_pii:
+                query_for_llm = d_query.redacted_text
+                context_for_llm = d_context.redacted_text
+                pii_replacements = {**d_query.replacements, **d_context.replacements}
+
         # 7. Síntesis LLM (sync → thread)
         system = _SYSTEM_PROMPT.format(
             institution=self._institution,
-            context=context_text if context_text else "No se encontraron documentos relevantes.",
+            context=context_for_llm if context_for_llm else "No se encontraron documentos relevantes.",
         )
         messages = [LLMMessage(role="system", content=system)]
         for turn in request.history:
             messages.append(LLMMessage(role=turn.role, content=turn.content))
-        messages.append(LLMMessage(role="user", content=query))
+        messages.append(LLMMessage(role="user", content=query_for_llm))
         llm_response = await asyncio.to_thread(
             synthesis_llm.complete, messages, max_tokens=1024, temperature=0.1
         )
 
+        # 7b. Re-hidratar la respuesta del LLM (si redactamos antes)
+        answer_text = llm_response.content
+        if pii_replacements:
+            answer_text = restore(answer_text, pii_replacements)
+
         response = ChatResponse(
-            answer=llm_response.content,
+            answer=answer_text,
             intent=intent,
             sources=sources,
             model_used=llm_response.model,
@@ -404,7 +428,8 @@ class ChatService:
             )
 
         await self._emit_audit(
-            request, response, route_decision, sources_used_names, t_start, privacy_verdict
+            request, response, route_decision, sources_used_names, t_start,
+            privacy_verdict, pii_redacted=bool(pii_replacements),
         )
         return response
 
@@ -416,6 +441,7 @@ class ChatService:
         sources_used: list[str],
         t_start: float,
         privacy_verdict: PrivacyVerdict | None = None,
+        pii_redacted: bool = False,
     ) -> None:
         """Emite entrada de audit_log fire-and-forget.
 
@@ -459,6 +485,7 @@ class ChatService:
             llm_provider=_detect_llm_provider(response.model_used or ""),
             gate_used=gate_used,
             pii_detected=pii_detected,
+            pii_redacted=pii_redacted,
             latency_ms=latency_ms,
             cached=response.cached,
         )

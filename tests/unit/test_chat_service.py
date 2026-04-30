@@ -274,6 +274,57 @@ async def test_privacy_router_forces_local_when_dni_in_query() -> None:
     assert len(local_fast.complete_calls) == 1
 
 
+async def test_force_local_dominates_over_redaction() -> None:
+    """Cuando privacy_verdict.force_local=True, NO redactamos — vamos a Ollama
+    local que es infraestructura controlada. La redacción es solo para cloud.
+
+    Verifica que con DNI en query, fast_llm (local) recibe el DNI literal,
+    y synthesis_llm (cloud) no se llama.
+    """
+    cloud_synthesis = InMemoryLLMAdapter(canned_response="cloud", embedding_dim=8)
+    local_fast = InMemoryLLMAdapter(canned_response="local", embedding_dim=8)
+
+    service = ChatService(
+        synthesis_llm=cloud_synthesis,
+        fast_llm=local_fast,
+        store=InMemoryVectorStoreAdapter(dim=8),
+        embedder=FakeEmbedder(),
+        classifier_llm=InMemoryLLMAdapter(canned_response="research", embedding_dim=8),
+    )
+
+    await service.answer(ChatRequest(query="busca tesis del autor DNI 70123456"))
+
+    # Cloud nunca se llamó (force_local por DNI)
+    assert len(cloud_synthesis.complete_calls) == 0
+    # Local SÍ se llamó, y recibió el DNI literal (no redactado)
+    assert len(local_fast.complete_calls) == 1
+    user_msg = next(
+        m for m in local_fast.complete_calls[0] if m.role == "user"
+    )
+    assert "70123456" in user_msg.content
+
+
+async def test_pii_redaction_module_unit() -> None:
+    """Verifica el contrato de redact()/restore() (la integración en cloud
+    solo se prueba al ser exposed con store con PII en docs — fuera del
+    alcance de un unit test, queda para integration tests con Postgres real).
+    """
+    from guia.privacy import redact, restore
+
+    text = "Soy Juan, DNI 70123456, correo juan@upeu.edu.pe"
+    d = redact(text)
+    assert d.has_pii is True
+    assert "70123456" not in d.redacted_text
+    assert "juan@upeu.edu.pe" not in d.redacted_text
+
+    # LLM responde con placeholder → restore re-hidrata
+    fake_llm_resp = "Tu DNI <USER_DNI_1> y email <USER_EMAIL_1> están registrados."
+    restored = restore(fake_llm_resp, d.replacements)
+    assert "70123456" in restored
+    assert "juan@upeu.edu.pe" in restored
+    assert "<USER_" not in restored
+
+
 async def test_privacy_router_allows_cloud_for_research_no_pii() -> None:
     """Query inocua de research → cloud_ok → synthesis_llm (no fast)."""
     cloud_synthesis = InMemoryLLMAdapter(canned_response="cloud", embedding_dim=8)
