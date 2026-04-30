@@ -25,8 +25,15 @@ def _localized_str(val: object) -> str:
     return str(pv) if pv is not None else str(val)
 
 
+_MAX_TEXT_CHARS = 1500  # multilingual-e5 soporta ~512 tokens ≈ 1500 chars
+
+
 def _publication_to_text(pub: Publication) -> str:
-    """Extrae texto relevante de una Publication para embedding."""
+    """Extrae texto relevante de una Publication para embedding.
+
+    El texto se trunca a _MAX_TEXT_CHARS para evitar exceder el context
+    limit del modelo de embeddings (multilingual-e5-large-instruct).
+    """
     parts: list[str] = []
 
     if getattr(pub, "title", None):
@@ -39,7 +46,8 @@ def _publication_to_text(pub: Publication) -> str:
     if isinstance(keywords, list) and keywords:
         parts.append(" ".join(str(k) for k in keywords))
 
-    return " ".join(parts) if parts else ""
+    text = " ".join(parts) if parts else ""
+    return text[:_MAX_TEXT_CHARS] if len(text) > _MAX_TEXT_CHARS else text
 
 
 def _stable_pub_id(pub: Publication, source_name: str, fallback_idx: int) -> str:
