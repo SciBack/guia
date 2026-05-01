@@ -15,7 +15,7 @@ from sciback_core.ports.llm import LLMMessage, LLMPort
 
 from guia.audit import AuditLogEntry, AuditLogRepository, hash_query
 from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
-from guia.privacy import PrivacyRouter, PrivacyVerdict, redact, restore
+from sciback_privacy import PrivacyRouter, PrivacyVerdict, redact, restore
 from guia.routing import CascadeRouter, RouteDecision, Tier, category_to_intent
 from guia.services.intent import IntentClassifier
 from guia.services.router import ModelRouter, QueryTier

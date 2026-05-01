@@ -19,6 +19,7 @@ dependencies = [
     "sciback-embeddings-e5>=0.1",
     "sciback-embeddings-fastembed>=0.1",
     "sciback-vectorstore-pgvector>=0.1",
+    "sciback-privacy>=0.1",
     # M2: nuevos adapters (ADR-029 / ADR-033 / ADR-034)
     "sciback-search-opensearch>=0.1",
     "sciback-storage-s3>=0.1",
@@ -74,6 +75,7 @@ sciback-llm-ollama = { path = "../sciback-core/packages/sciback-llm-ollama", edi
 sciback-embeddings-e5 = { path = "../sciback-core/packages/sciback-embeddings-e5", editable = true }
 sciback-embeddings-fastembed = { path = "../sciback-core/packages/sciback-embeddings-fastembed", editable = true }
 sciback-vectorstore-pgvector = { path = "../sciback-core/packages/sciback-vectorstore-pgvector", editable = true }
+sciback-privacy = { path = "../sciback-core/packages/sciback-privacy", editable = true }
 sciback-search-opensearch = { path = "../sciback-core/packages/sciback-search-opensearch", editable = true }
 sciback-storage-s3 = { path = "../sciback-core/packages/sciback-storage-s3", editable = true }
 sciback-identity-keycloak = { path = "../sciback-core/packages/sciback-identity-keycloak", editable = true }

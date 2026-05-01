@@ -1244,6 +1244,7 @@ dependencies = [
     { name = "sciback-identity-midpoint" },
     { name = "sciback-llm-claude" },
     { name = "sciback-llm-ollama" },
+    { name = "sciback-privacy" },
     { name = "sciback-search-opensearch" },
     { name = "sciback-storage-s3" },
     { name = "sciback-vectorstore-pgvector" },
@@ -1289,6 +1290,7 @@ requires-dist = [
     { name = "sciback-identity-midpoint", editable = "../sciback-core/packages/sciback-identity-midpoint" },
     { name = "sciback-llm-claude", editable = "../sciback-core/packages/sciback-llm-claude" },
     { name = "sciback-llm-ollama", editable = "../sciback-core/packages/sciback-llm-ollama" },
+    { name = "sciback-privacy", editable = "../sciback-core/packages/sciback-privacy" },
     { name = "sciback-search-opensearch", editable = "../sciback-core/packages/sciback-search-opensearch" },
     { name = "sciback-storage-s3", editable = "../sciback-core/packages/sciback-storage-s3" },
     { name = "sciback-vectorstore-pgvector", editable = "../sciback-core/packages/sciback-vectorstore-pgvector" },
@@ -3525,6 +3527,15 @@ crypto = [
 ]
 
 [[package]]
+name = "pymysql"
+version = "1.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/ae/1fe3fcd9f959efa0ebe200b8de88b5a5ce3e767e38c7ac32fb179f16a388/pymysql-1.1.2.tar.gz", hash = "sha256:4961d3e165614ae65014e361811a724e2044ad3ea3739de9903ae7c21f539f03", size = 48258, upload-time = "2025-08-24T12:55:55.146Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7c/4c/ad33b92b9864cbde84f259d5df035a6447f91891f5be77788e2a3892bce3/pymysql-1.1.2-py3-none-any.whl", hash = "sha256:e6b1d89711dd51f8f74b1631fe08f039e7d76cf67a42a323d3178f0f25762ed9", size = 45300, upload-time = "2025-08-24T12:55:53.394Z" },
+]
+
+[[package]]
 name = "pytest"
 version = "9.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -3945,6 +3956,7 @@ dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "pymysql" },
     { name = "sciback-core" },
 ]
 
@@ -3953,6 +3965,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pydantic-settings", specifier = ">=2.5" },
+    { name = "pymysql", specifier = ">=1.1" },
     { name = "sciback-core", editable = "../sciback-core/packages/sciback-core" },
 ]
 
@@ -4118,6 +4131,11 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.5" },
     { name = "sciback-core", editable = "../sciback-core/packages/sciback-core" },
 ]
+
+[[package]]
+name = "sciback-privacy"
+version = "0.1.0"
+source = { editable = "../sciback-core/packages/sciback-privacy" }
 
 [[package]]
 name = "sciback-search-opensearch"

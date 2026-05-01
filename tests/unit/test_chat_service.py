@@ -309,7 +309,7 @@ async def test_pii_redaction_module_unit() -> None:
     solo se prueba al ser exposed con store con PII en docs — fuera del
     alcance de un unit test, queda para integration tests con Postgres real).
     """
-    from guia.privacy import redact, restore
+    from sciback_privacy import redact, restore
 
     text = "Soy Juan, DNI 70123456, correo juan@upeu.edu.pe"
     d = redact(text)
