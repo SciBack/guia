@@ -161,8 +161,14 @@ def _publication_to_metadata(pub: Publication) -> dict[str, object]:
         full_name = getattr(person, "full_name", None) if person else None
         if full_name:
             authors.append(_localized_str(full_name))
-    # Fallback: keywords con autor (Koha mete el autor ahí)
+    # Preferir extra["authors"] (OJS lo llena con dc:creator multi-valor)
     keywords = getattr(pub, "keywords", None) or []
+    pub_extra = getattr(pub, "extra", None) or {}
+    if not authors:
+        extra_authors = pub_extra.get("authors") if isinstance(pub_extra, dict) else None
+        if extra_authors and isinstance(extra_authors, list):
+            authors = [str(a) for a in extra_authors if a]
+    # Fallback final: keywords con autor (Koha mete el autor ahí)
     if not authors and keywords:
         # En Koha, la primera keyword es el autor
         authors = [str(keywords[0])]
