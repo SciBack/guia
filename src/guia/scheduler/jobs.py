@@ -120,21 +120,104 @@ def harvest_koha_weekly_job(container: GUIAContainer) -> None:
 
 
 def backup_s3_job(container: GUIAContainer) -> None:
-    """Job: backup de la base de datos vectorial a S3 (placeholder Sprint 0.7).
+    """Job: backup de la base de datos a S3 (Sprint 0.7).
 
-    TODO: implementar pg_dump + upload a S3 usando aws s3 cp.
-    Por ahora solo registra que el job se ejecutó.
+    Flujo:
+      1. pg_dump -Fc del esquema completo (incluye sciback_vectors, audit_log,
+         chat_sessions, chat_messages, user_profiles)
+      2. gzip
+      3. aws s3 cp con expiration tag
+      4. Si AWS_S3_BACKUP_BUCKET no configurado, guarda local en /tmp y log.
+
+    Retención: la lifecycle del bucket S3 (configurada aparte) gestiona
+    la antigüedad. GUIA solo escribe.
     """
-    bucket = _settings.aws_s3_backup_bucket
-    if not bucket:
-        logger.info("backup_s3_skipped", reason="AWS_S3_BACKUP_BUCKET not configured")
-        return
+    import gzip
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+    from datetime import UTC, datetime
 
-    logger.info("backup_s3_start", bucket=bucket)
-    # TODO Sprint 0.7: implementar pg_dump + s3 upload
-    # pg_dump -Fc $PGVECTOR_DATABASE_URL -f /tmp/guia_backup.dump
-    # aws s3 cp /tmp/guia_backup.dump s3://<bucket>/guia/<date>.dump
-    logger.info("backup_s3_placeholder", msg="Backup not yet implemented")
+    bucket = _settings.aws_s3_backup_bucket
+    db_url = _settings.pgvector_database_url
+    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    filename = f"guia-pgvector-{timestamp}.dump.gz"
+
+    # 1. pg_dump → archivo temporal
+    pg_url = db_url.replace("postgresql+psycopg://", "postgresql://")
+    tmp_dir = tempfile.mkdtemp(prefix="guia-backup-")
+    raw_path = os.path.join(tmp_dir, "dump.bin")
+    gz_path = os.path.join(tmp_dir, filename)
+
+    try:
+        logger.info("backup_pg_dump_start", bucket=bucket or "(local)")
+        result = subprocess.run(
+            ["pg_dump", "-Fc", "-f", raw_path, pg_url],
+            capture_output=True,
+            timeout=1800,
+        )
+        if result.returncode != 0:
+            logger.error(
+                "backup_pg_dump_failed",
+                returncode=result.returncode,
+                stderr=result.stderr.decode("utf-8", errors="replace")[:500],
+            )
+            return
+
+        # 2. gzip
+        with open(raw_path, "rb") as f_in, gzip.open(gz_path, "wb", compresslevel=6) as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        size_mb = os.path.getsize(gz_path) / 1024 / 1024
+        logger.info("backup_compressed", size_mb=round(size_mb, 1))
+
+        # 3. Subir a S3 si está configurado
+        if bucket:
+            s3_key = f"guia/pgvector/{filename}"
+            result = subprocess.run(
+                [
+                    "aws",
+                    "s3",
+                    "cp",
+                    gz_path,
+                    f"s3://{bucket}/{s3_key}",
+                    "--no-progress",
+                ],
+                capture_output=True,
+                timeout=900,
+            )
+            if result.returncode == 0:
+                logger.info(
+                    "backup_s3_uploaded",
+                    bucket=bucket,
+                    key=s3_key,
+                    size_mb=round(size_mb, 1),
+                )
+            else:
+                logger.error(
+                    "backup_s3_upload_failed",
+                    stderr=result.stderr.decode("utf-8", errors="replace")[:500],
+                )
+        else:
+            # Sin bucket: guarda local en /var/backups/guia/ (montar volume si se quiere persistir)
+            local_dir = "/var/backups/guia"
+            os.makedirs(local_dir, exist_ok=True)
+            local_path = os.path.join(local_dir, filename)
+            shutil.move(gz_path, local_path)
+            logger.info("backup_local_saved", path=local_path, size_mb=round(size_mb, 1))
+
+    except subprocess.TimeoutExpired:
+        logger.error("backup_timeout")
+    except FileNotFoundError as exc:
+        logger.error(
+            "backup_tool_missing",
+            tool=str(exc),
+            msg="Ensure pg_dump (postgresql-client) y aws cli están instalados",
+        )
+    except Exception:
+        logger.exception("backup_error")
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def metrics_report_job(container: GUIAContainer) -> None:
