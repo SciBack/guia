@@ -71,6 +71,9 @@ def harvest(
     if source in ("alicia", "all"):
         results["alicia"] = harvester.harvest_alicia(from_date=from_date)
 
+    if source in ("koha", "all"):
+        results["koha"] = harvester.harvest_koha()
+
     for src, stats in results.items():
         typer.echo(f"  {src}: {stats}")
 
