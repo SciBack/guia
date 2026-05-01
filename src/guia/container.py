@@ -13,7 +13,12 @@ from sciback_core.ports.vector_store import VectorStorePort
 from guia.audit import AuditLogRepository
 from guia.config import GUIASettings, LLMMode
 from guia.grobid import GrobidClient
-from guia.routing import CascadeRouter, EmbeddingRouter, RuleBasedRouter
+from guia.routing import (
+    CascadeRouter,
+    EmbeddingRouter,
+    LLMIntentCategoryClassifier,
+    RuleBasedRouter,
+)
 from guia.search.backend import SearchAdapter, get_search_adapter
 from guia.services.cache import SemanticCache
 from guia.services.chat import ChatService
@@ -170,13 +175,14 @@ class GUIAContainer:
         )
 
         # P1.2: CascadeRouter (3 gates) — selección de modelo + privacidad.
-        # Sin LLM classifier todavía (Gate 3 opt-in se agrega cuando
-        # IntentCategory esté soportado nativamente por el clasificador).
+        # Gate 3 (LLM classifier opt-in) usa el classifier_llm — ahora se
+        # invoca solo cuando Gate 2 (embedding) tiene baja confianza.
         # warm_up() debe llamarse en el lifespan de la app (cl.on_app_startup).
         self.cascade_router: CascadeRouter | None = (
             CascadeRouter(
                 rules=RuleBasedRouter(),
                 embedding=EmbeddingRouter(self.embedder),
+                llm_classifier=LLMIntentCategoryClassifier(self.classifier_llm),
             )
             if self.fast_llm is not None
             else None

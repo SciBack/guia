@@ -21,6 +21,7 @@ from guia.routing.decision import (
     Tier,
 )
 from guia.routing.embedding import EmbeddingRouter
+from guia.routing.intent import LLMIntentCategoryClassifier
 from guia.routing.rules import RuleBasedRouter
 
 # ── Mapeo IntentCategory (routing) → Intent legacy (domain) ──────────────
@@ -50,6 +51,7 @@ __all__ = [
     "EmbeddingRouter",
     "Gate",
     "IntentCategory",
+    "LLMIntentCategoryClassifier",
     "PrivacyLevel",
     "RouteDecision",
     "RuleBasedRouter",
