@@ -25,6 +25,7 @@ from guia.services.chat import ChatService
 from guia.services.harvester import HarvesterService
 from guia.services.history import ConversationRepository
 from guia.services.profile import UserProfileRepository
+from guia.services.telegram_link import TelegramLinkRepository, TelegramLinkService
 from guia.services.router import ModelRouter
 from guia.services.search import SearchService
 
@@ -235,6 +236,16 @@ class GUIAContainer:
         )
         self.conversation_repository.initialize()
 
+        # Sprint 0.5 fase 2 (ADR-040): vinculación Telegram ↔ Keycloak
+        self.telegram_link_repository = TelegramLinkRepository(
+            database_url=self.settings.pgvector_database_url,  # type: ignore[attr-defined]
+        )
+        self.telegram_link_repository.initialize()
+        self.telegram_link_service = TelegramLinkService(
+            repo=self.telegram_link_repository,
+            redis_client=self._redis,
+        )
+
     async def aclose(self) -> None:
         """Libera recursos en contexto async (preferido cuando se llama desde
         un event loop ya corriendo, ej: FastAPI lifespan, telegram_bot)."""
@@ -244,6 +255,7 @@ class GUIAContainer:
             await self.search_adapter.close()
         self.profile_repository.close()
         self.conversation_repository.close()
+        self.telegram_link_repository.close()
         self.audit_repo.close()
         self._redis.close()
 
@@ -270,5 +282,6 @@ class GUIAContainer:
                 asyncio.run(self.search_adapter.close())
         self.profile_repository.close()
         self.conversation_repository.close()
+        self.telegram_link_repository.close()
         self.audit_repo.close()
         self._redis.close()

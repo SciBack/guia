@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from guia import __version__
-from guia.api.routes import admin, chat, harvest, health, oai, profile
+from guia.api.routes import admin, chat, harvest, health, oai, profile, telegram_link
 from guia.config import GUIASettings
 from guia.container import GUIAContainer
 from guia.logging import configure_logging, get_logger
@@ -84,5 +84,7 @@ def create_app(settings: GUIASettings | None = None) -> FastAPI:
     app.include_router(profile.router)
     # P1.3: audit admin (ADR-036)
     app.include_router(admin.router)
+    # Sprint 0.5 fase 2: vinculación Telegram ↔ Keycloak (ADR-040)
+    app.include_router(telegram_link.router)
 
     return app
