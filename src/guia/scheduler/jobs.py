@@ -199,12 +199,19 @@ def backup_s3_job(container: GUIAContainer) -> None:
                     stderr=result.stderr.decode("utf-8", errors="replace")[:500],
                 )
         else:
-            # Sin bucket: guarda local en /var/backups/guia/ (montar volume si se quiere persistir)
-            local_dir = "/var/backups/guia"
+            # Sin bucket: guarda local en /tmp/guia-backups/ (writable por user guia,
+            # ephemeral). Cuando se configure MinIO via boto3, este branch desaparece.
+            # Para persistencia, mount un volume al path o configurar MinIO.
+            local_dir = "/tmp/guia-backups"
             os.makedirs(local_dir, exist_ok=True)
             local_path = os.path.join(local_dir, filename)
             shutil.move(gz_path, local_path)
-            logger.info("backup_local_saved", path=local_path, size_mb=round(size_mb, 1))
+            logger.warning(
+                "backup_local_ephemeral",
+                path=local_path,
+                size_mb=round(size_mb, 1),
+                hint="configure AWS_S3_BACKUP_BUCKET o monta volume persistente",
+            )
 
     except subprocess.TimeoutExpired:
         logger.error("backup_timeout")
