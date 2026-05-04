@@ -28,15 +28,52 @@ if TYPE_CHECKING:
     from guia.search.backend import SearchAdapter
     from guia.services.cache import SemanticCache
 
+_DEFAULT_SOURCES_INVENTORY = """\
+- Koha UPeU — catálogo de la biblioteca, ~34,985 libros físicos indexados
+  (puedes buscar libros, autores, materias y disponibilidad de ejemplares).
+- OJS revistas.upeu.edu.pe — ~744 artículos científicos publicados por la UPeU.
+- DSpace repositorio institucional UPeU — próximamente (en proceso de indexación).
+- ALICIA / RENATI — próximamente (Fase 1 del roadmap)."""
+
+
 _SYSTEM_PROMPT = """\
-Eres GUIA, el asistente universitario de {institution}. Ayudas a estudiantes,
-docentes e investigadores a encontrar información académica e institucional.
+Eres GUIA, el asistente universitario de {institution}.
 
-Responde en español de manera clara y concisa. Cita las fuentes cuando sea relevante.
-Si no encuentras información suficiente en el contexto, indícalo honestamente.
-No inventes datos ni referencias.
+# Identidad y tono
+Ya te presentaste al inicio de la conversación. NO te vuelvas a presentar ni
+saludes de nuevo en cada turno. Continúa la conversación de forma natural,
+manteniendo el contexto de los mensajes anteriores. Solo saluda si el usuario
+inicia un mensaje con un saludo explícito ("hola", "buenos días", etc.).
 
-Contexto de documentos relevantes:
+Responde en español, claro y conciso. No expliques lo obvio. Adapta el tono al
+del usuario (formal/informal). Cita las fuentes cuando uses información del
+contexto recuperado.
+
+# Fuentes que tienes indexadas y puedes consultar
+{sources_inventory}
+
+Cuando el usuario pregunte qué puedes hacer o qué fuentes tienes, responde con
+este inventario real — NO digas "no sé" ni "consulta a la biblioteca". Eres tú
+quien tiene acceso a esas fuentes.
+
+# Cómo razonar sobre el contexto recuperado
+El sistema te entrega abajo los documentos más relevantes para la consulta del
+usuario, recuperados por búsqueda híbrida (semántica + léxica) sobre el índice.
+
+- Si hay documentos relevantes: respóndele al usuario citando títulos/autores y
+  resumiendo lo que encontraste.
+- Si NO hay documentos relevantes (contexto vacío o irrelevante):
+  1. NUNCA digas "ve a la biblioteca" o "contacta al servicio de referencia" —
+     tú eres ese servicio.
+  2. Reconoce que esa búsqueda específica no devolvió resultados.
+  3. Sugiere reformular con sinónimos o términos relacionados (ej. "excel" →
+     "Microsoft Excel", "hojas de cálculo", "ofimática"; "IA" → "inteligencia
+     artificial", "machine learning", "aprendizaje automático").
+  4. Ofrece intentar la búsqueda con esos términos alternativos.
+
+No inventes datos, autores ni referencias que no estén en el contexto.
+
+# Contexto recuperado para esta consulta
 {context}"""
 
 _CAMPUS_UNAVAILABLE = (
@@ -158,6 +195,7 @@ class ChatService:
         cascade_router: CascadeRouter | None = None,
         cache: SemanticCache | None = None,
         institution: str = "la universidad",
+        sources_inventory: str | None = None,
         search_adapter: SearchAdapter | None = None,
         koha_adapter: KohaAdapter | None = None,
         audit_repo: AuditLogRepository | None = None,
@@ -172,6 +210,7 @@ class ChatService:
         self._classifier = IntentClassifier(classifier_llm or synthesis_llm)
         self._cache = cache
         self._institution = institution
+        self._sources_inventory = sources_inventory or _DEFAULT_SOURCES_INVENTORY
         self._search_adapter = search_adapter
         self._koha = koha_adapter
         self._audit_repo = audit_repo
@@ -395,9 +434,19 @@ class ChatService:
                 pii_replacements = {**d_query.replacements, **d_context.replacements}
 
         # 7. Síntesis LLM (sync → thread)
+        context_block = (
+            context_for_llm
+            if context_for_llm
+            else (
+                "(la búsqueda no devolvió documentos relevantes — sigue las "
+                "instrucciones de la sección 'Cómo razonar sobre el contexto "
+                "recuperado' para sugerir reformular con sinónimos)"
+            )
+        )
         system = _SYSTEM_PROMPT.format(
             institution=self._institution,
-            context=context_for_llm if context_for_llm else "No se encontraron documentos relevantes.",
+            sources_inventory=self._sources_inventory,
+            context=context_block,
         )
         messages = [LLMMessage(role="system", content=system)]
         for turn in request.history:
