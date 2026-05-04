@@ -2,6 +2,12 @@
    Inyección externa — no modifica archivos core de Chainlit 2.11.x
    ─────────────────────────────────────────────────────────────── */
 
+/* Anti-FOUC: ocultar la UI cruda de Chainlit hasta que auto-login.js
+   termine sus inyecciones (hero, video, wordmark styling, modal Léeme).
+   auto-login.js añade `guia-ready` al <html> al final de init(), o un
+   safety-timeout lo libera a los 1500ms si el JS falla. */
+html:not(.guia-ready) body { visibility: hidden; }
+
 :root {
   --g-blue:    #2ea3f2;
   --g-gold:    #f8a900;

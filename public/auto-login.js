@@ -6,6 +6,15 @@
 (function () {
   'use strict';
 
+  // ── 0. Anti-FOUC: liberar visibilidad ─────────────────────────
+  // CSS oculta <body> hasta que <html> tenga la clase `guia-ready`.
+  // Marcamos ready al final de init(); además safety-timeout para
+  // garantizar que la UI nunca quede invisible si el JS falla.
+  function markReady() {
+    document.documentElement.classList.add('guia-ready');
+  }
+  setTimeout(markReady, 1500);
+
   // ── 1. Wordmark "IA" gold en chat ─────────────────────────────
   var STYLED = 'data-guia-styled';
 
@@ -381,6 +390,10 @@
     scanReadmeButtons();
     var rmObs = new MutationObserver(scanReadmeButtons);
     rmObs.observe(document.body, { childList: true, subtree: true });
+
+    // Inyecciones aplicadas — liberar visibilidad en el siguiente frame
+    // para que el browser pinte la UI ya brandeada en una sola pasada.
+    requestAnimationFrame(markReady);
   }
 
   if (document.body) { init(); }
