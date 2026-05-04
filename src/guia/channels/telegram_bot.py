@@ -140,7 +140,7 @@ async def main() -> None:
     try:
         await dp.start_polling(bot)
     finally:
-        container.close()
+        await container.aclose()
         redis_client.close()
 
 

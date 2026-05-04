@@ -235,13 +235,39 @@ class GUIAContainer:
         )
         self.conversation_repository.initialize()
 
+    async def aclose(self) -> None:
+        """Libera recursos en contexto async (preferido cuando se llama desde
+        un event loop ya corriendo, ej: FastAPI lifespan, telegram_bot)."""
+        if hasattr(self._pg_store_concrete, "close"):
+            self._pg_store_concrete.close()  # type: ignore[union-attr]
+        if self.search_adapter is not None:
+            await self.search_adapter.close()
+        self.profile_repository.close()
+        self.conversation_repository.close()
+        self.audit_repo.close()
+        self._redis.close()
+
     def close(self) -> None:
-        """Libera recursos (conexiones pool, etc.)."""
+        """Libera recursos en contexto sync (CLI, scheduler, Celery workers).
+
+        Si se detecta un event loop activo, omite la limpieza async del
+        search_adapter con warning — el caller debería usar ``aclose()``."""
         if hasattr(self._pg_store_concrete, "close"):
             self._pg_store_concrete.close()  # type: ignore[union-attr]
         if self.search_adapter is not None:
             import asyncio
-            asyncio.run(self.search_adapter.close())
+            try:
+                asyncio.get_running_loop()
+                # Estamos dentro de un loop corriendo — no podemos asyncio.run()
+                # ni esperar el coroutine. Lo dejamos al GC del proceso.
+                from guia.logging import get_logger
+                get_logger(__name__).warning(
+                    "container.close() called from running event loop; "
+                    "search_adapter.close() skipped — use aclose() instead"
+                )
+            except RuntimeError:
+                # Sin loop activo — safe para asyncio.run
+                asyncio.run(self.search_adapter.close())
         self.profile_repository.close()
         self.conversation_repository.close()
         self.audit_repo.close()

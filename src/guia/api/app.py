@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     yield
 
     logger.info("guia_shutting_down")
-    container.close()
+    await container.aclose()
 
 
 def create_app(settings: GUIASettings | None = None) -> FastAPI:
