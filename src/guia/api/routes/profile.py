@@ -103,6 +103,22 @@ async def export_profile(
         "display_name": db_profile.display_name if db_profile else user.display_name,
         "roles": user.roles,
         "is_staff": user.is_staff,
+        # midPoint enrichment (presente solo si MIDPOINT_PASSWORD seteado y
+        # el usuario existe en midPoint). Vacío si no enriched.
+        "institutional": {
+            "institutional_id": user.institutional_id,
+            "faculty": user.faculty,
+            "program": user.program,
+            "academic_phase": user.academic_phase,
+            "advisor_id": user.advisor_id,
+            "koha_patron_id": user.koha_patron_id,
+            "sis_student_id": user.sis_student_id,
+            "erp_account_id": user.erp_account_id,
+            "moodle_user_id": user.moodle_user_id,
+            "projects": user.projects,
+            "courses": user.courses,
+            "is_enriched": user.is_enriched,
+        },
         "session": session_data,
         "query_history": [],
         "opt_ins": {
