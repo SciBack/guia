@@ -42,7 +42,7 @@ async def _get_user_context(
     identity_service = IdentityService(settings)
 
     try:
-        return await identity_service.verify_token(credentials.credentials)
+        user = await identity_service.verify_token(credentials.credentials)
     except PermissionError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -54,6 +54,14 @@ async def _get_user_context(
             detail=f"Token inválido: {exc}",
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
+    # Defensa: rechazar anonymous (se devuelve cuando KeycloakPort fallo
+    # al inicializar — no debemos exponer datos personales).
+    if not user.is_authenticated:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Backend de autenticación no disponible. Reintente luego.",
+        )
+    return user
 
 
 @router.get("/export")
