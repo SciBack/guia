@@ -12,7 +12,7 @@ M3: implementación básica sin UserProfileRepository real.
 
 from __future__ import annotations
 
-import logging
+from guia.logging import get_logger
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -20,7 +20,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from guia.auth.identity import IdentityService, UserContext
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 _bearer = HTTPBearer(auto_error=False)

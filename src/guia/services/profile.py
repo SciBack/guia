@@ -18,11 +18,11 @@ Tabla: guia_user_profiles
 from __future__ import annotations
 
 import asyncio
-import logging
+from guia.logging import get_logger
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 __all__ = ["UserProfile", "UserProfileRepository"]
 

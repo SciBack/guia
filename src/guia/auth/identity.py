@@ -9,14 +9,14 @@ El dominio permitido se configura via KEYCLOAK_ALLOWED_DOMAINS.
 
 from __future__ import annotations
 
-import logging
+from guia.logging import get_logger
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from guia.config import GUIASettings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 __all__ = ["IdentityService", "UserContext"]
 
@@ -143,7 +143,7 @@ class IdentityService:
         except PermissionError:
             raise
         except Exception as exc:
-            logger.warning("token_verification_failed: %s", exc)
+            logger.warning("token_verification_failed", exc=str(exc))
             raise ValueError(f"Token inválido: {exc}") from exc
 
     def verify_token_sync(self, token: str) -> UserContext:
