@@ -143,7 +143,7 @@ class IdentityService:
         except PermissionError:
             raise
         except Exception as exc:
-            logger.warning("token_verification_failed", exc=str(exc))
+            logger.warning("token_verification_failed: %s", exc)
             raise ValueError(f"Token inválido: {exc}") from exc
 
     def verify_token_sync(self, token: str) -> UserContext:
