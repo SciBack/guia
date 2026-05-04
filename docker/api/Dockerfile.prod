@@ -40,8 +40,10 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
         postgresql-client \
-        awscli \
     && rm -rf /var/lib/apt/lists/*
+# awscli NO se instala aquí. backup_s3_job hace fallback a /var/backups/guia/
+# si AWS_S3_BACKUP_BUCKET no está seteado. Cuando se configure S3,
+# agregar awscli (~100MB) o usar boto3 directamente desde Python.
 
 WORKDIR /app
 
