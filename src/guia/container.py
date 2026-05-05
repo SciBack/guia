@@ -104,12 +104,12 @@ class GUIAContainer:
 
     def _build_ollama(self) -> LLMPort:
         from sciback_llm_ollama import OllamaConfig, OllamaLLMAdapter
-        return OllamaLLMAdapter(OllamaConfig(_env_file=None))
+        cfg = OllamaConfig(_env_file=None, default_model=self.settings.ollama_synthesis_model)
+        return OllamaLLMAdapter(cfg)
 
     def _build_ollama_fast(self) -> LLMPort:
         from sciback_llm_ollama import OllamaConfig, OllamaLLMAdapter
-        # Instancia separada con qwen2.5:3b — override del modelo por defecto
-        cfg = OllamaConfig(_env_file=None, default_model="qwen2.5:3b")
+        cfg = OllamaConfig(_env_file=None, default_model=self.settings.ollama_fast_model)
         return OllamaLLMAdapter(cfg)
 
     def _try_build_dspace(self) -> object:
@@ -196,7 +196,21 @@ class GUIAContainer:
         )
         self.audit_repo.initialize()
 
-        # M4 + P1.2 + P1.3: ChatService async con cascada y audit
+        # P1.4: Pipeline NLP híbrido (ADR-044, ADR-045)
+        from guia.services.query_rewriter import QueryRewriter
+        from guia.routing.gates import LanguageGate, ToxicityGate
+
+        self.query_rewriter = QueryRewriter(
+            fast_llm=self.fast_llm,
+            enable_llm_fallback=self.fast_llm is not None,
+        )
+        self.language_gate = LanguageGate(enabled=self.settings.router_lid_enabled)
+        self.toxicity_gate = ToxicityGate(
+            enabled=self.settings.router_toxicity_enabled,
+            threshold=self.settings.router_toxicity_threshold,
+        )
+
+        # M4 + P1.2 + P1.3 + P1.4: ChatService async con cascada, audit y NLP gates
         self.chat_service = ChatService(
             synthesis_llm=self.synthesis_llm,
             store=self.store,
@@ -208,7 +222,11 @@ class GUIAContainer:
             cache=self.cache,
             search_adapter=self.search_adapter,
             koha_adapter=self.koha_adapter,  # type: ignore[arg-type]
+            koha_opac_base_url=self.settings.koha_opac_base_url,
             audit_repo=self.audit_repo,
+            query_rewriter=self.query_rewriter,
+            language_gate=self.language_gate,
+            toxicity_gate=self.toxicity_gate,
         )
 
         self.search_service = SearchService(

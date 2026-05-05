@@ -154,8 +154,16 @@ def _detect_llm_provider(model_name: str) -> str:
     return "unknown"
 
 
-def _hits_to_context(hits: list[dict[str, Any]]) -> tuple[str, list[Source]]:
-    """Convierte hits de OpenSearch/pgvector a texto de contexto y fuentes."""
+def _hits_to_context(
+    hits: list[dict[str, Any]],
+    koha_opac_base_url: str = "",
+) -> tuple[str, list[Source]]:
+    """Convierte hits de OpenSearch/pgvector a texto de contexto y fuentes.
+
+    Lee los nombres canónicos de los campos del index sciback-publication:
+    `publication_year`, `external_resource_uri`, `source`. Si el hit es de
+    Koha y se pasó `koha_opac_base_url`, construye un link al OPAC.
+    """
     sources: list[Source] = []
     lines: list[str] = []
 
@@ -163,22 +171,39 @@ def _hits_to_context(hits: list[dict[str, Any]]) -> tuple[str, list[Source]]:
         title = str(hit.get("title", f"Documento {i}"))
         abstract = str(hit.get("abstract", ""))
         authors = hit.get("authors", [])
-        year = hit.get("year")
-        url = hit.get("url")
+        year = hit.get("publication_year") or hit.get("year")
+        url = hit.get("external_resource_uri") or hit.get("url")
+        source_type = str(hit.get("source") or hit.get("source_type") or "")
+        hit_id = str(hit.get("id", str(i)))
 
-        lines.append(f"[{i}] {title}")
+        # Para libros de Koha sin URL en el index, construir link al OPAC
+        if not url and source_type == "koha" and koha_opac_base_url and hit_id.startswith("koha:"):
+            biblio_id = hit_id.split(":", 1)[1]
+            url = f"{koha_opac_base_url.rstrip('/')}/cgi-bin/koha/opac-detail.pl?biblionumber={biblio_id}"
+
+        # Contexto para el LLM — incluir autores y año para diferenciar libros homónimos
+        ctx_line = f"[{i}] {title}"
+        meta_parts = []
+        if isinstance(authors, list) and authors:
+            meta_parts.append(", ".join(str(a) for a in authors[:3]))
+        if year:
+            meta_parts.append(str(year))
+        if meta_parts:
+            ctx_line += f" — {' · '.join(meta_parts)}"
+        lines.append(ctx_line)
         if abstract:
             lines.append(f"    {abstract[:300]}...")
         lines.append("")
 
         sources.append(
             Source(
-                id=str(hit.get("id", str(i))),
+                id=hit_id,
                 title=title,
                 url=str(url) if url else None,
                 authors=[str(a) for a in authors] if isinstance(authors, list) else [],
                 year=int(year) if year else None,
                 score=float(hit.get("score", 0.0)),
+                source_type=source_type or None,
             )
         )
 
@@ -247,6 +272,7 @@ class ChatService:
         cache: SemanticCache | None = None,
         institution: str = "la universidad",
         sources_inventory: str | None = None,
+        koha_opac_base_url: str = "",
         search_adapter: SearchAdapter | None = None,
         koha_adapter: KohaAdapter | None = None,
         audit_repo: AuditLogRepository | None = None,
@@ -265,6 +291,7 @@ class ChatService:
         self._cache = cache
         self._institution = institution
         self._sources_inventory = sources_inventory or _DEFAULT_SOURCES_INVENTORY
+        self._koha_opac_base_url = koha_opac_base_url
         self._search_adapter = search_adapter
         self._koha = koha_adapter
         self._audit_repo = audit_repo
@@ -480,7 +507,7 @@ class ChatService:
                 vector=query_vector,
                 limit=5,
             )
-            context_text, sources = _hits_to_context(hits)
+            context_text, sources = _hits_to_context(hits, self._koha_opac_base_url)
             sources_used_names.append("opensearch")
         else:
             records = await asyncio.to_thread(
