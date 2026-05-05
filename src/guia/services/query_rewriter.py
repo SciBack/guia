@@ -12,14 +12,11 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from guia.logging import get_logger
 from guia.nlp.greetings import strip_greetings
 from guia.nlp.acronyms import expand_acronyms
 from guia.nlp.dater import extract_date_filters
 from guia.nlp.ner import extract_entities
 from guia.nlp.keywords import expand_keywords
-
-_log = get_logger(__name__)
 
 if TYPE_CHECKING:
     from sciback_core.ports.llm import LLMPort
@@ -81,7 +78,6 @@ class QueryRewriter:
             from guia.nlp.speller import correct_typos
             corrected = await asyncio.to_thread(correct_typos, query)
         except Exception:
-            _log.debug("speller_failed", exc_info=True)
             corrected = query
 
         # 2. Date extraction
@@ -112,7 +108,7 @@ class QueryRewriter:
                 cleaned = await self._resolve_with_llm(cleaned, history)
                 used_llm = True
             except Exception:
-                _log.debug("llm_anaphora_failed", exc_info=True)
+                pass
 
         return RewriteResult(
             original=query,

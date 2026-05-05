@@ -52,6 +52,14 @@ dependencies = [
     "httpx>=0.27",
     # Dashboard
     "streamlit>=1.40",
+    # Pipeline NLP (ADR-044)
+    "symspellpy>=6.7",
+    "dateparser>=1.2",
+    "spacy>=3.7",
+    "yake>=0.4.8",
+    # Gates router (ADR-045)
+    "fasttext-langdetect>=1.0",
+    "detoxify>=0.5",
     "asyncpg>=0.31.0",
     # Pipeline NLP (ADR-044)
     "symspellpy>=6.7",

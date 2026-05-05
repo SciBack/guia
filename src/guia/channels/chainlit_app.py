@@ -289,14 +289,20 @@ async def on_message(message: cl.Message) -> None:
         if response.sources:
             answer_text += "\n\n**Fuentes:**\n"
             for i, source in enumerate(response.sources, 1):
-                if source.url:
-                    answer_text += f"{i}. [{source.title}]({source.url})\n"
-                    if source.url.lower().endswith(".pdf"):
-                        elements.append(
-                            cl.Pdf(name=source.title[:50], url=source.url, display="side")
-                        )
-                else:
-                    answer_text += f"{i}. {source.title}\n"
+                title_part = (
+                    f"[{source.title}]({source.url})" if source.url else source.title
+                )
+                meta_parts: list[str] = []
+                if source.authors:
+                    meta_parts.append(", ".join(source.authors[:2]))
+                if source.year:
+                    meta_parts.append(str(source.year))
+                meta = f" — *{' · '.join(meta_parts)}*" if meta_parts else ""
+                answer_text += f"{i}. {title_part}{meta}\n"
+                if source.url and source.url.lower().endswith(".pdf"):
+                    elements.append(
+                        cl.Pdf(name=source.title[:50], url=source.url, display="side")
+                    )
         if response.cached:
             answer_text += "\n\n*Respuesta desde caché semántico*"
 

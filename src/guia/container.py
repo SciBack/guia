@@ -222,6 +222,7 @@ class GUIAContainer:
             cache=self.cache,
             search_adapter=self.search_adapter,
             koha_adapter=self.koha_adapter,  # type: ignore[arg-type]
+            koha_opac_base_url=self.settings.koha_opac_base_url,
             audit_repo=self.audit_repo,
             query_rewriter=self.query_rewriter,
             language_gate=self.language_gate,

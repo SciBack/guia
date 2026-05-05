@@ -67,6 +67,10 @@ class GUIASettings(BaseSettings):
     aws_s3_backup_bucket: str = ""
     aws_region: str = "us-east-1"
 
+    # OPAC público de Koha — para construir links a fichas de libros en respuestas
+    # Si está vacío, no se construyen links a Koha desde las respuestas.
+    koha_opac_base_url: str = ""
+
     # M3: Search backend (ADR-029)
     # "pgvector" | "opensearch" | "dual"
     # dual: escribe a ambos, lee de OpenSearch con fallback a pgvector
