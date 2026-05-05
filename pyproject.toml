@@ -60,9 +60,8 @@ dependencies = [
     "yake>=0.4.8",
     # Gates router (ADR-045)
     # fasttext-langdetect requiere C++17 — no disponible en python:3.13-slim.
-    # LanguageGate degrada gracefully a ("es", 1.0) si no está instalado.
-    # Instalar manualmente en entornos con build tools si se necesita detección real.
-    "detoxify>=0.5",
+    # detoxify trae PyTorch+CUDA (~2GB) — demasiado para slim. Ambos degradan gracefully.
+    # Instalar manualmente en entornos con build tools y espacio suficiente.
 ]
 
 [dependency-groups]
