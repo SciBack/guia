@@ -312,10 +312,6 @@ class ChatService:
                 model_used="none",
                 cached=False,
             )
-            if self._cache is not None:
-                await asyncio.to_thread(
-                    self._cache.set, query, response, query_vector=query_vector
-                )
             await self._emit_audit(
                 request, response, route_decision, sources_used_names, t_start
             )
@@ -386,10 +382,6 @@ class ChatService:
                 model_used="none",
                 cached=False,
             )
-            if self._cache is not None:
-                await asyncio.to_thread(
-                    self._cache.set, query, response, query_vector=query_vector
-                )
             await self._emit_audit(
                 request, response, route_decision, sources_used_names, t_start
             )
