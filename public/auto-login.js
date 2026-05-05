@@ -260,7 +260,7 @@
 
     var titleEl = document.createElement('h2');
     titleEl.id = 'guia-rm-title';
-    titleEl.textContent = 'Guía rápida de GUIA';
+    titleEl.textContent = 'Privacidad y uso';
 
     var closeBtn = document.createElement('button');
     closeBtn.id = 'guia-rm-close';
