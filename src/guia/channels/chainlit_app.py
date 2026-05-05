@@ -218,17 +218,7 @@ async def set_starters() -> list[cl.Starter]:
 @cl.on_chat_start
 async def on_chat_start() -> None:
     """Inicializa una sesión nueva — Chainlit gestiona la persistencia via Data Layer."""
-    user = cl.user_session.get("user")
-    name = user.metadata.get("name", "usuario") if user else "usuario"
     cl.user_session.set("history", [])
-
-    await cl.Message(
-        content=(
-            f"Hola **{name}**, soy **GUIA**, tu asistente universitario UPeU. "
-            "Puedo ayudarte a encontrar tesis, artículos y publicaciones "
-            "del repositorio institucional. ¿En qué te ayudo?"
-        )
-    ).send()
 
 
 @cl.on_chat_resume
