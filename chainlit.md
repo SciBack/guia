@@ -53,12 +53,42 @@ Estas funciones están en desarrollo y estarán disponibles en las siguientes ve
 
 ---
 
-## 🔒 Políticas de uso
+## 🛡️ Privacidad y marco legal
 
+### Sobre GUIA
+Soy un sistema de inteligencia artificial conversacional (no humano). Cumplo el **DS 115-2025-PCM (Ley IA Perú)** — clasificación: **riesgo aceptable**.
+
+### Qué datos guardo de ti
+- Tu identidad institucional UPeU (nombre, código, correo `@upeu.edu.pe`)
+- Tus consultas y mis respuestas (historial de conversación)
+- Logs de auditoría (qué fuente consulté, modelo usado, tiempo de respuesta)
+
+### Para qué los uso
+- Mantener el contexto de tu conversación
+- Mejorar la calidad de búsqueda y respuesta
+- Auditoría interna y cumplimiento normativo
+
+### Tus derechos (Ley 29733 — Protección de Datos Personales)
+Tienes derecho de Acceso, Rectificación, Cancelación y Oposición (ARCO) sobre tus datos. Solicítalos a la oficina de protección de datos de UPeU.
+
+### Lo que NO hago
+- No tomo decisiones automatizadas con efectos legales o académicos
+- No comparto tus datos con terceros sin consentimiento
+- No proceso datos sensibles (salud, religión, etnia, orientación, etc.)
+- No envío tus consultas a servicios cloud externos
+
+### Transparencia técnica
+- Modelo de lenguaje: **Qwen 3 8B** (local, en servidor institucional UPeU)
+- Búsqueda: índice local UPeU (catálogo Koha + revistas OJS)
+- Tus datos no salen de la infraestructura UPeU
+- Ficha técnica: [transparencia del sistema](/api/transparency)
+- Reportar problemas con IA: [gob.pe/iaperu](https://gob.pe/iaperu)
+
+### Recomendaciones de uso
 - Acceso exclusivo para la comunidad UPeU con cuenta `@upeu.edu.pe`
-- Tus consultas se procesan en servidores propios de la institución — sin envío de datos a terceros
-- No compartas información sensible en el chat (DNI, contraseñas, datos bancarios)
-- GUIA es un asistente de apoyo — para decisiones académicas oficiales consulta siempre con tu facultad o secretaría académica
+- No compartas información sensible (DNI, contraseñas, datos bancarios) en el chat
+- GUIA es un asistente de apoyo — verifica siempre la fuente original antes de citar
+- Para decisiones académicas oficiales consulta con tu facultad o secretaría académica
 
 ---
 
