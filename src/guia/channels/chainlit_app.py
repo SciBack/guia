@@ -92,67 +92,63 @@ async def on_app_startup() -> None:
 
 
 @cl.on_logout
-def on_logout(request: Request, response: Response) -> JSONResponse:
+async def on_logout(request: Request, response: Response) -> JSONResponse:
     """Cierra la sesión de Keycloak vía admin API (sin pantalla de confirmación)
     y devuelve la URL de logout de Microsoft para que el JS encadene el cierre.
     """
-    import urllib.request
     import urllib.parse
+    import httpx
 
     base   = os.environ.get("OAUTH_KEYCLOAK_BASE_URL", "").rstrip("/")
     realm  = os.environ.get("OAUTH_KEYCLOAK_REALM", "upeu")
     client = os.environ.get("OAUTH_KEYCLOAK_CLIENT_ID", "guia-node")
     secret = os.environ.get("OAUTH_KEYCLOAK_CLIENT_SECRET", "")
 
-    # 1. Obtener token de service account (client_credentials)
     try:
-        token_data = urllib.parse.urlencode({
-            "grant_type": "client_credentials",
-            "client_id": client,
-            "client_secret": secret,
-        }).encode()
-        req = urllib.request.Request(
-            f"{base}/realms/{realm}/protocol/openid-connect/token",
-            data=token_data,
-        )
-        req.add_header("Content-Type", "application/x-www-form-urlencoded")
-        with urllib.request.urlopen(req, timeout=5) as r:  # noqa: S310
-            admin_token = __import__("json").loads(r.read())["access_token"]
-
-        # 2. Identificar usuario desde la cookie de Chainlit (antes de que se borre)
-        import jwt as pyjwt
-        from chainlit.config import config as cl_config
-        auth_cookie = request.cookies.get("chainlit_auth", "")
-        if auth_cookie:
-            payload = pyjwt.decode(
-                auth_cookie,
-                cl_config.auth.jwt_secret,
-                algorithms=["HS256"],
-                options={"verify_exp": False},
+        async with httpx.AsyncClient(timeout=5.0) as http:
+            # 1. Obtener token de service account (client_credentials)
+            r = await http.post(
+                f"{base}/realms/{realm}/protocol/openid-connect/token",
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": client,
+                    "client_secret": secret,
+                },
             )
-            email = payload.get("identifier", "")
+            r.raise_for_status()
+            admin_token = r.json()["access_token"]
 
-            if email:
-                # 3. Buscar user en Keycloak
-                users_url = (
-                    f"{base}/admin/realms/{realm}/users"
-                    f"?email={urllib.parse.quote(email)}&exact=true"
+            # 2. Identificar usuario desde la cookie de Chainlit (antes de que se borre)
+            import jwt as pyjwt
+            from chainlit.config import config as cl_config
+            auth_cookie = request.cookies.get("chainlit_auth", "")
+            if auth_cookie:
+                payload = pyjwt.decode(
+                    auth_cookie,
+                    cl_config.auth.jwt_secret,
+                    algorithms=["HS256"],
+                    options={"verify_exp": False},
                 )
-                req2 = urllib.request.Request(users_url)
-                req2.add_header("Authorization", f"Bearer {admin_token}")
-                with urllib.request.urlopen(req2, timeout=5) as r:  # noqa: S310
-                    users = __import__("json").loads(r.read())
+                email = payload.get("identifier", "")
 
-                if users:
-                    user_id = users[0]["id"]
-                    # 4. Eliminar todas sus sesiones en Keycloak
-                    del_req = urllib.request.Request(
-                        f"{base}/admin/realms/{realm}/users/{user_id}/sessions",
-                        method="DELETE",
+                if email:
+                    # 3. Buscar user en Keycloak
+                    r2 = await http.get(
+                        f"{base}/admin/realms/{realm}/users",
+                        params={"email": email, "exact": "true"},
+                        headers={"Authorization": f"Bearer {admin_token}"},
                     )
-                    del_req.add_header("Authorization", f"Bearer {admin_token}")
-                    urllib.request.urlopen(del_req, timeout=5)  # noqa: S310
-                    logger.info("keycloak_sessions_deleted", email=email)
+                    r2.raise_for_status()
+                    users = r2.json()
+
+                    if users:
+                        user_id = users[0]["id"]
+                        # 4. Eliminar todas sus sesiones en Keycloak
+                        await http.delete(
+                            f"{base}/admin/realms/{realm}/users/{user_id}/sessions",
+                            headers={"Authorization": f"Bearer {admin_token}"},
+                        )
+                        logger.info("keycloak_sessions_deleted", email=email)
 
     except Exception as exc:  # pragma: no cover
         logger.warning("keycloak_logout_admin_failed", error=str(exc))
@@ -320,8 +316,11 @@ async def on_message(message: cl.Message) -> None:
         if not history:
             title = await _generate_thread_title(message.content)
             try:
-                # Chainlit 2.x: emit socket event para renombrar el thread
-                await cl.context.emitter.emit("update_thread", {"name": title})
+                from chainlit.data import get_data_layer as _get_dl
+                dl = _get_dl()
+                thread_id = getattr(cl.context.session, "thread_id", None)
+                if dl and thread_id:
+                    await dl.update_thread(thread_id=thread_id, name=title)
             except Exception:
                 pass  # cosmético — no interrumpe la respuesta
 
