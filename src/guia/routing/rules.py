@@ -127,15 +127,29 @@ class RuleBasedRouter:
                 )
 
         # 3. Saludos / cortesía
+        # Solo clasificar como GREETING puro si tras el saludo no hay una
+        # pregunta sustantiva. Ejemplos:
+        #   "hola"                              → GREETING
+        #   "hola guia"                         → GREETING
+        #   "hola guia tienes libros de X?"     → NO GREETING (cae a Gate 2/3)
+        #   "quien eres?"                       → GREETING (meta-pregunta corta)
         for pat in _GREETING_PATTERNS:
-            if pat.match(normalized):
-                return self._decision(
-                    IntentCategory.GREETING,
-                    Tier.T0_FAST,
-                    PrivacyLevel.CLOUD_OK,
-                    t0,
-                    f"greeting: {pat.pattern[:40]}",
-                )
+            m = pat.match(normalized)
+            if not m:
+                continue
+            remainder = normalized[m.end():].strip()
+            remainder_words = [w for w in remainder.split() if w not in {"guia", "asistente"}]
+            # Si tras el saludo quedan ≥3 palabras significativas, hay una
+            # pregunta real — dejar que Gate 2/3 la clasifiquen.
+            if len(remainder_words) >= 3:
+                return None
+            return self._decision(
+                IntentCategory.GREETING,
+                Tier.T0_FAST,
+                PrivacyLevel.CLOUD_OK,
+                t0,
+                f"greeting: {pat.pattern[:40]}",
+            )
 
         return None
 
