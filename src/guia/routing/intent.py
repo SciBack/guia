@@ -33,24 +33,46 @@ Eres un clasificador de intents para GUIA, asistente universitario UPeU.
 
 Clasifica la siguiente consulta del usuario en UNA categoría exacta:
 
-- greeting: saludos, cortesía, meta-preguntas (hola, gracias, qué eres, qué puedes hacer)
-- command: comandos directos (/help, /reset, /lang)
-- campus_personal: datos personales del usuario (mis notas, mi deuda, mi promedio,
-    mis préstamos, mi horario, mi correo institucional)
-- campus_generico: información institucional pública (calendario académico,
-    eventos, reglamentos, becas, ubicaciones, proceso de titulación)
-- research_simple: búsqueda directa en catálogo (¿hay tesis sobre X?, busca
-    artículos de Y, ¿está disponible el libro Z?, lista de revistas)
-- research_deep: análisis profundo, síntesis de múltiples documentos
-    (compara metodologías, análisis bibliométrico, marco teórico,
-    estado del arte, evolución temporal, redes de colaboración)
-- out_of_scope: fuera del alcance institucional (¿capital de Francia?,
-    chistes, política internacional, deportes)
-- unknown: no encaja claramente en ninguna categoría
+- greeting: saludos y meta-preguntas sobre el asistente (hola, gracias, quién
+    eres, qué puedes hacer, cómo te llamas, qué fuentes tienes).
+- command: comandos directos del sistema (/help, /reset, /lang).
+- campus_personal: datos personales del USUARIO (mis notas, mi deuda, mi
+    promedio, mis préstamos, mi horario, mi correo institucional).
+- campus_generico: información institucional administrativa (calendario
+    académico, eventos, reglamentos, becas, ubicaciones, titulación).
+- research_simple: cualquier consulta sobre un TEMA académico, científico,
+    educativo, profesional o cultural. Esto incluye:
+    - Búsquedas explícitas: "tesis sobre X", "libros de Y", "artículos de Z"
+    - Temas sueltos (1-5 palabras): "nutrición infantil", "machine learning",
+      "filosofía", "ética profesional", "energías renovables"
+    - Preguntas de conocimiento sobre cualquier campo: "qué es la mitosis",
+      "cómo funciona blockchain", "historia del Perú"
+    - Áreas de estudio o disciplinas mencionadas sin más contexto
+    Cualquier sustantivo o frase nominal que pueda corresponder a un libro,
+    artículo, tesis o material académico → research_simple.
+- research_deep: análisis profundo o síntesis explícita de múltiples
+    documentos (comparar metodologías, análisis bibliométrico, marco teórico,
+    estado del arte, evolución temporal, redes de colaboración).
+- out_of_scope: SOLO cosas claramente NO académicas y NO institucionales:
+    chistes, deportes, farándula, política diaria, tareas personales sin
+    contexto educativo, contenido inapropiado.
+- unknown: no se entiende qué pide el usuario.
+
+REGLA CRÍTICA: ante la duda entre research_simple y out_of_scope, elige
+research_simple. El costo de buscar un tema sin resultados es mínimo; el
+costo de rechazar una consulta válida es alto.
+
+EJEMPLOS:
+- "nutrición en la niñez" → research_simple (es un tema académico)
+- "algo de filosofía" → research_simple (área de estudio)
+- "cuál es la capital de Francia" → research_simple (conocimiento general)
+- "chistes de Pepito" → out_of_scope
+- "quién ganó el partido de ayer" → out_of_scope
+- "mis notas del semestre" → campus_personal
+- "calendario de matrícula" → campus_generico
 
 Responde SOLO con el código exacto de la categoría en minúsculas, sin
-puntuación adicional ni explicación. Ejemplos válidos: greeting,
-campus_personal, research_deep.
+puntuación ni explicación.
 """
 
 
