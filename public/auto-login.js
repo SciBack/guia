@@ -6,14 +6,26 @@
 (function () {
   'use strict';
 
-  // ── 0. Anti-FOUC: liberar visibilidad ─────────────────────────
-  // CSS oculta <body> hasta que <html> tenga la clase `guia-ready`.
-  // Marcamos ready al final de init(); además safety-timeout para
-  // garantizar que la UI nunca quede invisible si el JS falla.
+  // ── 0. Anti-FOUC ──────────────────────────────────────────────
+  // Inyectamos la regla en <head> SYNCHRONOUSLY al cargar este script,
+  // sin depender de guia.css (que puede cargarse async después de la
+  // primera pintada del body). Esto garantiza que la UI cruda de
+  // Chainlit no se vea mientras React monta y aplicamos branding.
+  (function injectAntiFOUCStyle() {
+    var existing = document.getElementById('guia-anti-fouc');
+    if (existing) return;
+    var s = document.createElement('style');
+    s.id = 'guia-anti-fouc';
+    s.textContent = 'html:not(.guia-ready) body{visibility:hidden!important;}';
+    (document.head || document.documentElement).appendChild(s);
+  })();
+
   function markReady() {
     document.documentElement.classList.add('guia-ready');
   }
-  setTimeout(markReady, 1500);
+  // Safety: liberar en 2500ms aunque las inyecciones fallen, para que la
+  // UI nunca quede invisible permanentemente.
+  setTimeout(markReady, 2500);
 
   // ── 1. Wordmark "IA" gold en chat ─────────────────────────────
   var STYLED = 'data-guia-styled';
@@ -377,12 +389,46 @@
         return heroDone && videoDone;
       }
 
-      if (!tryInject()) {
+      if (tryInject()) {
+        // Inyecciones inmediatas (React ya estaba montado) — revelar
+        // en el próximo frame para que el primer paint ya sea brandeado.
+        requestAnimationFrame(markReady);
+      } else {
         var obs = new MutationObserver(function () {
-          if (tryInject()) obs.disconnect();
+          if (tryInject()) {
+            obs.disconnect();
+            requestAnimationFrame(markReady);
+          }
         });
         obs.observe(document.body, { childList: true, subtree: true });
         setTimeout(function () { obs.disconnect(); }, 15000);
+      }
+    } else {
+      // Página de chat: no hay inyecciones grandes, sólo el styling del
+      // wordmark "GUIA" → "GU**IA**" que aplica guiaObs cuando React
+      // monta los mensajes. Esperar a que aparezca un contenedor real
+      // del chat (selector amplio de Chainlit) antes de revelar.
+      function chatReady() {
+        // Selectores típicos de Chainlit 2.x: textarea de input, header,
+        // o cualquier mensaje renderizado.
+        return !!(
+          document.querySelector('[id^="chat-input"]') ||
+          document.querySelector('main') ||
+          document.querySelector('[class*="MuiAvatar"]') ||
+          document.querySelector('.guia-wordmark')
+        );
+      }
+      if (chatReady()) {
+        requestAnimationFrame(markReady);
+      } else {
+        var chatObs = new MutationObserver(function () {
+          if (chatReady()) {
+            chatObs.disconnect();
+            requestAnimationFrame(markReady);
+          }
+        });
+        chatObs.observe(document.body, { childList: true, subtree: true });
+        setTimeout(function () { chatObs.disconnect(); }, 2500);
       }
     }
 
@@ -390,10 +436,6 @@
     scanReadmeButtons();
     var rmObs = new MutationObserver(scanReadmeButtons);
     rmObs.observe(document.body, { childList: true, subtree: true });
-
-    // Inyecciones aplicadas — liberar visibilidad en el siguiente frame
-    // para que el browser pinte la UI ya brandeada en una sola pasada.
-    requestAnimationFrame(markReady);
   }
 
   if (document.body) { init(); }
