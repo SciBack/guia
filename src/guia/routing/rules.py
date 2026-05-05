@@ -40,6 +40,7 @@ def _normalize(text: str) -> str:
 # ── Patrones de saludo / cortesía ─────────────────────────────────────────
 
 _GREETING_PATTERNS = [
+    # Saludos básicos
     re.compile(r"^(hola|hi|hello|hey|saludos)\b"),
     re.compile(r"^buen(os|as)\s+(dias|tardes|noches)\b"),
     re.compile(r"^(gracias|muchas\s+gracias|thank\s*you|thanks)\b"),
@@ -47,9 +48,22 @@ _GREETING_PATTERNS = [
     re.compile(r"^(ok|okay|vale|perfecto|entendido|listo)\.?$"),
     re.compile(r"^(si|no|sip|nop)\.?,?\s*(gracias|por\s+favor)?\.?$"),
     re.compile(r"^(como\s+estas|que\s+tal)\b"),
-    # Meta-preguntas sobre GUIA
+    # Identidad del asistente
+    re.compile(r"^como\s+te\s+llamas\b"),
+    re.compile(r"^cual\s+es\s+tu\s+nombre\b"),
+    re.compile(r"^(quien|que)\s+eres\b"),
+    re.compile(r"^(eres|es)\s+(un\s+)?(robot|ia|inteligencia|bot|chatbot|humano|persona)\b"),
     re.compile(r"^(que|quien)\s+(eres|es)\s+(tu|guia)\b"),
+    # Capacidades y fuentes
     re.compile(r"^(que\s+puedes\s+hacer|en\s+que\s+(me\s+)?puedes\s+ayudar)\b"),
+    re.compile(r"^(para\s+que\s+sirves?|como\s+funcionas?)\b"),
+    re.compile(r"^(que\s+sabes?\s+(hacer|decirme))\b"),
+    re.compile(r"^(cuales?\s+(son\s+)?(tus?\s+)?(capacidades?|funciones?|fuentes?))\b"),
+    re.compile(r"^(que\s+(fuentes?|bases?\s+de\s+datos?|repositorios?)\s+(tienes?|usas?|manejas?))\b"),
+    re.compile(r"^(que\s+informacion\s+(tienes?|manejas?|conoces?))\b"),
+    # Novedades / estado del sistema
+    re.compile(r"^(que|hay|tienes?)\s+(novedades?|de\s+nuevo|noticias?)\b"),
+    re.compile(r"^novedades?\b"),
 ]
 
 
