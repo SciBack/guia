@@ -16,7 +16,7 @@ from sciback_core.ports.llm import LLMMessage, LLMPort
 from guia.audit import AuditLogEntry, AuditLogRepository, hash_query
 from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
 from sciback_privacy import PrivacyRouter, PrivacyVerdict, redact, restore
-from guia.routing import CascadeRouter, RouteDecision, Tier, category_to_intent
+from guia.routing import CascadeRouter, IntentCategory, RouteDecision, Tier, category_to_intent
 from guia.services.intent import IntentClassifier
 from guia.services.router import ModelRouter, QueryTier
 
@@ -380,6 +380,33 @@ class ChatService:
                 intent=intent,
                 sources=[],
                 model_used="none",
+                cached=False,
+            )
+            await self._emit_audit(
+                request, response, route_decision, sources_used_names, t_start
+            )
+            return response
+
+        # 4b. GREETING: respuesta conversacional directa sin RAG
+        if route_decision is not None and route_decision.intent == IntentCategory.GREETING:
+            greeting_llm = self._fast_llm or self._synthesis_llm
+            greeting_system = (
+                f"Eres GUIA, el asistente universitario de {self._institution}. "
+                "Responde de forma breve, amigable y directa. "
+                "No listes fuentes ni hagas búsquedas. No inventes información."
+            )
+            g_messages = [LLMMessage(role="system", content=greeting_system)]
+            for turn in request.history:
+                g_messages.append(LLMMessage(role=turn.role, content=turn.content))
+            g_messages.append(LLMMessage(role="user", content=query))
+            g_response = await asyncio.to_thread(
+                greeting_llm.complete, g_messages, max_tokens=200, temperature=0.3
+            )
+            response = ChatResponse(
+                answer=g_response.content,
+                intent=intent,
+                sources=[],
+                model_used=g_response.model,
                 cached=False,
             )
             await self._emit_audit(
