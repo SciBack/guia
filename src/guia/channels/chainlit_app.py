@@ -197,20 +197,20 @@ def rename_author(orig_author: str) -> str:
 async def set_starters() -> list[cl.Starter]:
     return [
         cl.Starter(
-            label="Tesis sobre IA en educación",
-            message="¿Hay tesis sobre inteligencia artificial aplicada a la educación superior?",
+            label="Libros sobre inteligencia artificial",
+            message="¿Qué libros hay sobre inteligencia artificial en la biblioteca?",
         ),
         cl.Starter(
-            label="Nutrición infantil en zonas rurales",
+            label="Artículos de nutrición infantil",
             message="Busca artículos recientes sobre nutrición infantil en comunidades rurales",
         ),
         cl.Starter(
-            label="Facultad de Ingeniería — energías renovables",
-            message="¿Qué investigaciones hay de la Facultad de Ingeniería sobre energías renovables?",
+            label="Revistas de ingeniería — energías renovables",
+            message="¿Qué publicaciones hay sobre energías renovables en las revistas UPeU?",
         ),
         cl.Starter(
-            label="Teología adventista post-2020",
-            message="Muéstrame trabajos sobre teología adventista publicados después de 2020",
+            label="Literatura sobre teología adventista",
+            message="Muéstrame libros y artículos sobre teología adventista publicados después de 2020",
         ),
     ]
 
