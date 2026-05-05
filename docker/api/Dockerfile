@@ -25,8 +25,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # torch CPU para linux/amd64: ~280MB vs ~2GB CUDA
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --python .venv/bin/python3 \
-    "torch==2.5.1+cpu" "torchvision==0.20.1+cpu" \
-    --index-url https://download.pytorch.org/whl/cpu && \
+    "torch" --index-url https://download.pytorch.org/whl/cpu && \
     uv pip install --python .venv/bin/python3 "detoxify>=0.5"
 
 # ── Runtime stage ─────────────────────────────────────────────
