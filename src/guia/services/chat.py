@@ -31,11 +31,14 @@ if TYPE_CHECKING:
     from guia.services.query_rewriter import QueryRewriter
 
 _DEFAULT_SOURCES_INVENTORY = """\
+FUENTES ACTUALMENTE DISPONIBLES (las únicas que puedes consultar):
 - Koha UPeU — catálogo de la biblioteca, ~34,985 libros físicos indexados
   (puedes buscar libros, autores, materias y disponibilidad de ejemplares).
 - OJS revistas.upeu.edu.pe — ~744 artículos científicos publicados por la UPeU.
-- DSpace repositorio institucional UPeU — próximamente (en proceso de indexación).
-- ALICIA / RENATI — próximamente (Fase 1 del roadmap)."""
+
+FUENTES NO DISPONIBLES AÚN (NO las menciones como si las tuvieras):
+- DSpace repositorio.upeu.edu.pe — bloqueado, sin acceso desde el servidor.
+- ALICIA / RENATI — pendiente de integración."""
 
 
 _SYSTEM_PROMPT = """\
@@ -79,9 +82,9 @@ No inventes datos, autores ni referencias que no estén en el contexto.
 {context}"""
 
 _CAMPUS_UNAVAILABLE = (
-    "Los servicios de campus (notas, matrícula) estarán disponibles "
-    "próximamente. Por ahora puedo ayudarte con búsquedas en el repositorio "
-    "institucional, publicaciones académicas y el catálogo de la biblioteca."
+    "Los servicios de campus (notas, matrícula, horarios) aún no están disponibles. "
+    "Por ahora puedo ayudarte con el catálogo de la biblioteca Koha (~34,985 libros) "
+    "y artículos de las revistas académicas OJS de UPeU (~744 artículos)."
 )
 
 _OUT_OF_SCOPE = (
