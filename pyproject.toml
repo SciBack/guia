@@ -58,6 +58,8 @@ dependencies = [
     "dateparser>=1.2",
     "spacy>=3.7",
     "yake>=0.4.8",
+    # Modelo spaCy español — wheel directo para evitar descarga en runtime
+    "es-core-news-lg @ https://github.com/explosion/spacy-models/releases/download/es_core_news_lg-3.8.0/es_core_news_lg-3.8.0-py3-none-any.whl",
     # Gates router (ADR-045)
     # fasttext-langdetect requiere C++17 — no disponible en python:3.13-slim.
     # detoxify trae PyTorch+CUDA (~2GB) — demasiado para slim. Ambos degradan gracefully.
