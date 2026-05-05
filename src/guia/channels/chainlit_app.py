@@ -281,15 +281,18 @@ async def on_message(message: cl.Message) -> None:
             history=history,
         )
 
-        async with cl.Step(name="Búsqueda académica", type="retrieval") as rag_step:
+        response = await _container.chat_service.answer(request)
+
+        # Solo mostrar el step de retrieval cuando hubo búsqueda académica real
+        if response.sources or response.cached:
+            rag_step = cl.Step(name="Búsqueda académica", type="retrieval")
             rag_step.input = message.content
-            response = await _container.chat_service.answer(request)
-            source_count = len(response.sources)
             rag_step.output = (
                 "Caché semántico"
                 if response.cached
-                else f"{source_count} fuente(s) académica(s) encontrada(s)"
+                else f"{len(response.sources)} fuente(s) académica(s) encontrada(s)"
             )
+            await rag_step.send()
 
         answer_text = response.answer
         elements: list[cl.Element] = []
