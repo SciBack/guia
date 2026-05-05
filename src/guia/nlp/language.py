@@ -15,7 +15,10 @@ def _get_model() -> object | None:
         return _LID_MODEL
     _LID_LOADED = True
     try:
-        from fasttext_langdetect import detect
+        # El paquete fasttext-langdetect instala el módulo como `ftlangdetect`.
+        # fasttext 0.9.3 tiene incompatibilidad con NumPy 2.x (ValueError en predict);
+        # el except captura ambos casos y activa el fallback seguro.
+        from ftlangdetect import detect
         detect("hola")
         _LID_MODEL = detect
     except Exception:
