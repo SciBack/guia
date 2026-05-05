@@ -298,17 +298,17 @@
       document.body.style.overflow = 'hidden';
       closeBtn.focus();
 
-      if (!body.dataset.loaded) {
-        fetch('/public/readme-content.html')
-          .then(function (r) { return r.text(); })
-          .then(function (html) {
-            body.innerHTML = html;
-            body.dataset.loaded = '1';
-          })
-          .catch(function () {
-            body.innerHTML = '<p>No se pudo cargar el contenido. Recarga la página.</p>';
-          });
-      }
+      // Siempre re-fetch con cache-busting: el archivo se actualiza vía git pull
+      // en el servidor sin reiniciar el contenedor. No cachear localmente.
+      var url = '/public/readme-content.html?t=' + Date.now();
+      fetch(url, { cache: 'no-store' })
+        .then(function (r) { return r.text(); })
+        .then(function (html) {
+          body.innerHTML = html;
+        })
+        .catch(function () {
+          body.innerHTML = '<p>No se pudo cargar el contenido. Recarga la página.</p>';
+        });
     }
 
     closeBtn.addEventListener('click', closeModal);
