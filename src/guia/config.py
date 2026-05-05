@@ -100,3 +100,17 @@ class GUIASettings(BaseSettings):
     # Endpoint del servicio GROBID (docker compose --profile grobid up).
     # Vacío = GROBID deshabilitado (harvester usa solo abstract/TOC, no full-text).
     grobid_url: str = ""
+
+    # LLMs (ADR-040, ADR-041)
+    ollama_synthesis_model: str = "qwen3:8b"
+    ollama_fast_model: str = "qwen2.5:3b"
+
+    # Pipeline NLP (ADR-044)
+    nlp_spacy_model: str = "es_core_news_lg"
+    nlp_symspell_dict_path: str = "data/symspell/es_full.txt"
+    nlp_dictionary_acronyms_path: str = "data/acronyms/es_academic.json"
+
+    # Gates router (ADR-045)
+    router_lid_enabled: bool = True
+    router_toxicity_enabled: bool = True
+    router_toxicity_threshold: float = 0.85

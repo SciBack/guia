@@ -27,6 +27,8 @@ if TYPE_CHECKING:
 
     from guia.search.backend import SearchAdapter
     from guia.services.cache import SemanticCache
+    from guia.routing.gates import LanguageGate, ToxicityGate
+    from guia.services.query_rewriter import QueryRewriter
 
 _DEFAULT_SOURCES_INVENTORY = """\
 - Koha UPeU — catálogo de la biblioteca, ~34,985 libros físicos indexados
@@ -200,6 +202,9 @@ class ChatService:
         koha_adapter: KohaAdapter | None = None,
         audit_repo: AuditLogRepository | None = None,
         privacy_router: PrivacyRouter | None = None,
+        query_rewriter: "QueryRewriter | None" = None,
+        language_gate: "LanguageGate | None" = None,
+        toxicity_gate: "ToxicityGate | None" = None,
     ) -> None:
         self._synthesis_llm = synthesis_llm
         self._fast_llm = fast_llm
@@ -217,6 +222,9 @@ class ChatService:
         # P2.2: PrivacyRouter — si no se inyecta, se construye uno por default.
         # Es stateless y barato (regex + tabla lookup), no tiene sentido tenerlo opcional.
         self._privacy_router = privacy_router or PrivacyRouter()
+        self._query_rewriter = query_rewriter
+        self._language_gate = language_gate
+        self._toxicity_gate = toxicity_gate
 
     async def answer(self, request: ChatRequest) -> ChatResponse:
         """Genera una respuesta para el ChatRequest del usuario (async).
@@ -232,10 +240,33 @@ class ChatService:
         sources_used_names: list[str] = []  # ['dspace', 'koha', ...] para audit
         privacy_verdict: PrivacyVerdict | None = None  # se setea en paso 5b
 
+        # 0. ToxicityGate — bloquear antes de procesar
+        if self._toxicity_gate is not None:
+            tox_result = self._toxicity_gate.evaluate(query)
+            if not tox_result.passed:
+                response = ChatResponse(
+                    answer=tox_result.user_message or "Consulta no procesable.",
+                    intent=Intent.OUT_OF_SCOPE,
+                    sources=[],
+                    model_used="none",
+                    cached=False,
+                )
+                await self._emit_audit(
+                    request, response, route_decision, sources_used_names, t_start
+                )
+                return response
+
         # 1. Embed query (sync HTTP → thread)
         query_vector: list[float] = await asyncio.to_thread(
             self._embedder.embed_query, query
         )
+
+        # 0b. LanguageGate — detectar idioma para contexto adicional
+        language_hint: str | None = None
+        if self._language_gate is not None:
+            lang_result = self._language_gate.evaluate(query)
+            if lang_result.user_message:
+                language_hint = lang_result.user_message
 
         # 2. Caché hit (sync Redis → thread)
         if self._cache is not None:
@@ -361,11 +392,23 @@ class ChatService:
             )
             return response
 
-        # 5. RAG: OpenSearch hybrid async o pgvector en thread
+        # 5. RAG: reescribir query con pipeline NLP (ADR-044) antes del retrieval
+        search_text = query
+        if self._query_rewriter is not None:
+            try:
+                rewrite = await self._query_rewriter.rewrite(
+                    query,
+                    [{"role": t.role, "content": t.content} for t in request.history],
+                )
+                if rewrite.is_search_query and rewrite.cleaned:
+                    search_text = rewrite.cleaned
+            except Exception:
+                pass
+
         if self._search_adapter is not None:
             # M4: await directo, sin asyncio.run() bridge
             hits = await self._search_adapter.hybrid_dicts(
-                text=query,
+                text=search_text,
                 vector=query_vector,
                 limit=5,
             )
@@ -443,10 +486,13 @@ class ChatService:
                 "recuperado' para sugerir reformular con sinónimos)"
             )
         )
+        context_block_final = context_block
+        if language_hint:
+            context_block_final = f"[Nota: {language_hint}]\n\n{context_block}"
         system = _SYSTEM_PROMPT.format(
             institution=self._institution,
             sources_inventory=self._sources_inventory,
-            context=context_block,
+            context=context_block_final,
         )
         messages = [LLMMessage(role="system", content=system)]
         for turn in request.history:

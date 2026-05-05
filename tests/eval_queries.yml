@@ -1,0 +1,206 @@
+---
+# Queries de regresión para eval NDCG@5 — GUIA UPeU
+# Cada entrada tiene: query, expected_keywords (al menos 1 debe aparecer en resultados)
+# Uso: scripts/eval_qwen3_vs_qwen25.py --queries tests/eval_queries.yml
+
+version: "1.0"
+target_ndcg5: 0.70
+
+queries:
+  # --- Libros Koha ---
+  - id: k01
+    query: "libros de administración de empresas"
+    expected_keywords: ["administración", "empresas", "gestión"]
+    source: koha
+
+  - id: k02
+    query: "teología sistemática adventista"
+    expected_keywords: ["teología", "adventista", "doctrina"]
+    source: koha
+
+  - id: k03
+    query: "metodología de la investigación científica"
+    expected_keywords: ["metodología", "investigación", "científica"]
+    source: koha
+
+  - id: k04
+    query: "contabilidad financiera para universitarios"
+    expected_keywords: ["contabilidad", "financiera", "estados financieros"]
+    source: koha
+
+  - id: k05
+    query: "psicología del desarrollo humano"
+    expected_keywords: ["psicología", "desarrollo", "humano"]
+    source: koha
+
+  - id: k06
+    query: "nutrición y dietética"
+    expected_keywords: ["nutrición", "dietética", "alimentación"]
+    source: koha
+
+  - id: k07
+    query: "derecho civil peruano"
+    expected_keywords: ["derecho", "civil", "peruano", "código"]
+    source: koha
+
+  - id: k08
+    query: "ingeniería de sistemas de información"
+    expected_keywords: ["sistemas", "información", "ingeniería"]
+    source: koha
+
+  - id: k09
+    query: "arquitectura bioclimática"
+    expected_keywords: ["arquitectura", "bioclimática", "sostenible"]
+    source: koha
+
+  - id: k10
+    query: "educación adventista valores"
+    expected_keywords: ["educación", "adventista", "valores"]
+    source: koha
+
+  # --- Artículos OJS ---
+  - id: o01
+    query: "inteligencia artificial en educación superior"
+    expected_keywords: ["inteligencia artificial", "educación", "universitaria"]
+    source: ojs
+
+  - id: o02
+    query: "salud mental estudiantes universitarios"
+    expected_keywords: ["salud mental", "estudiantes", "ansiedad", "estrés"]
+    source: ojs
+
+  - id: o03
+    query: "seguridad alimentaria Perú"
+    expected_keywords: ["seguridad alimentaria", "Perú", "desnutrición"]
+    source: ojs
+
+  - id: o04
+    query: "cambio climático impacto agricultura"
+    expected_keywords: ["cambio climático", "agricultura", "impacto"]
+    source: ojs
+
+  - id: o05
+    query: "pandemia COVID-19 efectos económicos"
+    expected_keywords: ["pandemia", "COVID", "económico"]
+    source: ojs
+
+  - id: o06
+    query: "minería responsabilidad social empresas"
+    expected_keywords: ["minería", "responsabilidad social", "comunidad"]
+    source: ojs
+
+  - id: o07
+    query: "telemedicina atención primaria"
+    expected_keywords: ["telemedicina", "atención", "salud"]
+    source: ojs
+
+  - id: o08
+    query: "energías renovables solar Perú"
+    expected_keywords: ["energía solar", "renovable", "Perú"]
+    source: ojs
+
+  - id: o09
+    query: "violencia doméstica género"
+    expected_keywords: ["violencia", "género", "doméstica", "mujer"]
+    source: ojs
+
+  - id: o10
+    query: "turismo sostenible Cusco"
+    expected_keywords: ["turismo", "sostenible", "Cusco"]
+    source: ojs
+
+  # --- Queries con saludo (NLP pipeline) ---
+  - id: n01
+    query: "hola, busco libros de matemáticas"
+    expected_keywords: ["matemáticas", "álgebra", "cálculo"]
+    source: koha
+    note: "saludo prefijado — rewriter debe stripear 'hola'"
+
+  - id: n02
+    query: "buenos días, ¿tienen artículos sobre diabetes?"
+    expected_keywords: ["diabetes", "glucosa", "insulina"]
+    source: ojs
+    note: "saludo formal — rewriter debe stripear"
+
+  - id: n03
+    query: "¿me pueden ayudar con información sobre el CONCYTEC?"
+    expected_keywords: ["CONCYTEC", "investigación", "ciencia"]
+    source: ojs
+    note: "sigla CONCYTEC — acronym expander"
+
+  - id: n04
+    query: "tesis sobre IA en universidades peruanas"
+    expected_keywords: ["inteligencia artificial", "universidades", "Perú"]
+    source: koha
+    note: "sigla IA — acronym expander"
+
+  - id: n05
+    query: "artículos del año pasado sobre vacunas"
+    expected_keywords: ["vacuna", "inmunización", "COVID"]
+    source: ojs
+    note: "fecha relativa — dater extrae year filter"
+
+  - id: n06
+    query: "libros publicados entre 2020 y 2023"
+    expected_keywords: ["publicación"]
+    source: koha
+    note: "rango de fechas explícito — dater extrae date_filters"
+
+  - id: n07
+    query: "investigaciones recientes sobre cáncer"
+    expected_keywords: ["cáncer", "oncología", "tumor"]
+    source: ojs
+    note: "temporal 'reciente' — dater puede extraer year filter"
+
+  - id: n08
+    query: "gracias, me fue de mucha ayuda"
+    expected_keywords: []
+    source: any
+    is_search: false
+    note: "cortesía pura — rewriter marca is_search_query=False"
+
+  # --- Queries en quechua (LanguageGate) ---
+  - id: q01
+    query: "yachay wasikunapi qillqa"
+    expected_keywords: []
+    source: any
+    note: "quechua — LanguageGate pasa con mensaje informativo"
+
+  # --- Queries complejas multi-tema ---
+  - id: c01
+    query: "impacto de las TIC en el rendimiento académico de estudiantes de educación básica"
+    expected_keywords: ["TIC", "tecnología", "rendimiento académico", "estudiantes"]
+    source: ojs
+
+  - id: c02
+    query: "análisis financiero PyMEs sector manufacturero Lima"
+    expected_keywords: ["financiero", "PyME", "manufactura", "Lima"]
+    source: ojs
+
+  - id: c03
+    query: "formación docente competencias digitales educación a distancia"
+    expected_keywords: ["formación docente", "competencias", "digital", "distancia"]
+    source: ojs
+
+  - id: c04
+    query: "gestión de residuos sólidos municipales ciudades intermedias"
+    expected_keywords: ["residuos", "sólidos", "gestión", "municipal"]
+    source: ojs
+
+  - id: c05
+    query: "anemia infantil sierra peruana intervención nutricional"
+    expected_keywords: ["anemia", "infantil", "nutricional", "sierra"]
+    source: ojs
+
+  # --- Queries sin resultados esperados (zero-hit) ---
+  - id: z01
+    query: "mecánica cuántica relatividad general Planck"
+    expected_keywords: ["física", "cuántica", "partículas"]
+    source: any
+    note: "fuera del corpus UPeU — puede retornar 0 hits"
+
+  - id: z02
+    query: "historia del Imperio Romano siglo III"
+    expected_keywords: ["historia", "romano"]
+    source: any
+    note: "fuera del corpus UPeU"
