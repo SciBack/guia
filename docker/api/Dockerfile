@@ -1,6 +1,9 @@
 # ── Build stage ───────────────────────────────────────────────
 FROM python:3.13-slim AS builder
 
+# Build tools para paquetes que requieren compilación C++ (fasttext-langdetect)
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ cmake && rm -rf /var/lib/apt/lists/*
+
 # uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
@@ -17,6 +20,14 @@ COPY uv.lock* ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev 2>/dev/null || \
     uv sync --no-install-project --no-dev
+
+# Instalar detoxify con torch CPU-only (no está en uv.lock para evitar CUDA torch de PyPI)
+# torch CPU para linux/amd64: ~280MB vs ~2GB CUDA
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --python .venv/bin/python3 \
+    "torch==2.5.1+cpu" "torchvision==0.20.1+cpu" \
+    --index-url https://download.pytorch.org/whl/cpu && \
+    uv pip install --python .venv/bin/python3 "detoxify>=0.5"
 
 # ── Runtime stage ─────────────────────────────────────────────
 FROM python:3.13-slim

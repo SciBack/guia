@@ -61,9 +61,9 @@ dependencies = [
     # Modelo spaCy español — wheel directo para evitar descarga en runtime
     "es-core-news-lg @ https://github.com/explosion/spacy-models/releases/download/es_core_news_lg-3.8.0/es_core_news_lg-3.8.0-py3-none-any.whl",
     # Gates router (ADR-045)
-    # fasttext-langdetect requiere C++17 — no disponible en python:3.13-slim.
-    # detoxify trae PyTorch+CUDA (~2GB) — demasiado para slim. Ambos degradan gracefully.
-    # Instalar manualmente en entornos con build tools y espacio suficiente.
+    # fasttext-langdetect requiere C++17 — compilado en builder stage (gcc/g++ en Dockerfile)
+    "fasttext-langdetect>=1.0",
+    # detoxify se instala en Dockerfile con torch CPU-only (evita 2GB CUDA de PyPI)
 ]
 
 [dependency-groups]
