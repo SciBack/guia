@@ -302,23 +302,11 @@ async def on_message(message: cl.Message) -> None:
 
         answer_text = response.answer
         elements: list[cl.Element] = []
-        if response.sources:
-            answer_text += "\n\n**Fuentes:**\n"
-            for i, source in enumerate(response.sources, 1):
-                title_part = (
-                    f"[{source.title}]({source.url})" if source.url else source.title
+        for source in response.sources:
+            if source.url and source.url.lower().endswith(".pdf"):
+                elements.append(
+                    cl.Pdf(name=source.title[:50], url=source.url, display="side")
                 )
-                meta_parts: list[str] = []
-                if source.authors:
-                    meta_parts.append(", ".join(source.authors[:2]))
-                if source.year:
-                    meta_parts.append(str(source.year))
-                meta = f" — *{' · '.join(meta_parts)}*" if meta_parts else ""
-                answer_text += f"{i}. {title_part}{meta}\n"
-                if source.url and source.url.lower().endswith(".pdf"):
-                    elements.append(
-                        cl.Pdf(name=source.title[:50], url=source.url, display="side")
-                    )
 
         # Discovery layer (serendipia controlada): se renderiza solo si el
         # ChatService pobló estos campos (intents de búsqueda con hits).
