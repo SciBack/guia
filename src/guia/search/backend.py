@@ -34,6 +34,9 @@ def _hit_to_dict(h: SearchHit) -> dict[str, Any]:
         "authors": h.source.get("authors", []),
         "year": h.source.get("publication_year"),
         "url": h.source.get("external_resource_uri"),
+        "source": h.source.get("source", ""),
+        "source_type": h.source.get("source_type", ""),
+        "subjects": h.source.get("subjects", []),
         "metadata": h.source,
     }
 

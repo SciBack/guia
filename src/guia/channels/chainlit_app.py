@@ -311,14 +311,24 @@ async def on_message(message: cl.Message) -> None:
         # Discovery layer (serendipia controlada): se renderiza solo si el
         # ChatService pobló estos campos (intents de búsqueda con hits).
         if response.source_buckets:
+            # Índice de fuentes por source_type para cruzar con sources individuales
+            sources_by_type: dict[str, list] = {}
+            for s in response.sources:
+                key = s.source_type or "unknown"
+                sources_by_type.setdefault(key, []).append(s)
+
             answer_text += "\n\n📚 **Fuente consultada**\n"
             for bucket in response.source_buckets:
-                plural = "resultados" if bucket.count != 1 else "resultado"
-                answer_text += (
-                    f"- [{bucket.label}]({bucket.url}) — "
-                    f"{bucket.count} {plural} en esta respuesta · "
-                    f"ver más en el portal\n"
-                )
+                answer_text += f"\n**[{bucket.label}]({bucket.url})**\n"
+                for s in sources_by_type.get(bucket.source_type, []):
+                    title_link = f"[{s.title}]({s.url})" if s.url else s.title
+                    meta_parts = []
+                    if s.authors:
+                        meta_parts.append(", ".join(s.authors[:2]))
+                    if s.year:
+                        meta_parts.append(str(s.year))
+                    meta = f" — *{' · '.join(meta_parts)}*" if meta_parts else ""
+                    answer_text += f"- {title_link}{meta}\n"
 
         if response.explore_in:
             answer_text += "\n🔎 **Explora también este tema en**\n"
