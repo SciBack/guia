@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from sciback_core.ports.vector_store import VectorRecord, VectorStorePort
     from sciback_embeddings_e5 import E5EmbeddingAdapter
 
+    from guia.config import GUIASettings
     from guia.search.backend import SearchAdapter
     from guia.services.cache import SemanticCache
     from guia.routing.gates import LanguageGate, ToxicityGate
@@ -280,6 +281,7 @@ class ChatService:
         query_rewriter: "QueryRewriter | None" = None,
         language_gate: "LanguageGate | None" = None,
         toxicity_gate: "ToxicityGate | None" = None,
+        settings: "GUIASettings | None" = None,
     ) -> None:
         self._synthesis_llm = synthesis_llm
         self._fast_llm = fast_llm
@@ -301,6 +303,7 @@ class ChatService:
         self._query_rewriter = query_rewriter
         self._language_gate = language_gate
         self._toxicity_gate = toxicity_gate
+        self._settings = settings  # opcional: habilita discovery layer si está
 
     async def answer(self, request: ChatRequest) -> ChatResponse:
         """Genera una respuesta para el ChatRequest del usuario (async).
@@ -357,6 +360,9 @@ class ChatService:
                     model_used=cached.model_used,
                     cached=True,
                     tokens_used=0,
+                    source_buckets=getattr(cached, "source_buckets", []),
+                    explore_in=getattr(cached, "explore_in", []),
+                    related_terms=getattr(cached, "related_terms", []),
                 )
                 await self._emit_audit(
                     request, response, route_decision, sources_used_names, t_start
@@ -500,6 +506,7 @@ class ChatService:
             except Exception:
                 pass
 
+        hits: list[dict[str, Any]] = []
         if self._search_adapter is not None:
             # M4: await directo, sin asyncio.run() bridge
             hits = await self._search_adapter.hybrid_dicts(
@@ -516,6 +523,22 @@ class ChatService:
             context_text, sources = _records_to_context(records)
             if records:
                 sources_used_names.append("pgvector")
+
+        # 5a. Discovery layer (serendipia controlada) — solo en RESEARCH/GENERAL
+        # con settings disponible. CAMPUS/OUT_OF_SCOPE/GREETING ya retornaron antes.
+        source_buckets: list = []
+        explore_in: list = []
+        related_terms: list[str] = []
+        if self._settings is not None and intent in (Intent.RESEARCH, Intent.GENERAL):
+            from guia.services.discovery import (
+                build_explore_links,
+                build_source_buckets,
+                extract_related_terms,
+            )
+
+            source_buckets = build_source_buckets(hits, query, self._settings)
+            explore_in = build_explore_links(query, source_buckets, self._settings)
+            related_terms = extract_related_terms(hits, query)
 
         # 5b. PrivacyRouter (P2.2) — combina sources + PII en query/docs.
         # MAX-LEVEL-WINS: si final_level >= L2_PERSONAL → force_local.
@@ -609,6 +632,9 @@ class ChatService:
             model_used=llm_response.model,
             cached=False,
             tokens_used=llm_response.input_tokens + llm_response.output_tokens,
+            source_buckets=source_buckets,
+            explore_in=explore_in,
+            related_terms=related_terms,
         )
 
         # 8. Guardar en caché (sync Redis → thread)

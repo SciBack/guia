@@ -319,6 +319,29 @@ async def on_message(message: cl.Message) -> None:
                     elements.append(
                         cl.Pdf(name=source.title[:50], url=source.url, display="side")
                     )
+
+        # Discovery layer (serendipia controlada): se renderiza solo si el
+        # ChatService pobló estos campos (intents de búsqueda con hits).
+        if response.source_buckets:
+            answer_text += "\n\n📚 **Fuente consultada**\n"
+            for bucket in response.source_buckets:
+                plural = "resultados" if bucket.count != 1 else "resultado"
+                answer_text += (
+                    f"- [{bucket.label}]({bucket.url}) — "
+                    f"{bucket.count} {plural} en esta respuesta · "
+                    f"ver más en el portal\n"
+                )
+
+        if response.explore_in:
+            answer_text += "\n🔎 **Explora también este tema en**\n"
+            for link in response.explore_in:
+                tag = "" if link.available else " *(pendiente de habilitar en GUIA)*"
+                answer_text += f"- [{link.label}]({link.url}){tag}\n"
+
+        if response.related_terms:
+            terms = " · ".join(response.related_terms)
+            answer_text += f"\n💡 **Búsquedas relacionadas:** {terms}\n"
+
         if response.cached:
             answer_text += "\n\n*Respuesta desde caché semántico*"
 

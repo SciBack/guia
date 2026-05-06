@@ -238,6 +238,7 @@ class GUIAContainer:
             query_rewriter=self.query_rewriter,
             language_gate=self.language_gate,
             toxicity_gate=self.toxicity_gate,
+            settings=self.settings,
         )
 
         self.search_service = SearchService(
