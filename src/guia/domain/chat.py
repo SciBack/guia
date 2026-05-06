@@ -36,7 +36,7 @@ class Source(BaseModel):
     authors: list[str] = Field(default_factory=list)
     year: int | None = None
     score: float = 0.0
-    source_type: str = "publication"  # publication | thesis | article
+    source_type: str | None = None  # publication | thesis | article | koha | None si no se conoce
 
 
 class ConversationMessage(BaseModel):
