@@ -227,6 +227,89 @@ def backup_s3_job(container: GUIAContainer) -> None:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
+def feedback_export_job(container: GUIAContainer) -> None:
+    """Job semanal: exporta el dataset de feedback acumulado a S3 en JSONL.
+
+    Ruta de objeto: feedback/YYYY/MM/feedback-YYYY-MM-DD.jsonl.gz
+    Bucket: GUIA_S3_FEEDBACK_BUCKET (env). Si no está configurado, no-op.
+
+    Exporta el rango [hace 7 días, ahora). Idempotente por fecha del archivo.
+    """
+    import gzip
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+    from datetime import UTC, datetime, timedelta
+
+    bucket = os.environ.get("GUIA_S3_FEEDBACK_BUCKET", "").strip()
+    if not bucket:
+        logger.info("feedback_export_skipped_no_bucket")
+        return
+
+    repo = getattr(container, "feedback_repo", None)
+    if repo is None:
+        logger.warning("feedback_export_no_repo")
+        return
+
+    now = datetime.now(UTC)
+    from_dt = now - timedelta(days=7)
+    today_str = now.strftime("%Y-%m-%d")
+    s3_key = f"feedback/{now.strftime('%Y/%m')}/feedback-{today_str}.jsonl.gz"
+
+    tmp_dir = tempfile.mkdtemp(prefix="guia-feedback-")
+    jsonl_path = os.path.join(tmp_dir, f"feedback-{today_str}.jsonl")
+    gz_path = jsonl_path + ".gz"
+
+    try:
+        # Genera JSONL local
+        line_count = 0
+        with open(jsonl_path, "w", encoding="utf-8") as f:
+            # apscheduler ejecuta sync — usar asyncio.run para el generador async
+            import asyncio
+            async def _drain() -> int:
+                count = 0
+                async for line in repo.export_jsonl(from_dt=from_dt, to_dt=now):
+                    f.write(line + "\n")
+                    count += 1
+                return count
+            line_count = asyncio.run(_drain())
+
+        if line_count == 0:
+            logger.info("feedback_export_empty", from_dt=from_dt.isoformat())
+            return
+
+        # Comprime
+        with open(jsonl_path, "rb") as src, gzip.open(gz_path, "wb") as dst:
+            shutil.copyfileobj(src, dst)
+
+        size_kb = os.path.getsize(gz_path) / 1024
+
+        # Sube a S3
+        result = subprocess.run(
+            ["aws", "s3", "cp", gz_path, f"s3://{bucket}/{s3_key}", "--no-progress"],
+            capture_output=True,
+            timeout=600,
+        )
+        if result.returncode == 0:
+            logger.info(
+                "feedback_export_uploaded",
+                bucket=bucket,
+                key=s3_key,
+                lines=line_count,
+                size_kb=round(size_kb, 1),
+            )
+        else:
+            logger.error(
+                "feedback_export_upload_failed",
+                stderr=result.stderr.decode("utf-8", errors="replace")[:500],
+            )
+    except Exception:
+        logger.exception("feedback_export_error")
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 def metrics_report_job(container: GUIAContainer) -> None:
     """Job: reporta métricas diarias del vector store."""
     try:
@@ -288,6 +371,16 @@ def run_scheduler() -> None:
         misfire_grace_time=3600,
     )
 
+    # Job: export feedback semanal a S3 (lunes 4am Lima)
+    scheduler.add_job(
+        feedback_export_job,
+        trigger=CronTrigger(hour=4, minute=0, day_of_week="mon"),
+        args=[container],
+        id="feedback_export",
+        name="Export semanal de feedback a S3",
+        misfire_grace_time=3600,
+    )
+
     # Job: métricas (6am Lima)
     scheduler.add_job(
         metrics_report_job,
@@ -300,7 +393,13 @@ def run_scheduler() -> None:
 
     logger.info(
         "scheduler_jobs_registered",
-        jobs=["harvest_daily", "harvest_koha_weekly", "backup_s3", "metrics_report"],
+        jobs=[
+            "harvest_daily",
+            "harvest_koha_weekly",
+            "backup_s3",
+            "feedback_export",
+            "metrics_report",
+        ],
         harvest_cron=_settings.harvest_cron,
     )
 

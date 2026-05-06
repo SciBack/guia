@@ -50,10 +50,17 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
         postgresql-client \
+        unzip \
     && rm -rf /var/lib/apt/lists/*
-# awscli NO se instala aquí. backup_s3_job hace fallback a /var/backups/guia/
-# si AWS_S3_BACKUP_BUCKET no está seteado. Cuando se configure S3,
-# agregar awscli (~100MB) o usar boto3 directamente desde Python.
+
+# AWS CLI v2 — para backup_s3_job y feedback_export_job (uploads a S3 UPeU).
+# Se instala el binario nativo (≈70MB) en lugar del paquete pip (más liviano).
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "aarch64" ]; then AWS_ARCH=aarch64; else AWS_ARCH=x86_64; fi && \
+    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${AWS_ARCH}.zip" -o /tmp/awscliv2.zip && \
+    unzip -q /tmp/awscliv2.zip -d /tmp && \
+    /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli && \
+    rm -rf /tmp/awscliv2.zip /tmp/aws
 
 WORKDIR /app
 
