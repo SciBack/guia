@@ -12,9 +12,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict
+from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from guia.api.deps import get_audit_repo
@@ -78,3 +80,51 @@ async def list_audit_entries(
             {**asdict(e), "created_at": e.created_at.isoformat()} for e in entries
         ],
     }
+
+
+@router.get("/feedback/stats", summary="Conteo del dataset chat_feedback (staff/admin)")
+async def feedback_stats(
+    request: Request,
+    _user: Annotated[UserContext, Depends(_require_staff)],
+) -> dict[str, Any]:
+    """Estadísticas del dataset acumulado: total, positivos, negativos."""
+    repo = request.app.state.container.feedback_repo
+    return await repo.stats()
+
+
+@router.get(
+    "/feedback/export",
+    summary="Descarga JSONL del dataset chat_feedback (staff/admin)",
+)
+async def feedback_export(
+    request: Request,
+    _user: Annotated[UserContext, Depends(_require_staff)],
+    from_dt: Annotated[
+        str | None, Query(alias="from", description="ISO8601 inclusive")
+    ] = None,
+    to_dt: Annotated[
+        str | None, Query(alias="to", description="ISO8601 exclusive")
+    ] = None,
+) -> StreamingResponse:
+    """Stream de JSONL — una línea por feedback en el rango.
+
+    Sin parámetros: devuelve TODO el dataset acumulado.
+    """
+    repo = request.app.state.container.feedback_repo
+
+    fdt = datetime.fromisoformat(from_dt) if from_dt else None
+    tdt = datetime.fromisoformat(to_dt) if to_dt else None
+
+    async def _stream() -> Any:
+        async for line in repo.export_jsonl(from_dt=fdt, to_dt=tdt):
+            yield (line + "\n").encode("utf-8")
+
+    return StreamingResponse(
+        _stream(),
+        media_type="application/x-ndjson",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=feedback-{datetime.utcnow().strftime('%Y%m%d')}.jsonl"
+            )
+        },
+    )

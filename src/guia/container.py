@@ -196,6 +196,17 @@ class GUIAContainer:
         )
         self.audit_repo.initialize()
 
+        # ChatFeedbackRepository — dataset con consentimiento explícito (👍/👎)
+        from guia.feedback import ChatFeedbackRepository
+
+        self.feedback_repo = ChatFeedbackRepository(
+            database_url=self.settings.pgvector_database_url,  # type: ignore[attr-defined]
+        )
+        self.feedback_repo.initialize()
+
+        # Cliente Redis expuesto para feedback_datalayer y otros consumidores
+        self.redis_client = self._redis
+
         # P1.4: Pipeline NLP híbrido (ADR-044, ADR-045)
         from guia.services.query_rewriter import QueryRewriter
         from guia.routing.gates import LanguageGate, ToxicityGate

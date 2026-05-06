@@ -22,6 +22,10 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from sciback_core.ports.llm import LLMMessage
 
+from guia.channels.feedback_datalayer import (
+    FeedbackCapturingDataLayer,
+    stash_response_metadata,
+)
 from guia.config import GUIASettings
 from guia.container import GUIAContainer
 from guia.domain.chat import ChatRequest, ConversationMessage
@@ -71,7 +75,19 @@ _PG_URL = os.environ.get(
 
 @cl.data_layer
 def get_data_layer() -> SQLAlchemyDataLayer:
-    """Data Layer nativo de Chainlit — habilita sidebar de historial de threads."""
+    """Data Layer Chainlit + captura de 👍/👎 al dataset chat_feedback.
+
+    Si el repo de feedback no inicializó (ej. Postgres caído al arranque),
+    cae al SQLAlchemyDataLayer estándar para no romper la UI.
+    """
+    fb_repo = getattr(_container, "feedback_repo", None)
+    redis_client = getattr(_container, "redis_client", None)
+    if fb_repo is not None and redis_client is not None:
+        return FeedbackCapturingDataLayer(
+            conninfo=_PG_URL,
+            feedback_repo=fb_repo,
+            redis_client=redis_client,
+        )
     return SQLAlchemyDataLayer(conninfo=_PG_URL)
 
 
@@ -310,6 +326,25 @@ async def on_message(message: cl.Message) -> None:
         if elements:
             thinking_msg.elements = elements
         await thinking_msg.update()
+
+        # Stash de metadatos en Redis para que el DataLayer los recoja si el
+        # usuario califica con 👍/👎. TTL 7 días — suficiente para feedback diferido.
+        try:
+            redis_client = getattr(_container, "redis_client", None)
+            if redis_client is not None and thinking_msg.id:
+                user = cl.user_session.get("user")
+                stash_response_metadata(
+                    redis_client,
+                    str(thinking_msg.id),
+                    query=message.content,
+                    response=response.answer,
+                    sources=[s.model_dump() for s in response.sources],
+                    intent=str(response.intent.value) if response.intent else None,
+                    model_used=response.model_used,
+                    user_id=str(getattr(user, "identifier", "anonymous")) if user else "anonymous",
+                )
+        except Exception:
+            pass  # nunca romper la UX por el stash
 
         # Primer turno: generar título descriptivo para el thread en el sidebar
         if not history:
