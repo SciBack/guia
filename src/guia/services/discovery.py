@@ -72,6 +72,15 @@ def build_source_buckets(
     counts: Counter[str] = Counter()
     for h in hits:
         st = (h.get("source") or h.get("source_type") or "").strip().lower()
+        if not st:
+            # Inferir por prefijo del ID cuando el campo no viene del index
+            hit_id = str(h.get("id", ""))
+            if hit_id.startswith("koha:"):
+                st = "koha"
+            elif hit_id.startswith("ojs:"):
+                st = "ojs"
+            elif hit_id.startswith("dspace:"):
+                st = "dspace"
         if st:
             counts[st] += 1
 
