@@ -71,6 +71,18 @@ class GUIASettings(BaseSettings):
     # Si está vacío, no se construyen links a Koha desde las respuestas.
     koha_opac_base_url: str = ""
 
+    # Discovery layer (ADR pendiente): URLs base de portales del ecosistema
+    # institucional. Se usan para enlazar buckets "Fuente consultada" y
+    # "Explora también" en las respuestas. Si una URL queda vacía, ese bloque
+    # se omite silenciosamente.
+    ojs_base_url: str = ""  # ej. https://revistas.upeu.edu.pe
+    dspace_base_url: str = ""  # ej. https://repositorio.upeu.edu.pe
+    alicia_base_url: str = "https://alicia.concytec.gob.pe"
+    # Si dspace/alicia están "pendientes" en este despliegue (no indexados aún),
+    # los exponemos como links de exploración externa, no como fuente consultada.
+    dspace_indexed: bool = False
+    alicia_indexed: bool = False
+
     # M3: Search backend (ADR-029)
     # "pgvector" | "opensearch" | "dual"
     # dual: escribe a ambos, lee de OpenSearch con fallback a pgvector

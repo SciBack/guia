@@ -39,6 +39,36 @@ class Source(BaseModel):
     source_type: str | None = None  # publication | thesis | article | koha | None si no se conoce
 
 
+class SourceBucket(BaseModel):
+    """Agrupación de hits por fuente consultada en el ecosistema institucional.
+
+    Permite al usuario ver de qué portal vinieron los resultados y abrir la
+    búsqueda completa en ese portal con un click (discovery layer).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    source_type: str  # koha | ojs | dspace | alicia
+    label: str  # "Biblioteca UPeU (catálogo Koha)"
+    url: str  # link al portal con query pre-cargada
+    count: int  # hits efectivamente devueltos en esta respuesta
+
+
+class ExploreLink(BaseModel):
+    """Sugerencia de explorar el mismo tema en una fuente externa NO indexada en GUIA.
+
+    Se usa para abrir el horizonte del usuario hacia repositorios institucionales
+    o agregadores que no están dentro del index local (p.ej. DSpace bloqueado, ALICIA).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    source_type: str  # dspace | alicia | ...
+    label: str  # "ALICIA — producción científica nacional"
+    url: str  # búsqueda en la fuente externa
+    available: bool = True  # False si la fuente está pendiente de habilitar
+
+
 class ConversationMessage(BaseModel):
     """Turno previo de la conversación, para contexto del LLM."""
 
@@ -72,3 +102,8 @@ class ChatResponse(BaseModel):
     model_used: str
     cached: bool = False
     tokens_used: int = 0
+    # Discovery layer (serendipia controlada): solo se pueblan en intents de búsqueda
+    # con hits. Se omiten en GREETING / OUT_OF_SCOPE / CAMPUS.
+    source_buckets: list[SourceBucket] = Field(default_factory=list)
+    explore_in: list[ExploreLink] = Field(default_factory=list)
+    related_terms: list[str] = Field(default_factory=list)
