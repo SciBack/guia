@@ -83,6 +83,7 @@ services:
       - ./src:/app/src:ro
       - ../sciback-core:/sciback-core:ro
       - fastembed_cache:/tmp/fastembed_cache
+      - torch_cache:/home/guia/.cache/torch
       - ./chainlit.md:/app/chainlit.md:ro
       - ./.chainlit:/app/.chainlit:ro
       - ./public:/app/public:ro
@@ -353,3 +354,4 @@ volumes:
   rabbitmq_data:
   celery_beat_data:
   fastembed_cache:
+  torch_cache:
