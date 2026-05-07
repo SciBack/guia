@@ -143,13 +143,24 @@ def _publication_to_metadata(pub: Publication) -> dict[str, object]:
 
     # External identifiers: ISBN/DOI/handle/koha-id, etc.
     ext_ids = getattr(pub, "external_ids", None) or []
+    canonical_url: str | None = None
     if ext_ids:
         ids_dict: dict[str, list[str]] = {}
         for eid in ext_ids:
             scheme = str(getattr(eid, "scheme", "")).lower()
-            value = str(getattr(eid, "value", ""))
+            value = str(getattr(eid, "value", "")).strip()
             if scheme and value:
                 ids_dict.setdefault(scheme, []).append(value)
+                # Construir URL canónica desde DOI o Handle (prioridad: DOI > Handle)
+                if canonical_url is None:
+                    if scheme == "doi":
+                        canonical_url = (
+                            value if value.startswith("http") else f"https://doi.org/{value}"
+                        )
+                    elif scheme == "handle" and canonical_url is None:
+                        canonical_url = (
+                            value if value.startswith("http") else f"https://hdl.handle.net/{value}"
+                        )
         if ids_dict:
             meta["external_ids"] = ids_dict
 
@@ -185,6 +196,13 @@ def _publication_to_metadata(pub: Publication) -> dict[str, object]:
 
     # Extra: datos de cita específicos del adapter (subtitle, place, edition, …)
     extra = getattr(pub, "extra", None) or {}
+    # URL canónica: prioridad extra["url"] > extra["external_resource_uri"] > DOI/Handle
+    extra_url = (
+        extra.get("url") if isinstance(extra, dict) else None
+    ) or (extra.get("external_resource_uri") if isinstance(extra, dict) else None)
+    final_url = extra_url or canonical_url
+    if final_url:
+        meta["url"] = str(final_url)
     if extra:
         # subtitle va en metadata propio para que el LLM lo use en citas
         for field in ("subtitle", "place", "edition", "series", "pages", "call_number"):
