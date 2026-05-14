@@ -49,4 +49,7 @@ def trigger_harvest(
     if body.source in ("alicia", "all"):
         results["alicia"] = harvester.harvest_alicia(from_date=body.from_date)
 
+    if body.source in ("indico", "all"):
+        results["indico"] = harvester.harvest_indico()
+
     return HarvestResponseSchema(results=results)
