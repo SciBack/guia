@@ -78,6 +78,7 @@ class GUIASettings(BaseSettings):
     ojs_base_url: str = ""  # ej. https://revistas.upeu.edu.pe
     dspace_base_url: str = ""  # ej. https://repositorio.upeu.edu.pe
     alicia_base_url: str = "https://alicia.concytec.gob.pe"
+    indico_base_url: str = ""  # ej. https://indico.upeu.edu.pe
     # Si dspace/alicia están "pendientes" en este despliegue (no indexados aún),
     # los exponemos como links de exploración externa, no como fuente consultada.
     dspace_indexed: bool = False

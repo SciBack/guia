@@ -32,6 +32,7 @@ _SOURCE_LABELS = {
     "ojs": "Revistas UPeU (OJS)",
     "dspace": "Repositorio institucional (DSpace)",
     "alicia": "ALICIA — producción científica nacional",
+    "indico": "Eventos UPeU (Indico)",
 }
 
 
@@ -52,6 +53,11 @@ def _dspace_search_url(base: str, query: str) -> str:
 
 def _alicia_search_url(base: str, query: str) -> str:
     # ALICIA usa search?q=<query>
+    return f"{base.rstrip('/')}/search?q={quote_plus(query)}"
+
+
+def _indico_search_url(base: str, query: str) -> str:
+    # Indico: /search?q=<query>
     return f"{base.rstrip('/')}/search?q={quote_plus(query)}"
 
 
@@ -81,6 +87,8 @@ def build_source_buckets(
                 st = "ojs"
             elif hit_id.startswith("dspace:"):
                 st = "dspace"
+            elif hit_id.startswith("indico:"):
+                st = "indico"
         if st:
             counts[st] += 1
 
@@ -95,6 +103,8 @@ def build_source_buckets(
             url = _dspace_search_url(settings.dspace_base_url, query)
         elif source_type == "alicia" and settings.alicia_base_url:
             url = _alicia_search_url(settings.alicia_base_url, query)
+        elif source_type == "indico" and settings.indico_base_url:
+            url = _indico_search_url(settings.indico_base_url, query)
 
         if not url:
             continue  # sin URL configurada → omitimos para no mentir

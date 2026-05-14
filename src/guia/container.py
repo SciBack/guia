@@ -79,6 +79,7 @@ class GUIAContainer:
         self.ojs_adapter = self._try_build_ojs()
         self.alicia_harvester = self._try_build_alicia()
         self.koha_adapter = self._try_build_koha()
+        self.indico_adapter = self._try_build_indico()
         self.grobid_client = self._try_build_grobid()
 
         # M4: SearchAdapter async (ADR-029) — None si backend=pgvector
@@ -140,6 +141,13 @@ class GUIAContainer:
         try:
             from sciback_adapter_koha import KohaAdapter, KohaSettings
             return KohaAdapter(KohaSettings(_env_file=None))
+        except Exception:
+            return None
+
+    def _try_build_indico(self) -> object:
+        try:
+            from sciback_adapter_indico import IndicoAdapter, IndicoSettings
+            return IndicoAdapter(IndicoSettings())
         except Exception:
             return None
 
@@ -253,6 +261,7 @@ class GUIAContainer:
             ojs=self.ojs_adapter,  # type: ignore[arg-type]
             alicia=self.alicia_harvester,  # type: ignore[arg-type]
             koha=self.koha_adapter,  # type: ignore[arg-type]
+            indico=self.indico_adapter,  # type: ignore[arg-type]
         )
 
         # M4: UserProfileRepository — perfiles persistentes en Postgres (ADR-034)

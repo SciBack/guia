@@ -1,4 +1,4 @@
-"""HarvesterService — cosecha publicaciones de DSpace, OJS y ALICIA."""
+"""HarvesterService — cosecha publicaciones de DSpace, OJS, ALICIA e Indico."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
     from sciback_adapter_alicia import AliciaHarvester
     from sciback_adapter_dspace import DSpaceAdapter
+    from sciback_adapter_indico import IndicoAdapter
     from sciback_adapter_koha import KohaAdapter
     from sciback_adapter_ojs import OjsAdapter
     from sciback_core.entities.publication import Publication
@@ -233,6 +234,67 @@ def _publication_to_metadata(pub: Publication) -> dict[str, object]:
     return meta
 
 
+def _event_to_embedding_text(event: object) -> str:
+    """Texto para embedding de un Event (título + venue + kind)."""
+    parts: list[str] = []
+    title = getattr(event, "title", None)
+    if title:
+        parts.append(_localized_str(title))
+    venue = getattr(event, "venue", None)
+    if venue:
+        parts.append(str(venue))
+    kind = getattr(event, "kind", None)
+    if kind:
+        parts.append(str(kind))
+    text = " ".join(parts)
+    return text[:_MAX_EMBEDDING_CHARS] if len(text) > _MAX_EMBEDDING_CHARS else text
+
+
+def _event_to_metadata(event: object) -> dict[str, object]:
+    """Metadatos lossless de un Event para el document store."""
+    meta: dict[str, object] = {}
+    title = getattr(event, "title", None)
+    if title:
+        meta["title"] = _localized_str(title)
+    kind = getattr(event, "kind", None)
+    if kind:
+        meta["kind"] = str(kind)
+        meta["source_type"] = "indico"
+    venue = getattr(event, "venue", None)
+    if venue:
+        meta["venue"] = str(venue)
+    country_code = getattr(event, "country_code", None)
+    if country_code:
+        meta["country_code"] = str(country_code)
+
+    starts_at = getattr(event, "starts_at", None)
+    if starts_at:
+        hint = getattr(starts_at, "display_hint", None) or ""
+        if hint:
+            date_part = hint.split(" ")[0]
+            year_str = date_part.split("-")[0] if date_part else ""
+            try:
+                meta["year"] = int(year_str)
+                meta["date"] = date_part
+            except (ValueError, IndexError):
+                pass
+
+    # URL del evento: guardada como ExternalIdentifier(scheme=OTHER)
+    ext_ids = getattr(event, "external_ids", None) or []
+    for eid in ext_ids:
+        scheme = str(getattr(eid, "scheme", "")).lower()
+        value = str(getattr(eid, "value", "")).strip()
+        if scheme == "other" and value.startswith("http") and value:
+            meta["url"] = value
+            break
+
+    event_uuid = getattr(event, "id", None)
+    if event_uuid:
+        meta["event_uuid"] = str(event_uuid)
+
+    return meta
+
+
 class HarvesterService:
     """Servicio de cosecha de publicaciones académicas.
 
@@ -242,6 +304,8 @@ class HarvesterService:
         dspace: Adapter DSpace 7.x (opcional).
         ojs: Adapter OJS 3.x (opcional).
         alicia: Harvester ALICIA/CONCYTEC (opcional).
+        koha: Adapter Koha (opcional).
+        indico: Adapter Indico (opcional).
     """
 
     def __init__(
@@ -253,6 +317,7 @@ class HarvesterService:
         ojs: OjsAdapter | None = None,
         alicia: AliciaHarvester | None = None,
         koha: KohaAdapter | None = None,
+        indico: IndicoAdapter | None = None,
     ) -> None:
         self._store = store
         self._embedder = embedder
@@ -260,6 +325,7 @@ class HarvesterService:
         self._ojs = ojs
         self._alicia = alicia
         self._koha = koha
+        self._indico = indico
 
     def harvest_dspace(
         self,
@@ -332,6 +398,101 @@ class HarvesterService:
             batch_size=batch_size,
         )
 
+    def harvest_indico(self, *, batch_size: int = 50) -> dict[str, int]:
+        """Cosecha eventos y contribuciones de Indico vía HTTP Export API.
+
+        El IndicoHarvester produce un stream mixto de ``Event`` y ``Publication``
+        (contribuciones). Los ``Event`` se indexan con helpers propios; las
+        ``Publication`` usan el pipeline estándar de publicaciones.
+        """
+        if self._indico is None:
+            logger.warning("Indico adapter not configured — skipping")
+            return {"total": 0, "ok": 0, "error": 0}
+
+        from sciback_core.entities.event import Event
+        from sciback_core.entities.publication import Publication
+
+        import time
+        total = 0
+        ok = 0
+        error = 0
+        t_start = time.monotonic()
+
+        batch_texts: list[str] = []
+        batch_ids: list[str] = []
+        batch_metas: list[dict[str, object]] = []
+
+        def flush_batch() -> None:
+            nonlocal ok, error
+            if not batch_texts:
+                return
+            try:
+                embedding_resp = self._embedder.embed_passages(batch_texts)
+                for doc_id, vector, meta in zip(
+                    batch_ids, embedding_resp.embeddings, batch_metas, strict=False
+                ):
+                    self._store.upsert(doc_id, vector, metadata=meta)
+                ok += len(batch_ids)
+            except Exception:
+                logger.exception("batch_error", extra={"source": "indico"})
+                error += len(batch_ids)
+            finally:
+                batch_texts.clear()
+                batch_ids.clear()
+                batch_metas.clear()
+
+        for item in self._indico.harvest():
+            total += 1
+            if isinstance(item, Event):
+                embedding_text = _event_to_embedding_text(item)
+                if not embedding_text:
+                    error += 1
+                    continue
+                meta = _event_to_metadata(item)
+                meta["source"] = "indico"
+                doc_id = f"indico:event:{item.id}"
+                batch_texts.append(embedding_text)
+                batch_ids.append(doc_id)
+                batch_metas.append(meta)
+            elif isinstance(item, Publication):
+                embedding_text = _publication_to_embedding_text(item)
+                if not embedding_text:
+                    error += 1
+                    continue
+                doc_id = _stable_pub_id(item, "indico", total)
+                meta = _publication_to_metadata(item)
+                meta["source"] = "indico"
+                batch_texts.append(embedding_text)
+                batch_ids.append(doc_id)
+                batch_metas.append(meta)
+
+                full_text = _publication_to_full_text(item)
+                if len(full_text) > _MAX_EMBEDDING_CHARS * 1.5:
+                    for chunk_id, chunk_text, chunk_meta in iter_chunks_for_publication(
+                        doc_id, full_text, meta
+                    ):
+                        batch_texts.append(chunk_text)
+                        batch_ids.append(chunk_id)
+                        batch_metas.append(chunk_meta)
+            else:
+                error += 1
+                continue
+
+            if len(batch_texts) >= batch_size:
+                flush_batch()
+
+            if total % self._PROGRESS_INTERVAL == 0:
+                elapsed = time.monotonic() - t_start
+                rate = total / elapsed if elapsed > 0 else 0
+                logger.info("harvest_progress", extra={"source": "indico", "processed": total})
+                print(f"[indico] {total} procesados — {ok} OK, {error} err — {rate:.1f} reg/s", flush=True)
+
+        flush_batch()
+        elapsed = time.monotonic() - t_start
+        rate = total / elapsed if elapsed > 0 else 0
+        print(f"[indico] COMPLETO — {total} procesados, {ok} OK, {error} err — {rate:.1f} reg/s — {round(elapsed)}s", flush=True)
+        return {"total": total, "ok": ok, "error": error}
+
     def harvest_all(self, *, from_date: str | None = None) -> dict[str, dict[str, int]]:
         """Cosecha todas las fuentes configuradas."""
         return {
@@ -339,6 +500,7 @@ class HarvesterService:
             "ojs": self.harvest_ojs(),
             "alicia": self.harvest_alicia(from_date=from_date),
             "koha": self.harvest_koha(),
+            "indico": self.harvest_indico(),
         }
 
     _PROGRESS_INTERVAL = 500  # loguear progreso cada N registros
