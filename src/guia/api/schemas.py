@@ -31,8 +31,8 @@ class HarvestRequestSchema(BaseModel):
 
     source: str = Field(
         "all",
-        description="Fuente a cosechar: dspace | ojs | alicia | all",
-        pattern="^(dspace|ojs|alicia|all)$",
+        description="Fuente a cosechar: dspace | ojs | alicia | koha | indico | all",
+        pattern="^(dspace|ojs|alicia|koha|indico|all)$",
     )
     from_date: str | None = Field(
         None,
