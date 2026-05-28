@@ -10,6 +10,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -134,5 +135,7 @@ class GUIASettings(BaseSettings):
 
     # Agente orquestador (ADR-050) — desactivado por defecto hasta Dia 3
     agent_mode_enabled: bool = Field(default=False, validation_alias="GUIA_AGENT_MODE_ENABLED")
-    agent_mode_rollout_pct: int = Field(default=0, ge=0, le=100, validation_alias="GUIA_AGENT_MODE_ROLLOUT_PCT")
+    agent_mode_rollout_pct: int = Field(
+        default=0, ge=0, le=100, validation_alias="GUIA_AGENT_MODE_ROLLOUT_PCT"
+    )
     agent_max_iterations: int = Field(default=3, ge=1, le=6, validation_alias="GUIA_AGENT_MAX_ITER")

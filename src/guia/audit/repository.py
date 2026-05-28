@@ -32,6 +32,18 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_user_created ON audit_log(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_provider     ON audit_log(llm_provider, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_query_hash   ON audit_log(query_hash);
+
+-- Columnas del AgentOrchestrator (ADR-050, Dia 3) — idempotentes con IF NOT EXISTS
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS orchestrator_mode      TEXT;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS agent_iterations       INTEGER;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS agent_actions          TEXT[];
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS agent_fallback
+    BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS agent_forced_synthesis
+    BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE INDEX IF NOT EXISTS idx_audit_orchestrator_mode
+    ON audit_log(orchestrator_mode, created_at DESC);
 """
 
 
@@ -87,8 +99,11 @@ class AuditLogRepository:
                 INSERT INTO audit_log
                   (user_id, session_id, query_hash, intent, privacy_level,
                    sources_used, llm_model, llm_provider, gate_used,
-                   pii_detected, pii_redacted, latency_ms, cached)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   pii_detected, pii_redacted, latency_ms, cached,
+                   orchestrator_mode, agent_iterations, agent_actions,
+                   agent_fallback, agent_forced_synthesis)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s)
                 """,
                 (
                     entry.user_id,
@@ -104,6 +119,11 @@ class AuditLogRepository:
                     entry.pii_redacted,
                     entry.latency_ms,
                     entry.cached,
+                    entry.orchestrator_mode,
+                    entry.agent_iterations,
+                    entry.agent_actions,
+                    entry.agent_fallback,
+                    entry.agent_forced_synthesis,
                 ),
             )
         except Exception as exc:

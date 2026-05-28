@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Literal
 
 
 def hash_query(query: str) -> str:
@@ -63,5 +64,23 @@ class AuditLogEntry:
 
     cached: bool = False
     """True si la respuesta vino del caché semántico (sin invocar LLM)."""
+
+    # ── Campos del AgentOrchestrator (ADR-050, Día 3) ─────────────────────
+    # Default None/False para no romper entradas legacy ni el INSERT existente.
+
+    orchestrator_mode: Literal["legacy", "agent"] | None = None
+    """Modo de orquestación usado: 'agent' | 'legacy' | None (no determinado)."""
+
+    agent_iterations: int | None = None
+    """Número de iteraciones del loop agéntico. None en modo legacy."""
+
+    agent_actions: list[str] | None = None
+    """Secuencia de acciones ejecutadas, ej: ['search', 'refine_search', 'answer']."""
+
+    agent_fallback: bool = False
+    """True si el orquestador entró en fallback (JSON inválido irrecuperable)."""
+
+    agent_forced_synthesis: bool = False
+    """True si la síntesis final fue forzada al agotar max_iter."""
 
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))

@@ -389,3 +389,193 @@ async def test_cascade_router_short_circuits_classifier_on_greeting() -> None:
 
     assert response.intent == Intent.GENERAL  # GREETING → GENERAL legacy
     assert len(classifier.complete_calls) == 0  # CRÍTICO: ahorra latencia LLM
+
+
+# ── Tests Día 3: AgentOrchestrator A/B (ADR-050) ─────────────────────────────
+
+
+def _make_fake_settings(*, agent_mode_enabled: bool, rollout_pct: int = 100) -> object:
+    """Crea un objeto de settings mínimo para tests del agente."""
+    class _FakeSettings:
+        agent_mode_enabled = False
+        agent_mode_rollout_pct = 100
+        ojs_base_url = ""
+        dspace_base_url = ""
+        alicia_base_url = ""
+        indico_base_url = ""
+        dspace_indexed = False
+        alicia_indexed = False
+
+    s = _FakeSettings()
+    s.agent_mode_enabled = agent_mode_enabled
+    s.agent_mode_rollout_pct = rollout_pct
+    return s
+
+
+async def test_chat_with_flag_off_uses_legacy_pipeline() -> None:
+    """Test 10: flag OFF → pipeline legacy, orchestrator.run nunca llamado.
+
+    Aunque se inyecte un orquestador, si agent_mode_enabled=False el ChatService
+    debe usar el pipeline legacy y no invocar orchestrator.run.
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    from guia.services.agent_orchestrator import OrchestratorResult
+
+    synthesis = InMemoryLLMAdapter(canned_response="respuesta legacy", embedding_dim=8)
+    classifier = InMemoryLLMAdapter(canned_response="research", embedding_dim=8)
+
+    fake_orchestrator = MagicMock()
+    fake_orchestrator.run = AsyncMock(return_value=OrchestratorResult(
+        answer="respuesta agente",
+        sources=[],
+        trace=[],
+        iterations=1,
+        fallback=False,
+        forced_synthesis=False,
+        is_clarification=False,
+    ))
+
+    service = ChatService(
+        synthesis_llm=synthesis,
+        store=InMemoryVectorStoreAdapter(dim=8),
+        embedder=FakeEmbedder(),
+        classifier_llm=classifier,
+        settings=_make_fake_settings(agent_mode_enabled=False, rollout_pct=100),  # type: ignore[arg-type]
+        agent_orchestrator=fake_orchestrator,  # type: ignore[arg-type]
+    )
+
+    response = await service.answer(
+        ChatRequest(query="tesis sobre machine learning", user_id="user-123")
+    )
+
+    # El orquestador NO debe haberse llamado
+    fake_orchestrator.run.assert_not_called()
+    # La respuesta viene del pipeline legacy
+    assert response.answer == "respuesta legacy"
+    assert response.model_used != "agent"
+
+
+async def test_chat_with_flag_on_and_rollout_100_uses_agent() -> None:
+    """Test 11: flag ON + rollout=100 → orchestrator.run llamado, audit con métricas.
+
+    Con intent=RESEARCH, user_id no anónimo, sin PII, flag ON y rollout=100,
+    el ChatService debe delegar al orquestador y poblar el audit con los campos
+    del agente.
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    from sciback_core.ports.vector_store import VectorRecord
+    from guia.services.agent_orchestrator import AgentTraceEntry, OrchestratorResult
+
+    _doc = VectorRecord(
+        id="koha:101",
+        vector=[0.1] * 8,
+        metadata={"title": "Libro de prueba", "authors": ["Autor Test"], "year": 2024},
+        score=0.9,
+    )
+    _trace = [AgentTraceEntry(iteration=1, action="search", tokens_in=10, tokens_out=5, latency_ms=100)]
+
+    fake_orchestrator = MagicMock()
+    fake_orchestrator.run = AsyncMock(return_value=OrchestratorResult(
+        answer="Encontré este libro muy relevante.",
+        sources=[_doc],
+        trace=_trace,
+        iterations=2,
+        fallback=False,
+        forced_synthesis=False,
+        is_clarification=False,
+    ))
+
+    # Capturar la entry de audit para verificar los campos del agente
+    audit_entries: list = []
+
+    class _CapturingAuditRepo:
+        async def record(self, entry: object) -> None:
+            audit_entries.append(entry)
+
+    service = ChatService(
+        synthesis_llm=InMemoryLLMAdapter(canned_response="no debe usarse", embedding_dim=8),
+        store=InMemoryVectorStoreAdapter(dim=8),
+        embedder=FakeEmbedder(),
+        classifier_llm=InMemoryLLMAdapter(canned_response="research", embedding_dim=8),
+        settings=_make_fake_settings(agent_mode_enabled=True, rollout_pct=100),  # type: ignore[arg-type]
+        agent_orchestrator=fake_orchestrator,  # type: ignore[arg-type]
+        audit_repo=_CapturingAuditRepo(),  # type: ignore[arg-type]
+    )
+
+    response = await service.answer(
+        ChatRequest(
+            query="libros sobre estadística para tesis",
+            user_id="user-123",
+            intent_hint=Intent.RESEARCH,
+        )
+    )
+
+    # El orquestador fue llamado exactamente una vez
+    fake_orchestrator.run.assert_called_once()
+    # La respuesta es la del orquestador
+    assert response.answer == "Encontré este libro muy relevante."
+    assert response.model_used == "agent"
+    # Las fuentes se convierten correctamente
+    assert len(response.sources) == 1
+    assert response.sources[0].title == "Libro de prueba"
+    # Audit contiene los campos del agente
+    assert len(audit_entries) == 1
+    entry = audit_entries[0]
+    assert entry.orchestrator_mode == "agent"
+    assert entry.agent_iterations == 2
+    assert entry.agent_actions == ["search"]
+    assert entry.agent_fallback is False
+    assert entry.agent_forced_synthesis is False
+
+
+async def test_chat_with_pii_l2l3_forces_legacy_even_if_agent_enabled() -> None:
+    """Test 12: PII L2/L3 (force_local=True) → legacy aunque flag ON y rollout=100.
+
+    GUARDRAIL CRÍTICO: datos personales no van al orquestador (que podría usar
+    un LLM cloud). El pipeline legacy con fast_llm local es el camino correcto.
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    from guia.services.agent_orchestrator import OrchestratorResult
+
+    cloud_synthesis = InMemoryLLMAdapter(canned_response="cloud response", embedding_dim=8)
+    local_fast = InMemoryLLMAdapter(canned_response="local response", embedding_dim=8)
+
+    fake_orchestrator = MagicMock()
+    fake_orchestrator.run = AsyncMock(return_value=OrchestratorResult(
+        answer="agente no deberia ejecutarse",
+        sources=[],
+        trace=[],
+        iterations=1,
+        fallback=False,
+        forced_synthesis=False,
+        is_clarification=False,
+    ))
+
+    service = ChatService(
+        synthesis_llm=cloud_synthesis,
+        fast_llm=local_fast,
+        store=InMemoryVectorStoreAdapter(dim=8),
+        embedder=FakeEmbedder(),
+        classifier_llm=InMemoryLLMAdapter(canned_response="research", embedding_dim=8),
+        settings=_make_fake_settings(agent_mode_enabled=True, rollout_pct=100),  # type: ignore[arg-type]
+        agent_orchestrator=fake_orchestrator,  # type: ignore[arg-type]
+    )
+
+    # DNI en la query → PrivacyRouter detecta PII → force_local=True → legacy
+    response = await service.answer(
+        ChatRequest(
+            query="busco tesis, mi DNI es 70123456",
+            user_id="user-123",
+        )
+    )
+
+    # El orquestador NO debe haberse llamado — PII obliga a legacy
+    fake_orchestrator.run.assert_not_called()
+    # El cloud synthesis tampoco — PII obliga a fast_llm local
+    assert len(cloud_synthesis.complete_calls) == 0
+    # El fast_llm local SÍ se llamó
+    assert len(local_fast.complete_calls) == 1
+    assert response.answer == "local response"

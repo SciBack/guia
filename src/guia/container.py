@@ -20,6 +20,7 @@ from guia.routing import (
     RuleBasedRouter,
 )
 from guia.search.backend import SearchAdapter, get_search_adapter
+from guia.services.agent_orchestrator import AgentOrchestrator
 from guia.services.cache import SemanticCache
 from guia.services.chat import ChatService
 from guia.services.harvester import HarvesterService
@@ -151,6 +152,34 @@ class GUIAContainer:
         except Exception:
             return None
 
+    def _try_build_agent_orchestrator(self) -> AgentOrchestrator | None:
+        """Construye AgentOrchestrator si NVIDIA_NIM_API_KEY está disponible.
+
+        Si la API key no está presente o falla la importación del adapter NIM,
+        retorna None y ChatService permanece en modo legacy puro.
+        El flag agent_mode_enabled sigue siendo False por defecto — el orquestador
+        puede estar instanciado pero inactivo hasta que se active el flag.
+        """
+        import os
+        api_key = os.environ.get("NVIDIA_NIM_API_KEY", "").strip()
+        if not api_key:
+            return None
+        try:
+            from sciback_llm_nim import NIMAdapter, NIMConfig
+            nim_llm = NIMAdapter(NIMConfig(_env_file=None))
+            return AgentOrchestrator(
+                llm=nim_llm,
+                search=self.search_service,
+                max_iter=self.settings.agent_max_iterations,
+                institution=self.settings.__dict__.get("institution", "la universidad"),
+            )
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning(
+                "agent_orchestrator_init_failed", exc_info=True
+            )
+            return None
+
     def _try_build_grobid(self) -> GrobidClient | None:
         """Construye GrobidClient si grobid_url está configurado y el servicio responde.
 
@@ -229,7 +258,17 @@ class GUIAContainer:
             threshold=self.settings.router_toxicity_threshold,
         )
 
-        # M4 + P1.2 + P1.3 + P1.4: ChatService async con cascada, audit y NLP gates
+        self.search_service = SearchService(
+            store=self.store,
+            embedder=self.embedder,
+        )
+
+        # ADR-050: AgentOrchestrator — provider opcional.
+        # Se instancia solo si NVIDIA_NIM_API_KEY está presente en el entorno.
+        # Si no → None → ChatService permanece en legacy puro.
+        self.agent_orchestrator: AgentOrchestrator | None = self._try_build_agent_orchestrator()
+
+        # M4 + P1.2 + P1.3 + P1.4 + ADR-050: ChatService async con cascada, audit, NLP gates y agente
         self.chat_service = ChatService(
             synthesis_llm=self.synthesis_llm,
             store=self.store,
@@ -247,11 +286,7 @@ class GUIAContainer:
             language_gate=self.language_gate,
             toxicity_gate=self.toxicity_gate,
             settings=self.settings,
-        )
-
-        self.search_service = SearchService(
-            store=self.store,
-            embedder=self.embedder,
+            agent_orchestrator=self.agent_orchestrator,
         )
 
         self.harvester_service = HarvesterService(

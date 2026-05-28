@@ -12,11 +12,12 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 from sciback_core.ports.llm import LLMMessage, LLMPort
+from sciback_privacy import PrivacyRouter, PrivacyVerdict, redact, restore
 
 from guia.audit import AuditLogEntry, AuditLogRepository, hash_query
 from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
-from sciback_privacy import PrivacyRouter, PrivacyVerdict, redact, restore
 from guia.routing import CascadeRouter, IntentCategory, RouteDecision, Tier, category_to_intent
+from guia.services._bucket import assign_bucket
 from guia.services.intent import IntentClassifier
 from guia.services.router import ModelRouter, QueryTier
 
@@ -26,9 +27,10 @@ if TYPE_CHECKING:
     from sciback_embeddings_e5 import E5EmbeddingAdapter
 
     from guia.config import GUIASettings
-    from guia.search.backend import SearchAdapter
-    from guia.services.cache import SemanticCache
     from guia.routing.gates import LanguageGate, ToxicityGate
+    from guia.search.backend import SearchAdapter
+    from guia.services.agent_orchestrator import AgentOrchestrator
+    from guia.services.cache import SemanticCache
     from guia.services.query_rewriter import QueryRewriter
 
 _DEFAULT_SOURCES_INVENTORY = """\
@@ -282,6 +284,7 @@ class ChatService:
         language_gate: "LanguageGate | None" = None,
         toxicity_gate: "ToxicityGate | None" = None,
         settings: "GUIASettings | None" = None,
+        agent_orchestrator: "AgentOrchestrator | None" = None,
     ) -> None:
         self._synthesis_llm = synthesis_llm
         self._fast_llm = fast_llm
@@ -304,6 +307,8 @@ class ChatService:
         self._language_gate = language_gate
         self._toxicity_gate = toxicity_gate
         self._settings = settings  # opcional: habilita discovery layer si está
+        # ADR-050: AgentOrchestrator — None = legacy siempre (flag ignorado)
+        self._agent_orchestrator = agent_orchestrator
 
     async def answer(self, request: ChatRequest) -> ChatResponse:
         """Genera una respuesta para el ChatRequest del usuario (async).
@@ -548,7 +553,91 @@ class ChatService:
             retrieved_docs_text=context_text,
         )
 
-        # 6. Elegir LLM de síntesis según privacidad + complejidad.
+        # 6. Punto de bifurcación: AgentOrchestrator vs pipeline legacy (ADR-050).
+        # Condiciones para activar el agente:
+        # - flag agent_mode_enabled=True en settings
+        # - _agent_orchestrator inyectado (no None)
+        # - intent es RESEARCH o GENERAL (no triviales)
+        # - sin PII que obligue a Mac Mini local (force_local bloquea cloud agent)
+        # - user_id cae en el bucket agent según rollout_pct
+        _rollout_pct = getattr(self._settings, "agent_mode_rollout_pct", 0)
+        _agent_enabled = getattr(self._settings, "agent_mode_enabled", False)
+
+        # Construir historial como LLMMessage para el orquestador
+        history_as_llm_messages = [
+            LLMMessage(role=turn.role, content=turn.content)
+            for turn in request.history
+        ]
+
+        use_agent = (
+            _agent_enabled
+            and self._agent_orchestrator is not None
+            and intent in (Intent.RESEARCH, Intent.GENERAL)
+            and not privacy_verdict.force_local
+            and assign_bucket(request.user_id, _rollout_pct) == "agent"
+        )
+
+        # ── Rama agente ───────────────────────────────────────────────────
+        if use_agent:
+            orch_result = await self._agent_orchestrator.run(  # type: ignore[union-attr]
+                query=query,
+                history=history_as_llm_messages,
+                privacy_verdict=privacy_verdict,
+            )
+            answer_text = orch_result.answer
+            # Convertir VectorRecord del orquestador a Source del dominio
+            def _rec_to_source(rec: "VectorRecord") -> Source:
+                meta: dict[str, Any] = rec.metadata or {}
+                raw_authors = meta.get("authors")
+                authors_list: list[str] = (
+                    [str(a) for a in raw_authors]
+                    if isinstance(raw_authors, list)
+                    else []
+                )
+                raw_year = meta.get("year")
+                year_int: int | None = int(str(raw_year)) if raw_year else None
+                raw_url = meta.get("url")
+                url_str: str | None = str(raw_url) if raw_url else None
+                return Source(
+                    id=rec.id,
+                    title=str(meta.get("title") or rec.id),
+                    url=url_str,
+                    authors=authors_list,
+                    year=year_int,
+                    score=rec.score,
+                    source_type=str(meta.get("source") or "") or None,
+                )
+            sources = [_rec_to_source(rec) for rec in orch_result.sources]
+            agent_actions_list = [t.action for t in orch_result.trace]
+            response = ChatResponse(
+                answer=answer_text,
+                intent=intent,
+                sources=sources,
+                model_used="agent",
+                cached=False,
+                tokens_used=0,
+                source_buckets=source_buckets,
+                explore_in=explore_in,
+                related_terms=related_terms,
+            )
+            if self._cache is not None:
+                await asyncio.to_thread(
+                    self._cache.set, query, response, query_vector=query_vector
+                )
+            await self._emit_audit(
+                request, response, route_decision, sources_used_names, t_start,
+                privacy_verdict, pii_redacted=False,
+                orchestrator_mode="agent",
+                agent_iterations=orch_result.iterations,
+                agent_actions=agent_actions_list,
+                agent_fallback=orch_result.fallback,
+                agent_forced_synthesis=orch_result.forced_synthesis,
+            )
+            return response
+
+        # ── Rama legacy (pipeline original — NO TOCAR) ────────────────────
+
+        # 6b. Elegir LLM de síntesis según privacidad + complejidad.
         # Prioridad 1: privacy_verdict.force_local fuerza fast_llm si es local.
         # Prioridad 2: tier de RouteDecision (CascadeRouter).
         # Prioridad 3: ModelRouter legacy.
@@ -575,7 +664,7 @@ class ChatService:
         else:
             synthesis_llm = self._synthesis_llm
 
-        # 6b. PII redaction (P2.3) — segunda capa de defensa.
+        # 6c. PII redaction (P2.3) — segunda capa de defensa.
         # Si vamos a cloud (no force_local) Y hay PII en query/contexto,
         # reemplazar por placeholders antes de enviar; re-hidratar después.
         # Si vamos a local (force_local=True), no redactamos: el LLM local
@@ -646,6 +735,7 @@ class ChatService:
         await self._emit_audit(
             request, response, route_decision, sources_used_names, t_start,
             privacy_verdict, pii_redacted=bool(pii_replacements),
+            orchestrator_mode="legacy",
         )
         return response
 
@@ -658,6 +748,11 @@ class ChatService:
         t_start: float,
         privacy_verdict: PrivacyVerdict | None = None,
         pii_redacted: bool = False,
+        orchestrator_mode: str | None = None,
+        agent_iterations: int | None = None,
+        agent_actions: list[str] | None = None,
+        agent_fallback: bool = False,
+        agent_forced_synthesis: bool = False,
     ) -> None:
         """Emite entrada de audit_log fire-and-forget.
 
@@ -690,6 +785,13 @@ class ChatService:
             route_decision.gate_used.value if route_decision is not None else "unknown"
         )
 
+        from typing import Literal as _Literal
+        _orch_mode: _Literal["legacy", "agent"] | None = None
+        if orchestrator_mode == "agent":
+            _orch_mode = "agent"
+        elif orchestrator_mode == "legacy":
+            _orch_mode = "legacy"
+
         entry = AuditLogEntry(
             user_id=request.user_id or "anonymous",
             session_id=request.session_id,
@@ -704,6 +806,11 @@ class ChatService:
             pii_redacted=pii_redacted,
             latency_ms=latency_ms,
             cached=response.cached,
+            orchestrator_mode=_orch_mode,
+            agent_iterations=agent_iterations,
+            agent_actions=agent_actions,
+            agent_fallback=agent_fallback,
+            agent_forced_synthesis=agent_forced_synthesis,
         )
         try:
             await self._audit_repo.record(entry)
