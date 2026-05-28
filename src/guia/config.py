@@ -134,6 +134,20 @@ class GUIASettings(BaseSettings):
     router_toxicity_threshold: float = 0.85
 
     # Agente orquestador (ADR-050)
-    agent_mode_enabled: bool = Field(default=False, alias="GUIA_AGENT_MODE_ENABLED")
-    agent_mode_rollout_pct: int = Field(default=0, ge=0, le=100, alias="GUIA_AGENT_MODE_ROLLOUT_PCT")
-    agent_max_iterations: int = Field(default=3, ge=1, le=6, alias="GUIA_AGENT_MAX_ITER")
+    # Nombres de campo = env var en uppercase (pydantic-settings mapping directo)
+    guia_agent_mode_enabled: bool = Field(default=False)        # lee GUIA_AGENT_MODE_ENABLED
+    guia_agent_mode_rollout_pct: int = Field(default=0, ge=0, le=100)  # lee GUIA_AGENT_MODE_ROLLOUT_PCT
+    guia_agent_max_iter: int = Field(default=3, ge=1, le=6)    # lee GUIA_AGENT_MAX_ITER
+
+    # Aliases de acceso corto para compatibilidad con código existente
+    @property
+    def agent_mode_enabled(self) -> bool:
+        return self.guia_agent_mode_enabled
+
+    @property
+    def agent_mode_rollout_pct(self) -> int:
+        return self.guia_agent_mode_rollout_pct
+
+    @property
+    def agent_max_iterations(self) -> int:
+        return self.guia_agent_max_iter
