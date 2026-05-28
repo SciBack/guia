@@ -1479,6 +1479,7 @@ dependencies = [
     { name = "sciback-identity-keycloak" },
     { name = "sciback-identity-midpoint" },
     { name = "sciback-llm-claude" },
+    { name = "sciback-llm-nim" },
     { name = "sciback-llm-ollama" },
     { name = "sciback-privacy" },
     { name = "sciback-search-opensearch" },
@@ -1533,6 +1534,7 @@ requires-dist = [
     { name = "sciback-identity-keycloak", editable = "../sciback-core/packages/sciback-identity-keycloak" },
     { name = "sciback-identity-midpoint", editable = "../sciback-core/packages/sciback-identity-midpoint" },
     { name = "sciback-llm-claude", editable = "../sciback-core/packages/sciback-llm-claude" },
+    { name = "sciback-llm-nim", editable = "../sciback-core/packages/sciback-llm-nim" },
     { name = "sciback-llm-ollama", editable = "../sciback-core/packages/sciback-llm-ollama" },
     { name = "sciback-privacy", editable = "../sciback-core/packages/sciback-privacy" },
     { name = "sciback-search-opensearch", editable = "../sciback-core/packages/sciback-search-opensearch" },
@@ -4676,6 +4678,25 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=0.40" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "pydantic-settings", specifier = ">=2.5" },
+    { name = "sciback-core", editable = "../sciback-core/packages/sciback-core" },
+]
+
+[[package]]
+name = "sciback-llm-nim"
+version = "0.1.0"
+source = { editable = "../sciback-core/packages/sciback-llm-nim" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "sciback-core" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pydantic-settings", specifier = ">=2.5" },
     { name = "sciback-core", editable = "../sciback-core/packages/sciback-core" },
