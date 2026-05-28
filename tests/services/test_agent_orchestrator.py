@@ -1,9 +1,17 @@
-"""Tests del AgentOrchestrator — Dia 1 (ADR-050).
+"""Tests del AgentOrchestrator — Dia 1 y Dia 2 (ADR-050).
 
 Cubre los 3 casos obligatorios del Dia 1:
 1. search -> answer exitoso
 2. clarify retorna inmediatamente
-3. citation con doc_id inventado es descartada
+3. citation con doc_id inventado es descartada (ajustado Dia 2: fallback a tool_results)
+
+Cubre los 5 casos nuevos del Dia 2 + 1 bonus:
+4. JSON invalido en primer intento -> retry recupera con JSON valido
+5. JSON invalido dos veces seguidas -> fallback_direct_answer
+6. JSON valido pero action desconocida -> ValidationError -> fallback
+7. LLM emite SearchAction infinitamente -> max_iter agotado -> force_synthesis
+8. SearchService lanza RuntimeError -> observation de error -> orquestador no crashea
+9. (bonus) privacy_verdict con force_local=True -> system prompt menciona privacidad
 """
 
 from __future__ import annotations
@@ -189,7 +197,13 @@ async def test_clarify_returns_immediately():
 
 @pytest.mark.asyncio
 async def test_invented_citation_id_is_stripped():
-    """LLM cita doc_id='fake:999' que NO existe en resultados: sources debe estar vacio."""
+    """LLM cita doc_id='fake:999' que NO existe en resultados.
+
+    Comportamiento esperado (Dia 2):
+    - 'fake:999' no debe aparecer en sources (citation inventada descartada).
+    - Como no hay ninguna citation valida pero si hay tool_results, el fallback
+      de _filter_valid_sources devuelve todos los tool_results reales.
+    """
     real_doc_id = "koha:200"
     record = _make_record(real_doc_id, "Libro real existente")
 
@@ -209,7 +223,248 @@ async def test_invented_citation_id_is_stripped():
 
     assert result.fallback is False
     assert result.is_clarification is False
-    # La cita fake:999 no existe en tool_results_by_id -> debe ser descartada
-    assert result.sources == [], (
-        f"Se esperaba sources vacio, se obtuvo: {[s.id for s in result.sources]}"
+    # La cita fake:999 no existe -> descartada. No hay citas validas pero
+    # hay tool_results -> _filter_valid_sources devuelve todos los reales.
+    source_ids = [s.id for s in result.sources]
+    assert "fake:999" not in source_ids, f"ID inventado no debe estar en sources: {source_ids}"
+    assert real_doc_id in source_ids, (
+        f"El doc real {real_doc_id} debe estar en sources (fallback a tool_results): {source_ids}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tests Dia 2 — robustez y comportamientos nuevos
+# ---------------------------------------------------------------------------
+
+
+def _invalid_json_response() -> str:
+    """Respuesta que no es JSON valido (texto plano)."""
+    return "Lo siento, no entendi el formato solicitado. Puedo ayudarte buscando libros."
+
+
+def _unknown_action_json() -> str:
+    """JSON valido estructuralmente pero con action no reconocida por el schema."""
+    return json.dumps({
+        "action_payload": {
+            "action": "delete_db",
+            "target": "all_records",
+        }
+    })
+
+
+@pytest.mark.asyncio
+async def test_invalid_json_one_retry_recovers():
+    """LLM responde texto plano primero, luego AnswerAction valida.
+
+    El retry interno de _ask_llm debe recuperar en el segundo intento.
+    El resultado no debe ser fallback y el loop ve exactamente 1 iteracion exitosa.
+    """
+    doc_id = "koha:301"
+    record = _make_record(doc_id, "Libro recuperado tras retry")
+
+    llm = QueuedLLMAdapter([
+        _invalid_json_response(),   # primer intento en _ask_llm -> parse error
+        _answer_json("Respuesta recuperada tras retry.", doc_ids=[doc_id]),  # segundo intento
+    ])
+    search = FakeSearchService([record])
+
+    orchestrator = AgentOrchestrator(llm, search, max_iter=3)
+    result = await orchestrator.run(
+        query="libros de administracion",
+        history=[],
+        privacy_verdict=None,
+    )
+
+    assert result.fallback is False, "El retry interno no debe disparar fallback"
+    assert result.answer != "", "Debe haber respuesta"
+    # El loop solo ve 1 iteracion: la que termino con AnswerAction
+    assert result.iterations == 1
+    # El LLM fue llamado 2 veces: intento 1 (fallo) + intento 2 (exito)
+    assert len(llm.complete_calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_invalid_json_two_failures_falls_back():
+    """LLM responde texto plano en ambos intentos de _ask_llm.
+
+    Debe activar _fallback_direct_answer: result.fallback=True, answer no vacio.
+    """
+    fallback_answer = "Esta es la respuesta directa del fallback."
+
+    llm = QueuedLLMAdapter([
+        _invalid_json_response(),  # intento 1 de _ask_llm -> parse error
+        _invalid_json_response(),  # intento 2 de _ask_llm -> parse error -> re-raise
+        fallback_answer,           # _fallback_direct_answer hace una llamada libre
+    ])
+    search = FakeSearchService([])
+
+    orchestrator = AgentOrchestrator(llm, search, max_iter=3)
+    result = await orchestrator.run(
+        query="que libros hay sobre pedagogia",
+        history=[],
+        privacy_verdict=None,
+    )
+
+    assert result.fallback is True, "Dos fallos seguidos deben activar fallback"
+    assert result.answer != "", "fallback_direct_answer debe proveer respuesta no vacia"
+    # No debe crashear
+    assert result.is_clarification is False
+
+
+@pytest.mark.asyncio
+async def test_unknown_action_discriminator():
+    """LLM emite JSON valido pero con action desconocida ('delete_db').
+
+    ValidationError en discriminated union -> retry interno -> si segundo
+    intento tambien falla, activa fallback.
+    """
+    fallback_answer = "Respuesta directa tras action invalida."
+
+    llm = QueuedLLMAdapter([
+        _unknown_action_json(),    # intento 1 -> ValidationError (discriminator)
+        _unknown_action_json(),    # intento 2 -> ValidationError -> re-raise
+        fallback_answer,           # _fallback_direct_answer
+    ])
+    search = FakeSearchService([])
+
+    orchestrator = AgentOrchestrator(llm, search, max_iter=3)
+    result = await orchestrator.run(
+        query="borrar todo",
+        history=[],
+        privacy_verdict=None,
+    )
+
+    assert result.fallback is True, "Action invalida debe terminar en fallback"
+    assert result.answer != ""
+
+
+@pytest.mark.asyncio
+async def test_max_iter_cap_forces_synthesis():
+    """LLM emite SearchAction en cada iteracion hasta agotar max_iter.
+
+    Verifica:
+    - El orquestador llama al LLM exactamente max_iter veces en el loop
+      mas 1 llamada adicional de _force_final_synthesis.
+    - El resultado viene de force_synthesis (fallback=False, iterations=max_iter).
+    - Las sources contienen los doc_ids acumulados.
+    """
+    max_iter = 2
+    doc_id_1 = "koha:401"
+    doc_id_2 = "ojs:402"
+    records = [
+        _make_record(doc_id_1, "Libro 1"),
+        _make_record(doc_id_2, "Articulo 2"),
+    ]
+    synthesis_text = "Sintesis final: encontre 2 documentos relevantes."
+
+    # max_iter SearchActions + 1 llamada de synthesis
+    llm = QueuedLLMAdapter([
+        _search_json("query iter 1"),
+        _search_json("query iter 2"),
+        synthesis_text,  # _force_final_synthesis llama al LLM en texto libre
+    ])
+    search = FakeSearchService(records)
+
+    orchestrator = AgentOrchestrator(llm, search, max_iter=max_iter)
+    result = await orchestrator.run(
+        query="busca documentos sobre educacion",
+        history=[],
+        privacy_verdict=None,
+    )
+
+    # max_iter iteraciones de search + 1 llamada de force_synthesis
+    assert len(llm.complete_calls) == max_iter + 1, (
+        f"Esperado {max_iter + 1} llamadas al LLM, got {len(llm.complete_calls)}"
+    )
+    assert result.iterations == max_iter
+    assert result.fallback is False, "_force_final_synthesis no es fallback"
+    # Las sources deben contener los docs acumulados
+    source_ids = {s.id for s in result.sources}
+    assert doc_id_1 in source_ids
+    assert doc_id_2 in source_ids
+
+
+@pytest.mark.asyncio
+async def test_search_service_failure_recovers():
+    """SearchService lanza RuntimeError en cada llamada.
+
+    El orquestador debe:
+    - Capturar el error y reinyectar observation con mensaje de error.
+    - NO crashear (no propagar la excepcion al caller).
+    - Permitir que el LLM emita AnswerAction a continuacion.
+    """
+    class FailingSearchService:
+        """SearchService que siempre lanza RuntimeError."""
+
+        def search(self, query: str, *, limit: int = 5, **kwargs):
+            raise RuntimeError("OpenSearch connection refused")
+
+    llm = QueuedLLMAdapter([
+        _search_json("educacion"),
+        # El LLM decide responder a pesar de no tener resultados
+        _answer_json("No encontre resultados disponibles en este momento.", doc_ids=[]),
+    ])
+
+    orchestrator = AgentOrchestrator(llm, FailingSearchService(), max_iter=3)  # type: ignore[arg-type]
+    result = await orchestrator.run(
+        query="libros sobre educacion primaria",
+        history=[],
+        privacy_verdict=None,
+    )
+
+    # No debe crashear
+    assert result is not None
+    assert result.fallback is False
+    assert result.answer != ""
+    # El mensaje de observation al LLM debe mencionar el error
+    # (verificar en el historial de llamadas al LLM)
+    # La segunda llamada debe contener "error" en algun message
+    second_call_messages = llm.complete_calls[1]
+    all_content = " ".join(m.content.lower() for m in second_call_messages)
+    assert "error" in all_content, (
+        "La observation reinyectada debe indicar el error al LLM"
+    )
+
+
+@pytest.mark.asyncio
+async def test_force_local_privacy_verdict_in_system_prompt():
+    """privacy_verdict con force_local=True genera system prompt con aviso de privacidad.
+
+    Verifica que el contenido del system prompt enviado al LLM contiene
+    texto relacionado con privacidad/datos personales.
+    """
+    from sciback_privacy import DataLevel, PrivacyVerdict
+
+    doc_id = "koha:601"
+    record = _make_record(doc_id, "Expediente academico")
+
+    llm = QueuedLLMAdapter([
+        _answer_json("Respuesta con aviso de privacidad.", doc_ids=[doc_id]),
+    ])
+    search = FakeSearchService([record])
+
+    verdict = PrivacyVerdict(
+        final_level=DataLevel.L2_PERSONAL,
+        force_local=True,
+        pii_in_query=True,
+        reason="DNI detectado en query",
+    )
+
+    orchestrator = AgentOrchestrator(llm, search, max_iter=3)
+    result = await orchestrator.run(
+        query="busca tesis del estudiante con DNI 12345678",
+        history=[],
+        privacy_verdict=verdict,
+    )
+
+    assert result is not None
+    # El system prompt (primer message de la primera llamada) debe mencionar privacidad
+    first_call_messages = llm.complete_calls[0]
+    system_msg = next((m for m in first_call_messages if m.role == "system"), None)
+    assert system_msg is not None, "Debe existir un message de sistema"
+    content_lower = system_msg.content.lower()
+    has_privacy_mention = "privacidad" in content_lower or "personal" in content_lower
+    assert has_privacy_mention, (
+        f"System prompt debe mencionar privacidad con force_local=True:"
+        f" {system_msg.content[:200]}"
     )

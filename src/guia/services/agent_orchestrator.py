@@ -5,6 +5,8 @@ El LLM elige en cada iteracion que herramienta usar (search, refine, answer, cla
 No depende de LangChain, LangGraph ni ningun framework de agentes.
 
 Dia 1: modelos Pydantic, loop principal, 3 tests obligatorios.
+Dia 2: robustez (_force_final_synthesis async con LLM real, fix system prompt
+        anti-clarify agresivo, validacion de citations, max_tokens fallback 1024).
 Integracion con ChatService: Dia 3.
 """
 
@@ -269,6 +271,11 @@ _EJ2_T1 = (
     " Por ejemplo: enfermeria, administracion,"
     ' teologia, ingenieria..."}}'
 )
+# Ejemplo 4: query con termino concreto (sigla/nombre propio) → buscar, NO clarify
+_EJ4_T1 = (
+    '{"action_payload": {"action": "search",'
+    ' "query": "CONCYTEC rol financiamiento investigacion", "max_results": 5}}'
+)
 _EJ3_T1 = (
     '{"action_payload": {"action": "search",'
     ' "query": "inteligencia artificial salud", "max_results": 5}}'
@@ -315,8 +322,11 @@ def _build_system_prompt(
         )
 
     regla3 = (
-        '3. Emite "clarify" SOLO si la query es de 1-2 palabras sin contexto'
-        " y cualquier busqueda seria inutil."
+        '3. Emite "clarify" SOLO si la query son 1-2 palabras genericas sin contexto'
+        ' (ej: "tesis", "informacion", "ayuda") y cualquier busqueda seria inutil.'
+        " Si la query menciona un termino concreto (nombre propio, sigla, concepto"
+        " tecnico especifico como 'CONCYTEC', 'diabetes', 'Maslach', 'burnout', etc.)"
+        " BUSCA primero con search — NO emitas clarify."
     )
 
     prompt = "\n".join([
@@ -353,8 +363,8 @@ def _build_system_prompt(
         "1. Responde SOLO con JSON valido. Sin texto antes ni despues del JSON.",
         '2. Emite "answer" cuando tengas suficiente informacion para responder.',
         regla3,
-        '4. No uses doc_ids inventados en "answer"'
-        " — solo los IDs que aparecen en las observaciones.",
+        '4. NUNCA inventes un doc_id en "answer". Las observaciones del sistema contienen',
+        "   los doc_id reales. Usa SOLO esos IDs en citations.",
         '5. Si una busqueda no dio resultados, intenta "refine_search" antes de rendirte.',
         f"6. No hagas mas de {max_iter} iteraciones en total.",
         "",
@@ -373,7 +383,7 @@ def _build_system_prompt(
         "Turno 2 del agente:",
         _EJ1_T2,
         "",
-        "## Ejemplo 2: query vaga, pedir aclaracion",
+        "## Ejemplo 2: query vaga (1 palabra sin contexto), pedir aclaracion",
         "",
         'Usuario: "libros"',
         "",
@@ -398,6 +408,13 @@ def _build_system_prompt(
         "",
         "Turno 3 del agente:",
         _EJ3_T3,
+        "",
+        "## Ejemplo 4: query con termino concreto (sigla/nombre propio) → buscar, NO clarify",
+        "",
+        'Usuario: "?Que es CONCYTEC y cual es su rol?"',
+        "",
+        "Turno 1 del agente (CORRECTO — buscar, no pedir clarificacion):",
+        _EJ4_T1,
     ])
     return prompt.strip()
 
@@ -527,7 +544,7 @@ class AgentOrchestrator:
             messages = [*list(messages), observation_msg, feedback_msg]
 
         # Se agotaron las iteraciones sin AnswerAction
-        return self._force_final_synthesis(messages, tool_results_by_id, trace)
+        return await self._force_final_synthesis(messages, tool_results_by_id, trace)
 
     # ------------------------------------------------------------------
     # Internos
@@ -649,11 +666,25 @@ class AgentOrchestrator:
                 raw={},
             )
 
-        records = await asyncio.to_thread(
-            self._search.search,
-            query_text,
-            limit=limit,
-        )
+        try:
+            records = await asyncio.to_thread(
+                self._search.search,
+                query_text,
+                limit=limit,
+            )
+        except Exception as exc:
+            logger.warning(
+                "agent_search_service_error action=%s query=%r err=%s",
+                action.action,
+                query_text[:80],
+                exc,
+            )
+            return ToolResult(
+                action_type=action.action,
+                observation=f"Error al ejecutar la busqueda: {exc}. Intenta con otra query.",
+                source_ids=[],
+                raw={"query": query_text, "error": str(exc)},
+            )
 
         new_ids: list[str] = []
         for rec in records:
@@ -685,56 +716,91 @@ class AgentOrchestrator:
             raw={"query": query_text, "count": len(records)},
         )
 
-    def _force_final_synthesis(
+    async def _force_final_synthesis(
         self,
         messages: list[LLMMessage],
         tool_results_by_id: dict[str, VectorRecord],
         trace: list[AgentTraceEntry],
     ) -> OrchestratorResult:
-        """Genera una respuesta de sintesis cuando se agotaron las iteraciones.
+        """Genera sintesis final llamando al LLM cuando se agotaron iteraciones.
 
-        Construye la respuesta usando las observaciones ya acumuladas en los
-        mensajes (no hace una nueva llamada al LLM para no exceder el budget).
+        Reinyecta una instruccion de cierre para que el LLM responda directamente
+        en texto, sin emitir mas acciones JSON. Usa las observaciones acumuladas
+        en messages como contexto.
 
         Args:
-            messages: Conversacion completa, incluye observaciones de tools.
+            messages: Conversacion completa (incluye observaciones de tools).
             tool_results_by_id: Documentos acumulados hasta este momento.
             trace: Traza de iteraciones hasta el momento.
 
         Returns:
-            OrchestratorResult marcado como fallback=True.
+            OrchestratorResult con fallback=False, iterations=max_iter.
         """
-        # Recopilar observaciones de herramientas del historial
-        observations = [
-            m.content
-            for m in messages
-            if m.role == "user" and m.content.startswith("Observacion del sistema:")
+        synthesis_instruction = (
+            "Has alcanzado el limite de iteraciones. "
+            "Basandote UNICAMENTE en las observaciones de busqueda ya mostradas arriba, "
+            "sintetiza ahora la respuesta final para el usuario en texto natural. "
+            "NO emitas mas acciones JSON. Responde directamente en espanol. "
+            "Cita solo los doc_id que aparecieron en las observaciones del sistema."
+        )
+        synthesis_messages = [
+            *list(messages),
+            LLMMessage(role="user", content=synthesis_instruction),
         ]
 
-        if tool_results_by_id:
-            titles = []
-            for rec in list(tool_results_by_id.values())[:5]:
-                meta = rec.metadata or {}
-                title = str(meta.get("title", rec.id))
-                titles.append(f"- {title}")
-            docs_text = "\n".join(titles)
-            answer = (
-                f"Encontre los siguientes documentos que pueden ser utiles:\n{docs_text}"
+        sources = list(tool_results_by_id.values())
+
+        try:
+            t0 = time.perf_counter()
+            response = await asyncio.to_thread(
+                self._llm.complete,
+                synthesis_messages,
+                max_tokens=1024,
+                temperature=0.1,
             )
-        elif observations:
-            answer = "No encontre documentos especificamente relevantes. " + observations[-1]
-        else:
-            answer = (
-                "No pude completar la busqueda. "
-                "Intenta reformular la consulta con otros terminos."
+            latency_ms = int((time.perf_counter() - t0) * 1000)
+            answer = response.content.strip()
+            synthesis_trace = [
+                *list(trace),
+                AgentTraceEntry(
+                    iteration=len(trace) + 1,
+                    action="force_synthesis",
+                    tokens_in=response.input_tokens,
+                    tokens_out=response.output_tokens,
+                    latency_ms=latency_ms,
+                ),
+            ]
+            logger.info(
+                "agent_force_synthesis iterations=%d sources=%d",
+                self._max_iter,
+                len(sources),
             )
+        except Exception:
+            logger.exception("agent_force_synthesis_failed")
+            # Degradacion a texto estatico si el LLM falla
+            if sources:
+                titles = []
+                for rec in sources[:5]:
+                    meta = rec.metadata or {}
+                    title = str(meta.get("title", rec.id))
+                    titles.append(f"- {title}")
+                answer = (
+                    "Encontre los siguientes documentos que pueden ser utiles:\n"
+                    + "\n".join(titles)
+                )
+            else:
+                answer = (
+                    "No pude completar la busqueda. "
+                    "Intenta reformular la consulta con otros terminos."
+                )
+            synthesis_trace = list(trace)
 
         return OrchestratorResult(
             answer=answer,
-            sources=list(tool_results_by_id.values()),
-            trace=trace,
-            iterations=len(trace),
-            fallback=True,
+            sources=sources,
+            trace=synthesis_trace,
+            iterations=self._max_iter,
+            fallback=False,
             is_clarification=False,
         )
 
@@ -773,7 +839,7 @@ class AgentOrchestrator:
             response = await asyncio.to_thread(
                 self._llm.complete,
                 fallback_messages,
-                max_tokens=512,
+                max_tokens=1024,
                 temperature=0.1,
             )
             latency_ms = int((time.perf_counter() - t0) * 1000)
@@ -816,18 +882,44 @@ def _filter_valid_sources(
 ) -> list[VectorRecord]:
     """Filtra citas validas: solo doc_ids que existen en los resultados reales.
 
+    Si el LLM no cito ningun ID valido pero existen tool_results, devuelve
+    todos los tool_results como sources (mejor algo que nada).
+    Registra en log si hubo citations descartadas.
+
     Args:
         citations: Lista de citas del LLM (puede contener IDs inventados).
         tool_results_by_id: Documentos realmente recuperados por las tools.
 
     Returns:
         Lista de VectorRecord correspondientes a citas validas, sin duplicados,
-        en orden de primera aparicion en citations.
+        en orden de primera aparicion en citations. Si no hay ninguna valida
+        pero hay tool_results disponibles, retorna todos los tool_results.
     """
     seen: set[str] = set()
     out: list[VectorRecord] = []
+    discarded: list[str] = []
+
     for citation in citations:
         if citation.doc_id in tool_results_by_id and citation.doc_id not in seen:
             seen.add(citation.doc_id)
             out.append(tool_results_by_id[citation.doc_id])
+        elif citation.doc_id not in tool_results_by_id:
+            discarded.append(citation.doc_id)
+
+    if discarded:
+        logger.warning(
+            "agent_citations_discarded invented_ids=%r valid=%d total_cited=%d",
+            discarded,
+            len(out),
+            len(citations),
+        )
+
+    # Si el LLM no cito ningun ID real pero hay resultados, incluir todos
+    if not out and tool_results_by_id:
+        logger.info(
+            "agent_citations_empty_fallback using all tool_results count=%d",
+            len(tool_results_by_id),
+        )
+        return list(tool_results_by_id.values())
+
     return out
