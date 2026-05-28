@@ -1,0 +1,502 @@
+[
+  {
+    "category": "greeting",
+    "query": "Hola",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 1.16,
+      "content": "¡Hola! ¿En qué puedo ayudarte hoy?",
+      "tokens_in": 75,
+      "tokens_out": 12
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 0.67,
+      "content": "Hola.",
+      "tokens_in": 76,
+      "tokens_out": 4
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 6.5,
+      "content": null,
+      "tokens_in": 75,
+      "tokens_out": 1200
+    }
+  },
+  {
+    "category": "greeting",
+    "query": "Buenos días, ¿cómo estás?",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 1.47,
+      "content": "Buenos días. Estoy bien, gracias por preguntar. ¿En qué puedo ayudarte hoy?",
+      "tokens_in": 85,
+      "tokens_out": 24
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 0.42,
+      "content": "Buenos días. Estoy aquí para ayudarte.",
+      "tokens_in": 83,
+      "tokens_out": 12
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 2.04,
+      "content": "¡Buenos días! Estoy bien, gracias.",
+      "tokens_in": 82,
+      "tokens_out": 79
+    }
+  },
+  {
+    "category": "greeting",
+    "query": "Gracias por la ayuda",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 1.27,
+      "content": "De nada, ¡estoy aquí para ayudar! Si tienes más preguntas, házmelo saber.",
+      "tokens_in": 79,
+      "tokens_out": 23
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 0.27,
+      "content": "¡Con gusto! 😊",
+      "tokens_in": 78,
+      "tokens_out": 8
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 0.77,
+      "content": "De nada.",
+      "tokens_in": 77,
+      "tokens_out": 71
+    }
+  },
+  {
+    "category": "greeting",
+    "query": "Hasta luego",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 0.87,
+      "content": "Hasta luego. ¡Regresa si necesitas ayuda!",
+      "tokens_in": 77,
+      "tokens_out": 13
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 0.25,
+      "content": "Hasta luego.",
+      "tokens_in": 76,
+      "tokens_out": 4
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 0.78,
+      "content": "¡Hasta luego!",
+      "tokens_in": 75,
+      "tokens_out": 82
+    }
+  },
+  {
+    "category": "greeting",
+    "query": "ok",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 0.75,
+      "content": "¡Ok! ¿En qué puedo ayudarte hoy?",
+      "tokens_in": 75,
+      "tokens_out": 12
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 0.44,
+      "content": "¡Hola! ¿En qué puedo ayudarte hoy?",
+      "tokens_in": 75,
+      "tokens_out": 13
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 0.61,
+      "content": "Entendido.",
+      "tokens_in": 74,
+      "tokens_out": 55
+    }
+  },
+  {
+    "category": "meta",
+    "query": "¿Qué eres y qué puedes hacer?",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 2.62,
+      "content": "Soy un asistente virtual creado para ayudar con información académica y responder preguntas relacionadas con la Universidad Peruana Unión (UPeU). Puedo proporcionar datos sobre cursos, profesores, horarios, entre otros.",
+      "tokens_in": 83,
+      "tokens_out": 53
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 1.35,
+      "content": "Soy **GUIA**, asistente académico de la **Universidad Peruana Unión (UPeU)**. Puedo ayudarte con:\n- Información sobre carreras, cursos y requisitos académicos.\n- Normativas, fechas importantes y trámites universitarios.\n- Orientación sobre investigación, recursos bibliográficos o uso de plataformas (como Moodle).\n- Respuestas basadas en fuentes oficiales de la UPeU (citadas cuando sea necesario).\n\nPregunta de forma específica para una respuesta precisa.",
+      "tokens_in": 82,
+      "tokens_out": 107
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 1.26,
+      "content": "Soy GUIA, asistente académico de la Universidad Peruana Unión (UPeU), creado para apoyar en investigación, redacción, citación y tutorías de manera concisa y precisa.",
+      "tokens_in": 81,
+      "tokens_out": 204
+    }
+  },
+  {
+    "category": "meta",
+    "query": "¿De qué fuentes obtienes información?",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 2.34,
+      "content": "Obtengo información de diversas fuentes confiables, incluyendo bases de datos académicas, estudios científicos, sitios web educativos y recursos oficiales relevantes para respaldar mis respuestas.",
+      "tokens_in": 83,
+      "tokens_out": 47
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 1.96,
+      "content": "Mi conocimiento se basa en datos actualizados hasta octubre de 2023, provenientes de fuentes académicas reconocidas como:\n\n1. **Bases de datos científicas**: Scopus, Web of Science, SciELO, Redalyc.\n2. **Repositorios institucionales**: Repositorio UPeU, repositorios de universidades peruanas y latinoamericanas.\n3. **Normativas y estándares**: APA (7ª ed.), ISO 690, manuales de estilo de la UPeU.\n4. **Libros y artículos académicos**: Publicaciones indexadas en Dialnet, ResearchGate, Google Scholar.\n5. **Fuentes oficiales**: MINEDU, CONCYTEC, UNESCO.\n\nSi necesitas referencias específicas, indícalo para buscarte fuentes actualizadas.",
+      "tokens_in": 82,
+      "tokens_out": 175
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 1.36,
+      "content": "Obtengo información de bases de datos académicas (Scielo, PubMed), repositorios institucionales y fuentes oficiales de la Universidad Peruana Unión. [1]  \n\n[1] Universidad Peruana Unión, *Guía de recursos académicos*, 2024.",
+      "tokens_in": 81,
+      "tokens_out": 227
+    }
+  },
+  {
+    "category": "meta",
+    "query": "¿Puedo descargar los textos completos de las tesis?",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 3.41,
+      "content": "Dependiendo de la política de acceso abierto de la Universidad Peruana Unión, posiblemente puedas acceder a los textos completos de algunas tesis a través del repositorio institucional. Te recomendaría consultar su sitio web o biblioteca para obtener información más precisa sobre sus políticas y recursos disponibles.",
+      "tokens_in": 89,
+      "tokens_out": 70
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 1.14,
+      "content": "Sí, puedes descargar los textos completos de las tesis de la UPeU a través del **Repositorio Institucional UPeU** ([repositorio.upeu.edu.pe](https://repositorio.upeu.edu.pe)). Algunas tesis pueden tener acceso restringido por políticas de autoría o derechos de publicación. Revisa los términos de uso o contacta a la biblioteca para más detalles.",
+      "tokens_in": 88,
+      "tokens_out": 87
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 1.33,
+      "content": "Sí, puedes descargar los textos completos de las tesis desde el repositorio institucional de la Universidad Peruana Unión (UPeU). Accede a la plataforma [Biblioteca Digital UPeU](https://biblioteca.upeu.edu.pe/tesis) e ingresa con tu usuario institucional; allí encontrarás la colección completa de trabajos de grado disponibles en formato PDF. [Fuente: Biblioteca Digital UPeU, sección “Tesis y Trabajos de Grado”, 2024].",
+      "tokens_in": 87,
+      "tokens_out": 235
+    }
+  },
+  {
+    "category": "meta",
+    "query": "¿Cómo cito una tesis encontrada aquí en APA?",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 4.58,
+      "content": "Para citar una tesis en APA, sigue este formato:\n\nAutor del trabajo. (Año). Título de la tesis [Tesis]. Universidad.\n\nPor ejemplo:\nGarcía, J. L. (2015). Evolución de las tecnologías educativas en América Latina [Tesis]. Universidad Peruana Unión.\n\nRecuerda verificar los detalles específicos con tu guía académica o manual APA más reciente.",
+      "tokens_in": 87,
+      "tokens_out": 95
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 2.85,
+      "content": "Para citar una tesis en formato APA (7ª edición), sigue este modelo:\n\n**Formato básico:**\nApellido(s), A. (Año). *Título de la tesis* [Tesis de grado, Institución] [Repositorio o URL].\n\n**Ejemplo:**\nPérez, J. (2020). *Efectos de la contaminación en la salud infantil* [Tesis de licenciatura, Universidad Peruana Unión]. Repositorio UPeU. https://repositorio.upeu.edu.pe/handle/20.500.12840/...\n\n**Notas clave:**\n1. Si es de maestría o doctorado, reemplaza \"Tesis de licenciatura\" por \"Tesis de maestría\" o \"Tesis doctoral\".\n2. Si está en línea, incluye la URL. Si es física, omítela.\n3. Si la tesis no está publicada, añade \"[Manuscrito no publicado]\" después del título.\n\n**Fuente:** American Psychological Association. (2020). *Publication manual of the American Psychological Association* (7th ed.). https://doi.org/10.1037/0000165-000",
+      "tokens_in": 87,
+      "tokens_out": 268
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 2.53,
+      "content": "**Formato APA 7ª edición para una tesis electrónica**\n\n> **Autor, A. A.** (Año). *Título de la tesis* (Trabajo de grado). Universidad, Ciudad, País. URL\n\n**Ejemplo**\n\n> Pérez, L. M. (2022). *Impacto de la inteligencia artificial en la educación superior peruana* (Tesis de maestría). Universidad Peruana Unión, Lima, Perú. https://repositorio.upeu.edu.pe/handle/123456789/4567\n\n**Puntos clave**\n\n- **Autor**: Apellido, inicial(es).  \n- **Año**: Entre paréntesis, seguido de punto.  \n- **Título**: En cursiva, solo la primera palabra y nombres propios en mayúscula; no se usan comillas.  \n- **Tipo de trabajo**: Entre paréntesis, “Tesis de maestría” o “Tesis doctoral”.  \n- **Institución**: Nombre completo de la universidad, ciudad y país.  \n- **URL**: Si la tesis está en línea, incluye el enlace directo (sin “https://” repetido).  \n\nSi la tesis no está disponible en línea, omite la URL y termina con la ciudad y país.  \n\n*Fuente: Manual de Publicación de la American Psychological Association (7ª ed., 2020).*",
+      "tokens_in": 86,
+      "tokens_out": 444
+    }
+  },
+  {
+    "category": "meta",
+    "query": "¿Manejas información personal de los usuarios?",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 1.69,
+      "content": "No manejo ni tengo acceso a información personal de usuarios. Mi función es proporcionar asistencia académica y general para la Universidad Peruana Unión.",
+      "tokens_in": 84,
+      "tokens_out": 33
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 0.41,
+      "content": "No manejo ni almaceno información personal de los usuarios.",
+      "tokens_in": 84,
+      "tokens_out": 13
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 0.89,
+      "content": "No, no manejo ni almaceno datos personales de los usuarios; opero sin acceder a información identificable.",
+      "tokens_in": 83,
+      "tokens_out": 99
+    }
+  },
+  {
+    "category": "academic",
+    "query": "¿Qué tesis hay sobre diabetes mellitus tipo 2 en adultos mayores en Perú?",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 6.02,
+      "content": "Actualmente no dispongo de datos específicos sobre tesis exactamente tituladas sobre diabetes mellitus tipo 2 en adultos mayores en Perú. Sin embargo, se han realizado investigaciones y publicaciones en este tema. Para obtener información precisa, te recomendaría consultar la base de datos de tesis y dissertaciones de la Universidad Peruana Unión o otras instituciones académicas peruanas.\n\nFuente: Base de Datos Científica y Tecnológica del Ministerio de Ciencia, Tecnología e Innovación del Perú (BIBLIOMINCYT).",
+      "tokens_in": 93,
+      "tokens_out": 122
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 3.04,
+      "content": "Existen varias tesis y estudios sobre diabetes mellitus tipo 2 en adultos mayores en Perú. Aquí algunos ejemplos relevantes:\n\n1. **\"Prevalencia y factores asociados a diabetes mellitus tipo 2 en adultos mayores de Lima Metropolitana\"** (2018) - Universidad Peruana Cayetano Heredia (UPCH).\n   - *Fuente*: Repositorio UPCH.\n\n2. **\"Calidad de vida en adultos mayores con diabetes mellitus tipo 2 en un hospital público de Lima\"** (2020) - Universidad Nacional Mayor de San Marcos (UNMSM).\n   - *Fuente*: Repositorio UNMSM.\n\n3. **\"Adherencia al tratamiento y control metabólico en adultos mayores con diabetes tipo 2 en un centro de salud de Arequipa\"** (2019) - Universidad Católica de Santa María (UCSM).\n   - *Fuente*: Repositorio UCSM.\n\n**Recomendación**:\nConsulta los repositorios institucionales de universidades peruanas (UPCH, UNMSM, UPeU, etc.) o bases de datos como **ALICIA** (UPeU) o **Renati** para acceder a los documentos completos.\n\n*¿Necesitas ayuda para buscar en un repositorio específico?*",
+      "tokens_in": 90,
+      "tokens_out": 269
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 3.58,
+      "content": "En Perú, varios trabajos de grado (tesis) han abordado la diabetes mellitus tipo 2 en adultos mayores. A continuación, algunos ejemplos representativos (todos disponibles en repositorios institucionales o bases de datos académicas peruanas):\n\n| Tema / Título | Autor(es) | Universidad | Año | Enlace / referencia |\n|---|---|---|---|---|\n| **Prevalencia y factores de riesgo de diabetes tipo 2 en adultos mayores de 60 años en Lima Metropolitana** | María del Carmen Huamán‑Quispe | Universidad Nacional Mayor de San Marcos | 2021 | https://repositorio.unmsm.edu.pe/handle/123456789/12345 |\n| **Calidad de vida y adherencia al tratamiento en pacientes con diabetes mellitus tipo 2 mayores de 65 años en Arequipa** | José Luis Rojas‑Mendoza | Universidad Católica Santa María del Valle | 2020 | https://repositorio.ucsv.edu.pe/handle/123456789/9876 |\n| **Impacto de la educación terapéutica en el control glucémico de adultos mayores con diabetes tipo 2 en el Hospital Regional de Iquitos** | Ana María Salazar‑López | Universidad Nacional de la Amazonía Peruana | 2019 | https://repositorio.unap.edu.pe/handle/123456789/5432 |\n| **Perfil nutricional y su relación con el control de la diabetes tipo 2 en adultos mayores de 70 años en Trujillo** | Carlos Alberto Vásquez‑Ramos | Universidad de Trujillo | 2022 | https://repositorio.utr.edu.pe/handle/123456789/1122 |\n| **Desigualdades sociales en el acceso a servicios de salud para adultos mayores con diabetes tipo 2 en el Perú rural** | Lucía Fernanda Gamarra‑Quispe | Universidad Peruana Unión | 2023 | https://repositorio.up.edu.pe/handle/123456789/7788 |\n\n### Comentario breve\n- **Enfoques predominantes**: prevalencia y factores de riesgo epidemiológicos; calidad de vida y adherencia al tratamiento; educación terapéutica; nutrición; y determinantes sociales del acceso a la salud.\n- **Metodologías comunes**: estudios transversales con encuestas, análisis de bases de datos de hospitales, y revisiones bibliográficas con meta‑análisis de cohortes peruanas.\n- **Disponibilidad**: la mayoría de estas tesis están accesibles en los repositorios institucionales citados, donde pueden descargarse en formato PDF.\n\nSi necesitas profundizar en alguna de ellas o buscar tesis más recientes (2024‑2025), indícame el enfoque de interés y te orientaré a la fuente específica.",
+      "tokens_in": 89,
+      "tokens_out": 785
+    }
+  },
+  {
+    "category": "academic",
+    "query": "Resumen de los métodos de investigación cuantitativa más usados en tesis de enfermería peruanas",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 7.13,
+      "content": "En las tesis de enfermería peruanas, se utilizan principalmente los siguientes métodos cuantitativos:\n\n1. Encuestas: Para recoger datos objetivos sobre percepciones y comportamientos.\n2. Estudios descriptivos: Para describir características de una población o fenómeno.\n3. Análisis de series temporales: Para evaluar tendencias en la salud pública.\n4. Diseño experimental: Para probar la efectividad de intervenciones.\n5. Encuestas longitudinales: Para estudiar cambios a lo largo del tiempo.\n\nEstos métodos permiten obtener datos numéricos que se analizan estadísticamente para respaldar conclusiones científicas.",
+      "tokens_in": 99,
+      "tokens_out": 147
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 2.9,
+      "content": "Los métodos de investigación cuantitativa más usados en tesis de enfermería peruanas incluyen:\n\n1. **Estudio descriptivo**: Para caracterizar variables (ej. prevalencia de infecciones nosocomiales).\n2. **Estudio correlacional**: Analiza relaciones entre variables (ej. estrés laboral y burnout).\n3. **Estudio cuasi-experimental**: Evalúa intervenciones sin aleatorización (ej. impacto de un taller educativo en adherencia a tratamientos).\n4. **Estudio experimental**: Ensayos clínicos controlados (ej. eficacia de un protocolo de enfermería).\n5. **Estudio transversal**: Recolección de datos en un momento único (ej. hábitos de higiene en estudiantes).\n6. **Estudio longitudinal**: Seguimiento en el tiempo (ej. evolución de pacientes crónicos).\n\n**Fuente**: Adaptado de metodologías comunes en tesis de enfermería de universidades peruanas como UPeU, UNMSM y UCSM (2018-2023).\n\n*Nota*: La elección depende del objetivo de investigación y contexto clínico/educativo.",
+      "tokens_in": 94,
+      "tokens_out": 238
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 4.79,
+      "content": "**Métodos cuantitativos más frecuentes en tesis de enfermería peruanas**\n\n| Método | Características principales | Uso típico en enfermería | Ejemplo de aplicación en Perú |\n|--------|-----------------------------|--------------------------|------------------------------|\n| **Estudio transversal** | Recoge datos en un momento único; permite describir prevalencias y asociaciones. | Determinar la frecuencia de síntomas, conocimientos o prácticas de enfermería. | Encuesta sobre conocimientos de manejo del dolor postoperatorio en pacientes de hospitales de Lima (Gómez et al., 2021). |\n| **Estudio correlacional (co‑relacional)** | Examina relaciones entre variables sin manipularlas; usa coeficientes de correlación (Pearson, Spearman). | Identificar factores asociados a la adherencia a tratamientos crónicos. | Correlación entre nivel de educación del cuidador y adherencia a la medicación antihipertensiva en adultos mayores (Ramos & López, 2022). |\n| **Diseño cuasi‑experimental (ensayo clínico no aleatorizado)** | Asigna intervenciones a grupos pre‑existentes; incluye pre‑ y post‑mediciones. | Evaluar efectos de programas de educación de pacientes o protocolos de enfermería. | Efecto de una campaña de educación sobre la vacunación en madres de niños menores de 5 años (Mendoza et al., 2020). |\n| **Ensayo controlado aleatorizado (RCT)** | Asignación aleatoria a grupos intervención y control; máxima validez interna. | Probar eficacia de nuevas técnicas de cuidado o intervenciones farmacológicas. | Comparación de dos protocolos de manejo del dolor en unidades de cuidados intensivos (Paredes et al., 2023). |\n| **Estudio longitudinal (cohortal)** | Seguimiento de una cohorte a lo largo del tiempo para observar desenlaces. | Analizar progresión de enfermedades crónicas y resultados de seguimiento de intervenciones. | Seguimiento de pacientes con úlceras por presión tras implementación de un programa de reposicionamiento (Silva et al., 2021). |\n| **Meta‑análisis / revisión sistemática** | Cuantifica resultados de varios estudios previos; aumenta poder estadístico. | Sintetizar evidencia sobre intervenciones de enfermería en contextos peruanos. | Meta‑análisis de la efectividad de la educación de pacientes en el control de la diabetes (Quispe et al., 2022). |\n\n### Comentario breve\nEn la literatura peruana de los últimos 5 años, **el diseño transversal** y el **estudio correlacional** son los más citados por su practicidad y bajo costo, mientras que los **ensayos controlados aleatorizados** y los **diseños cuasi‑experimentales** se emplean cuando se busca probar la efectividad de una intervención específica. La elección del método depende del objetivo de la investigación, los recursos disponibles y la necesidad de controlar variables confusas.\n\n**Referencias destacadas**  \n- Gómez, A., et al. (2021). *Conocimientos y prácticas de manejo del dolor postoperatorio en pacientes de hospitales limeños*. Revista Peruana de Enfermería, 12(3), 45‑52.  \n- Ramos, J., & López, M. (2022). *Adherencia a la medicación antihipertensiva y nivel educativo de cuidadores en adultos mayores*. Ciencia y Salud, 9(2), 78‑85.  \n- Mendoza, P., et al. (2020). *Impacto de una campaña educativa en la vacunación infantil*. Revista de Salud Pública, 15(1), 101‑108.  \n- Paredes, L., et al. (2023). *Comparación de protocolos de manejo del dolor en UCI*. Revista Peruana de Cuidados Críticos, 7(1), 33‑40.  \n- Silva, R., et al. (2021). *Seguimiento de pacientes con úlceras por presión tras programa de reposicionamiento*. Enfermería Hospitalaria, 11(4), 67‑73.  \n- Quispe, D., et al. (2022). *Meta‑análisis de la educación de pacientes en control de la diabetes*. Revista de Investigación en Salud, 4(2), 112‑120.",
+      "tokens_in": 93,
+      "tokens_out": 1148
+    }
+  },
+  {
+    "category": "academic",
+    "query": "Diferencia entre estudio transversal y longitudinal en epidemiología",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 2.64,
+      "content": "En epidemiología, el estudio transversal mide la prevalencia de una enfermedad o estado de salud en un momento dado, mientras que el estudio longitudinal sigue a un grupo de individuos a lo largo del tiempo para observar cambios o patrones.",
+      "tokens_in": 87,
+      "tokens_out": 53
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 1.6,
+      "content": "**Estudio transversal**:\n- Mide **variables en un solo momento temporal** (ej.: prevalencia de una enfermedad en una población en 2023).\n- **No permite inferir causalidad**, solo asociaciones.\n- Ejemplo: Encuesta de salud en Lima en 2023.\n\n**Estudio longitudinal**:\n- Observa a los mismos sujetos **en múltiples momentos** (ej.: seguimiento de 5 años).\n- Permite analizar **cambios, tendencias o causalidad** (ej.: evolución de una enfermedad).\n- Ejemplo: Cohorte de fumadores seguidos por 10 años.\n\n*Fuente: Gordis, L. (2014). Epidemiología (5ª ed.). Elsevier.*",
+      "tokens_in": 86,
+      "tokens_out": 161
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 2.48,
+      "content": "**Estudio transversal**  \n- Se realiza **una sola vez** y captura la exposición y el resultado al mismo tiempo.  \n- Permite estimar la **prevalencia** de una enfermedad o condición.  \n- No sigue a los participantes en el tiempo; por eso no se pueden inferir relaciones causa‑efecto ni la temporalidad.  \n\n**Estudio longitudinal**  \n- Los mismos individuos son **seguidos durante uno o varios periodos** de tiempo.  \n- Permite observar la **incidencia** de nuevos casos y la **asociación temporal** entre exposición y enfermedad.  \n- Al seguir a la cohorte a lo largo del tiempo se puede estimar riesgos relativos y atribuir causas.  \n\n**Diferencia clave**  \n| Aspecto | Transversal | Longitudinal |\n|---|---|---|\n| Momento de la recolección de datos | Única | Múltiples puntos |\n| Medida de frecuencia | Prevalencia | Incidencia |\n| Inferencia causal | Limitada (no temporal) | Más robusta (relación temporal) |\n\n**Referencias**  \n- Porta, M. (2014). *Diccionario de epidemiología* (8ª ed.). OMS.  \n- Rothman, K. J., Lash, T. L., & Rothman, S. (2008). *Epidemiología avanzada*. Editorial Médica Panamericana.  \n\n*(Respuesta concisa y citada conforme a la normativa académica de la UPeU.)*",
+      "tokens_in": 85,
+      "tokens_out": 439
+    }
+  },
+  {
+    "category": "academic",
+    "query": "¿Qué autores peruanos han publicado sobre educación adventista en la última década?",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 4.42,
+      "content": "No puedo proporcionar información específica sobre autores peruanos que hayan publicado sobre educación adventista en la última década sin realizar una búsqueda exhaustiva, lo cual no está dentro de mis capacidades actuales. Te recomendaría consultar bases de datos académicas como Scielo, Redalyc o Google Scholar, utilizando términos como \"educación adventista\" y \"Perú\", para obtener resultados más precisos.",
+      "tokens_in": 93,
+      "tokens_out": 91
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 4.21,
+      "content": "En la última década, los siguientes autores peruanos han publicado sobre educación adventista en el Perú:\n\n1. **Dr. Samuel Cárdenas** – Investigaciones sobre la historia y filosofía de la educación adventista en el Perú (ej. *La educación adventista en el Perú: Un legado de fe y servicio*).\n2. **Mg. Ruth Lazo** – Estudios sobre currículo y pedagogía en instituciones adventistas (ej. *Calidad educativa en colegios adventistas del Perú*).\n3. **Dr. Elmer Huerta** – Publicaciones sobre salud y educación adventista (ej. *Educación adventista y promoción de estilos de vida saludables*).\n\n**Fuentes**:\n- Repositorio Institucional de la UPeU (2014–2024).\n- Revistas académicas como *Horizonte Académico* (UPeU) y *Adventist Education*.\n\nPara detalles específicos, consulta sus obras en el repositorio de la UPeU o en bases de datos como *SciELO Perú*.",
+      "tokens_in": 91,
+      "tokens_out": 222
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 3.33,
+      "content": "En la última década, varios autores peruanos han abordado la educación adventista desde perspectivas académicas y de investigación. Entre los más destacados se encuentran:\n\n| Autor | Aporte principal | Fuente |\n|-------|------------------|--------|\n| **Javier Cáceres** | Análisis de los retos y oportunidades de la educación adventista en el Perú contemporáneo. | Cáceres, J. (2020). *Educación Adventista en el Perú: retos y perspectivas*. **Revista Adventista de Educación**, 12(1), 45‑62. |\n| **Ana Mendoza** | Estudio sobre la formación integral del estudiante adventista en contextos urbanos peruanos. | Mendoza, A. (2019). *La educación adventista en la formación integral del estudiante peruano*. Tesis de maestría, Universidad Nacional de Educación, Lima. |\n| **Rosa Quispe** | Investigación sobre los desafíos de la implementación de programas adventistas en zonas rurales del Perú. | Quispe, R. (2021). *Desafíos actuales de la educación adventista en contextos rurales peruanos*. **Revista Peruana de Educación**, 8(2), 101‑115. |\n| **Patricia Ríos** | Revisión bibliográfica de la evolución histórica de la educación adventista en el país. | Ríos, P. (2018). *Historia y tendencias de la educación adventista en el Perú*. **Boletín de Estudios Adventistas**, 5(3), 23‑38. |\n\nEstos autores representan una muestra de la producción académica peruana reciente sobre el tema y pueden servir como punto de partida para profundizar en la literatura especializada.",
+      "tokens_in": 90,
+      "tokens_out": 732
+    }
+  },
+  {
+    "category": "academic",
+    "query": "Explica el modelo de creencias en salud aplicado a prevención de COVID-19",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 10.17,
+      "content": "El modelo de creencias en salud se refiere a cómo las creencias y percepciones individuales influyen en la toma de decisiones sobre la salud. En el contexto de la prevención del COVID-19, esto implica que las personas basan sus comportamientos (como usar mascarillas o mantener distanciamiento social) en su creencia sobre la gravedad y transmisibilidad del virus. Según este modelo, para promover medidas preventivas eficaces, es crucial entender y abordar las creencias específicas de cada individuo sobre el virus y sus consecuencias.\n\nFuente: Ajzen, I., & Fishbein, M. (2005). The theoretical rationale for the theory of reasoned action and the theory of planned behavior. En A. E. Tesser, J. F. Gordon, & C. S. Klosko (Eds.), Advances in experimental social psychology (Vol. 37, pp. 1–46). Academic Press.",
+      "tokens_in": 93,
+      "tokens_out": 213
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 5.32,
+      "content": "El **Modelo de Creencias en Salud (MCS)** es un marco teórico que explica la adopción de conductas preventivas, como las medidas contra el COVID-19, basado en seis constructos clave:\n\n1. **Susceptibilidad percibida**: Creer que uno puede contagiarse (ej.: \"Tengo riesgo de enfermarme\").\n2. **Severidad percibida**: Evaluar la gravedad de la enfermedad (ej.: \"El COVID-19 puede ser mortal\").\n3. **Beneficios percibidos**: Valorar la eficacia de las acciones (ej.: \"Usar mascarilla reduce el riesgo\").\n4. **Barreras percibidas**: Identificar obstáculos (ej.: \"El distanciamiento social afecta mi trabajo\").\n5. **Señales para la acción**: Estímulos que activan la conducta (ej.: campañas de salud pública o casos cercanos).\n6. **Autoeficacia**: Confianza en la capacidad de realizar la conducta (ej.: \"Puedo lavarme las manos frecuentemente\").\n\n**Aplicación al COVID-19**:\n- Las campañas que enfatizan **riesgos graves** (severidad) y **beneficios claros** (ej.: vacunas) aumentan la adherencia a medidas preventivas.\n- Las **barreras** (ej.: acceso a mascarillas) deben minimizarse para mejorar la respuesta.\n\n**Fuente**: Rosenstock (1974), adaptado por estudios como *Glanz et al.* (2008) en salud pública.\n\n*¿Necesitas ejemplos concretos de intervención?*",
+      "tokens_in": 93,
+      "tokens_out": 351
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 4.5,
+      "content": "**Modelo de Creencias en Salud (MCS) y la prevención de COVID‑19**\n\nEl MCS (Rosenstock, 1974) explica la adopción de conductas de salud a través de cuatro componentes clave:\n\n| Componente | Pregunta guía | Aplicación al COVID‑19 |\n|------------|--------------|------------------------|\n| **Percepción de susceptibilidad** | ¿Cuánto cree la persona que está en riesgo de infectarse? | En 2020‑2022, estudios mostraron que la percepción de riesgo varía según edad, ocupación y exposición (WHO, 2021). |\n| **Percepción de gravedad** | ¿Qué tan grave considera la enfermedad si se infecta? | La percepción de gravedad se incrementó al reconocer comorbilidades y la posibilidad de hospitalización (CDC, 2022). |\n| **Percepción de beneficio** | ¿Cree que la acción preventiva reducirá su riesgo? | El uso de mascarilla, lavado de manos y vacunación se justificó por la evidencia de reducción de transmisión (Lancet, 2021). |\n| **Percepción de barreras** | ¿Qué obstáculos ve para realizar la conducta? | Acceso limitado a pruebas, costo de vacunas y desinformación fueron barreras frecuentes (UNICEF, 2022). |\n| **Cues to action (activadores)** | ¿Qué le motiva a actuar? | Campañas de comunicación, recomendaciones de autoridades y requisitos institucionales actuaron como activadores (JHU, 2020). |\n| **Auto‑eficacia** | ¿Confía en su capacidad para ejecutar la conducta? | Personas con alta auto‑eficacia mostraron mayor adherencia a medidas como el distanciamiento físico (Bandura, 1997). |\n\n### Ejemplo práctico\n- **Situación:** Un estudiante universitario percibe que tiene baja susceptibilidad, pero al recibir un **cue** (mensaje de la universidad sobre un brote en el campus) reconoce la **gravedad** y el **beneficio** de usar mascarilla y vacunarse.  \n- **Resultado:** La combinación de mayor percepción de riesgo, reconocimiento del beneficio y disponibilidad de recursos (vacuna en el campus) supera las barreras percibidas, llevándolo a adoptar la conducta preventiva.\n\n### Referencias clave\n- Rosenstock, I. M. (1974). *Historical origins of the health belief model*. Health Education Monographs, 2(4), 328‑335.  \n- World Health Organization (WHO). (2021). *COVID‑19 and the health belief model: risk perception and preventive behaviours*.  \n- Centers for Disease Control and Prevention (CDC). (2022). *COVID‑19 Prevention Behaviors*.  \n- Lancet (2021). *Effectiveness of mask-wearing and hand hygiene in reducing SARS‑CoV‑2 transmission*.  \n- UNICEF (2022). *Barriers to COVID‑19 vaccine uptake in low‑resource settings*.  \n- Johns Hopkins University (JHU). (2020). *Communicating COVID‑19: The role of cues to action*.  \n\nEn síntesis, el MCS ayuda a entender por qué algunas personas adoptan medidas de prevención frente al COVID‑19 y a diseñar intervenciones que aumenten la percepción de riesgo, el beneficio y la auto‑eficacia, mientras reducen las barreras percibidas.",
+      "tokens_in": 92,
+      "tokens_out": 875
+    }
+  },
+  {
+    "category": "academic",
+    "query": "Compara el enfoque cualitativo vs mixto para tesis en ciencias de la salud",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 3.56,
+      "content": "El enfoque cualitativo se centra en explorar y entender las experiencias subjetivas, mientras que el enfoque mixto combina métodos cuantitativos y cualitativos. El cualitativo es útil para profundizar en temas complejos, mientras que el mixto ofrece una validación cruzada de los resultados.",
+      "tokens_in": 95,
+      "tokens_out": 73
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 5.77,
+      "content": "**Enfoque cualitativo en ciencias de la salud:**\n- **Objetivo:** Explorar significados, experiencias o percepciones (ej.: calidad de vida, adherencia a tratamientos).\n- **Diseños comunes:** Fenomenológico, etnográfico, grounded theory.\n- **Ventajas:** Profundidad, flexibilidad, contexto social.\n- **Limitaciones:** Subjetividad, dificultad para generalizar.\n- **Ejemplo:** *\"Experiencias de pacientes con diabetes tipo 2 en Lima\"* (Ugarte & Bernabé, 2020).\n\n**Enfoque mixto (cuali-cuantitativo):**\n- **Objetivo:** Combinar datos numéricos (cuantitativos) y narrativos (cualitativos) para mayor validez.\n- **Diseños:** Secuencial (exploratorio/confirmatorio), concurrente.\n- **Ventajas:** Triangulación, complementariedad, robustez.\n- **Limitaciones:** Complejidad, tiempo y recursos.\n- **Ejemplo:** *\"Efectividad de una intervención nutricional + percepciones de los participantes\"* (Creswell & Plano Clark, 2018).\n\n**Diferencias clave:**\n| **Aspecto**       | **Cualitativo**          | **Mixto**                |\n|-------------------|--------------------------|---------------------------|\n| **Datos**         | Narrativos               | Numéricos + narrativos    |\n| **Generalización**| Limitada                 | Ampliada                 |\n| **Análisis**      | Temático/interpretativo  | Estadístico + temático    |\n\n**Fuentes:**\n- Ugarte, I., & Bernabé, J. (2020). *Metodología de la investigación cualitativa*. UPeU.\n- Creswell, J. W., & Plano Clark, V. L. (2018). *Designing and Conducting Mixed Methods Research*. SAGE.\n\n**Recomendación para tesis:**\n- **Cualitativo:** Ideal para temas emergentes o con poca literatura.\n- **Mixto:** Recomendado si buscas validar hallazgos cualitativos con datos cuantitativos (ej.: ensayos clínicos con entrevistas).",
+      "tokens_in": 91,
+      "tokens_out": 489
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 6.67,
+      "content": "**Enfoque cualitativo**  \n- **Objetivo:** Explorar significados, experiencias y procesos subjetivos de pacientes, profesionales o comunidades de salud.  \n- **Diseño típico:** Estudios de caso, fenomenología, teoría fundamentada o etnografía.  \n- **Ventajas:**  \n  - Captura la complejidad y el contexto cultural del fenómeno de salud.  \n  - Permite identificar variables emergentes que aún no están operativizadas.  \n- **Limitaciones:**  \n  - Menor generalización estadística; los hallazgos son transferibles, no extrapolables.  \n  - Requiere mayor tiempo de recolección y análisis de datos (p.ej., entrevistas en profundidad, observación participante).  \n- **Ejemplo en salud:** Investigación cualitativa sobre la experiencia de autocuidado en pacientes con diabetes tipo 2 en zonas rurales (García & López, 2022).  \n\n**Enfoque mixto (mixed‑methods)**  \n- **Objetivo:** Combinar la profundidad cualitativa con la robustez cuantitativa para responder preguntas de investigación más amplias.  \n- **Diseños comunes:**  \n  - **Concurrente:** Recopilación simultánea de datos cualitativos y cuantitativos; análisis integrado.  \n  - **Secuencial explicativo:** Primero se analizan datos cuantitativos y, a partir de los resultados, se recogen datos cualitativos para explicar los hallazgos.  \n- **Ventajas:**  \n  - Permite validar y enriquecer los resultados de un método con el otro (p.ej., usar encuestas para medir prevalencia y entrevistas para explicar patrones).  \n  - Facilita la triangulación, fortaleciendo la validez interna del estudio.  \n- **Limitaciones:**  \n  - Mayor complejidad metodológica y recursos (capacitación, tiempo, software especializado).  \n  - Requiere habilidades avanzadas en ambos enfoques y una planificación cuidadosa de la integración.  \n- **Ejemplo en salud:** Estudio mixto que evalúa la efectividad de una intervención de telemedicina en pacientes con hipertensión, combinando escalas de presión arterial (cuantitativo) con entrevistas sobre la experiencia de uso del sistema (cualitativo) (Ramírez et al., 2021).  \n\n### Comparación rápida  \n\n| Aspecto | Enfoque cualitativo | Enfoque mixto |\n|---|---|---|\n| **Propósito principal** | Explorar y comprender fenómenos subjetivos | Responder preguntas que requieren tanto explicación como generalización |\n| **Muestreo** | No probabilístico, por saturación | Puede combinar muestreo probabilístico (cuantitativo) y por saturación (cualitativo) |\n| **Análisis** | Análisis temático, narrativo o interpretativo | Análisis estadístico + análisis temático; integración de resultados |\n| **Generalización** | Transferibilidad contextual | Ambas: inferencia estadística y comprensión profunda |\n| **Recursos** | Menores en muestra, pero intensivo en tiempo de recolección | Mayores en tiempo, personal y software |\n\n### Recomendación práctica  \n- Si la tesis busca **profundizar en experiencias o procesos** poco estudiados, el enfoque cualitativo es suficiente.  \n- Si la investigación necesita **cuantificar la magnitud del problema y, al mismo tiempo, explicar los mecanismos subyacentes**, el enfoque mixto es la opción más adecuada.  \n\n**Referencias**  \n- Creswell, J. W., & Plano Clark, V. L. (2018). *Designing and Conducting Mixed Methods Research* (3ª ed.). Sage.  \n- García, M., & López, P. (2022). Experiencias de autocuidado en pacientes con diabetes tipo 2 en zonas rurales. *Revista Peruana de Salud Pública*, 33(1), 45‑58.  \n- Ramírez, A., Torres, S., & Castillo, R. (2021). Telemedicina y control de la hipertensión: estudio mixto en hospitales urbanos peruanos. *International Journal of Medical Informatics*, 152, 104‑112.",
+      "tokens_in": 90,
+      "tokens_out": 1063
+    }
+  },
+  {
+    "category": "academic",
+    "query": "¿Qué normas peruanas regulan la ética en investigación con seres humanos?",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 4.93,
+      "content": "En Perú, la Norma Oficial Peruana Nacional (NOPN) N° 017-2013-SUNAT, que regula el Sistema Nacional de Ética en Investigación con Seres Humanos, es una de las normas clave. Además, se puede consultar el Decreto Supremo N° 016-2014-Health, que establece el marco legal para la investigación clínica en el país.",
+      "tokens_in": 94,
+      "tokens_out": 101
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 2.26,
+      "content": "En Perú, la ética en investigación con seres humanos se rige principalmente por:\n\n1. **Ley N° 30425** (2016): Modifica el Código Penal para incluir delitos contra la vida, el cuerpo y la salud en contextos de investigación.\n2. **Decreto Supremo N° 011-2017-JUS** (Reglamento de la Ley N° 30425): Establece procedimientos para la aprobación de protocolos de investigación.\n3. **Declaración de Helsinki** (adoptada por el Perú): Principios éticos para la investigación médica.\n4. **Normas del Instituto Nacional de Salud (INS)**: Guías técnicas para comités de ética en investigación.\n\n**Fuente**: [Ministerio de Justicia y Derechos Humanos](https://www.gob.pe/minjus), [INS](https://www.ins.gob.pe).",
+      "tokens_in": 91,
+      "tokens_out": 202
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 4.87,
+      "content": "Las normas peruanas que regulan la ética en investigación con",
+      "tokens_in": 90,
+      "tokens_out": 1200
+    }
+  },
+  {
+    "category": "academic",
+    "query": "Tesis sobre teletrabajo y salud mental en docentes universitarios peruanos",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 10.94,
+      "content": "Para desarrollar una tesis sobre \"Teletrabajo y salud mental en docentes universitarios peruanos\", podrías estructurarla de la siguiente manera:\n\n1. Introducción: Definir conceptos clave, justificación del estudio.\n2. Revisión bibliográfica: Analizar estudios previos sobre teletrabajo y salud mental.\n3. Metodología: Describir el diseño de investigación (cualitativo, cuantitativo o混合文本\",\"\\nránqueles ambos), muestra, técnicas de recolección de datos.\n4. Resultados: Presentar hallazgos relacionados con la relación entre teletrabajo y salud mental en docentes universitarios peruanos.\n5. Discusión: Interpretar resultados y su significado para el campo académico.\n6. Conclusiones: Resumir principales descubrimientos y sugerencias para futuras investigaciones.\n\nRecuerda citar fuentes relevantes, como estudios de la OMS, universidades peruanas o publicaciones especializadas en psicología laboral.",
+      "tokens_in": 92,
+      "tokens_out": 229
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 13.84,
+      "content": "Aquí tienes una selección de tesis y estudios relevantes sobre **teletrabajo y salud mental en docentes universitarios peruanos**, con enfoque en la UPeU y otras universidades del Perú. Las fuentes incluyen repositorios académicos, artículos científicos y tesis de universidades peruanas.\n\n---\n\n### **1. Tesis y estudios en repositorios peruanos**\n#### **Universidad Peruana Unión (UPeU)**\n- **Título:** *\"Impacto del teletrabajo en la salud mental de docentes universitarios durante la pandemia de COVID-19: Caso Universidad Peruana Unión\"*\n  - **Autor:** [Nombre del autor] (ejemplo genérico; verificar en [Repositorio UPeU](https://repositorio.upeu.edu.pe/)).\n  - **Año:** 2021–2023.\n  - **Enfoque:** Estrés, ansiedad, burnout, y estrategias de afrontamiento.\n  - **Fuente:** [Repositorio UPeU](https://repositorio.upeu.edu.pe/).\n\n#### **Otras universidades peruanas**\n- **Título:** *\"Teletrabajo y bienestar psicológico en docentes universitarios: Un estudio comparativo entre Lima y provincias\"*\n  - **Autor:** [Ejemplo: García & López, 2022].\n  - **Universidad:** Pontificia Universidad Católica del Perú (PUCP) o Universidad Nacional Mayor de San Marcos (UNMSM).\n  - **Enfoque:** Variables como carga laboral, equilibrio vida-trabajo, y acceso a recursos tecnológicos.\n  - **Fuente:** [Repositorio PUCP](https://tesis.pucp.edu.pe/) o [Repositorio UNMSM](https://cybertesis.unmsm.edu.pe/).\n\n---\n\n### **2. Artículos científicos relevantes**\n- **Título:** *\"Salud mental y teletrabajo en docentes universitarios peruanos: Una revisión sistemática\"*\n  - **Autores:** [Ejemplo: Ramos et al., 2023].\n  - **Revista:** *Revista de Psicología de la Universidad de Chile* o *Revista Peruana de Salud Pública*.\n  - **Enfoque:** Síntesis de estudios sobre ansiedad, depresión y satisfacción laboral.\n  - **DOI:** [Ejemplo: 10.15381/rpsic.v31i1.20000].\n\n- **Título:** *\"Factores asociados al estrés laboral en docentes universitarios en modalidad virtual: Perú, 2020–2022\"*\n  - **Autores:** [Ejemplo: Mendoza & Torres, 2022].\n  - **Revista:** *Revista de la Sociedad Peruana de Psicología*.\n  - **Enfoque:** Rol de la infraestructura tecnológica y apoyo institucional.\n\n---\n\n### **3. Tesis internacionales con aplicación en Perú**\n- **Título:** *\"Teletrabajo y salud mental en académicos: Evidencia de América Latina\"*\n  - **Autores:** [Ejemplo: López-Cabarcos et al., 2021].\n  - **Revista:** *Journal of Telemedicine and Telecare*.\n  - **Enfoque:** Comparación con países como México, Colombia y Argentina.\n  - **DOI:** [10.1177/1357633X211005000].\n\n---\n\n### **4. Bases de datos para buscar más tesis**\n1. **Repositorio UPeU**: [https://repositorio.upeu.edu.pe/](https://repositorio.upeu.edu.pe/).\n2. **ALICIA**: [https://alicia.concytec.gob.pe/](https://alicia.concytec.gob.pe/) (buscar por \"teletrabajo\" + \"salud mental\" + \"docentes\").\n3. **Google Scholar**: [https://scholar.google.com](https://scholar.google.com) (filtra por \"Perú\" y años 2020–2024).\n4. **SciELO Perú**: [http://www.scielo.org.pe/](http://www.scielo.org.pe/).\n\n---\n\n### **5. Temas clave para tu tesis (sugerencias)**\n- **Variables independientes:**\n  - Modalidad de teletrabajo (100% remoto vs. híbrido).\n  - Acceso a tecnología (internet, dispositivos).\n  - Carga laboral y horas extras.\n  - Apoyo institucional (capacitaciones, psicología organizacional).\n- **Variables dependientes:**\n  - Ansiedad y depresión (escalas como GAD-7 o PHQ-9).\n  - Burnout (Maslach Burnout Inventory).\n  - Satisfacción laboral (Job Satisfaction Survey).\n- **Metodología:**\n  - Enfoque mixto (cuantitativo + cualitativo).\n  - Muestra: Docentes de universidades públicas/privadas (ejemplo: UPeU, UNI, USMP).\n\n---\n### **6. Citas clave para marco teórico**\n- **Teletrabajo en Perú:**\n  - Ministerio de Trabajo y Promoción del Empleo (MTPE). (2021). *Guía de teletrabajo en el Perú*.\n- **Salud mental en docentes:**\n  - Organización Mundial de la Salud (OMS). (2022). *",
+      "tokens_in": 92,
+      "tokens_out": 1200
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 4.42,
+      "content": "**Título provisional**  \n*Impacto del teletrabajo en la salud mental de los docentes universitarios peruanos durante la pandemia de COVID‑19*  \n\n---\n\n### 1. Planteamiento del problema  \nEl aislamiento social y la adopción abrupta del teletrabajo provocaron cambios estructurales en la actividad docente superior en Perú. Estudios preliminares indican que la sobrecarga de tareas, la falta de límites claros entre vida personal y laboral y la reducción de interacciones sociales pueden deteriorar la salud mental (ansiedad, depresión, burnout) de los académicos (García & Huamán, 2022). Sin embargo, la magnitud y los determinantes de este efecto en la población universitaria peruana aún no están suficientemente documentados.\n\n### 2. Objetivo general  \nEvaluar la relación entre la modalidad de teletrabajo y los niveles de salud mental (ansiedad, depresión y burnout) en docentes universitarios peruanos.\n\n### 3. Objetivos específicos  \n1. **Cuantificar** la prevalencia de síntomas de ansiedad, depresión y burnout en docentes que trabajan bajo modalidad de teletrabajo.  \n2. **Identificar** los factores organizacionales (carga de trabajo, apoyo institucional) y personales (edad, género, carga familiar) asociados a dichos síntomas.  \n3. **Comparar** los niveles de salud mental entre docentes que mantuvieron exclusivamente teletrabajo y los que combinaron teletrabajo con actividades presenciales.  \n4. **Proponer** recomendaciones para la mejora del bienestar psicológico docente en entornos híbridos o remotos.\n\n### 4. Hipótesis  \n- H1: Los docentes que trabajan exclusivamente en teletrabajo presentan mayores niveles de ansiedad y depresión que los que combinan modalidades.  \n- H2: La percepción de apoyo institucional moderará la relación entre carga de trabajo y burnout.\n\n### 5. Metodología  \n\n| Elemento | Detalle |\n|----------|---------|\n| **Diseño** | Estudio transversal correlacional con enfoque cuantitativo. |\n| **Población** | Docentes a tiempo completo de universidades públicas y privadas peruanas (n≈ 3 500). |\n| **Muestra** | Muestreo estratificado por tipo de universidad y región; tamaño de muestra calculado con margen de error del 5 % y nivel de confianza del 95 %. |\n| **Instrumentos** | - **Escala de Ansiedad Generalizada (GAD‑7)** (Spitzer et al., 2006). <br> - **Escala de Depresión del PHQ‑9** (Kroenke et al., 2001). <br> - **Maslach Burnout Inventory (MBI‑GS)** (Maslach & Jackson, 1981). <br> - Cuestionario de condiciones de teletrabajo (carga de trabajo, apoyo institucional, límites temporales). |\n| **Procedimiento** | Envío de encuesta electrónica vía plataforma institucional; seguimiento con recordatorios semanales durante 4 semanas. |\n| **Análisis** | - Estadísticas descriptivas (prevalencia). <br> - Pruebas de chi‑cuadrado y t‑Student para comparaciones. <br> - Regresión logística múltiple para identificar predictores de síntomas de salud mental. <br> - Análisis de mediación/moderación (PROCESS macro). |\n| **Ética** | Aprobación del Comité de Ética de la Universidad de origen; consentimiento informado electrónico; confidencialidad garantizada. |\n\n### 6. Variables  \n\n| Variable | Tipo | Definición operativa |\n|----------|------|----------------------|\n| Teletrabajo (modalidad) | Independiente | 1 = exclusivamente remoto; 2 = híbrido; 3 = presencial. |\n| Ansiedad | Dependiente | Puntuación GAD‑7 ≥ 10 (criterio de trastorno de ansiedad). |\n| Depresión | Dependiente | Puntuación PHQ‑9 ≥ 10 (criterio de depresión). |\n| Burnout | Dependiente | Subescala emocional agotamiento ≥ high (según MBI). |\n| Carga de trabajo | Mediadora | Horas semanales dedicadas a actividades académicas + percepción de sobrecarga (escala Likert). |\n| Apoyo institucional | Moderadora | Percepción de recursos y respaldo (escala de 5 ítems). |\n\n### 7. Contribuciones esperadas  \n\n- **Académicas**: Aportar evidencia empírica sobre los efectos del telet",
+      "tokens_in": 91,
+      "tokens_out": 1200
+    }
+  },
+  {
+    "category": "academic",
+    "query": "Define burnout académico y menciona sus principales dimensiones según Maslach",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 7.54,
+      "content": "Burnout académico se refiere a un estado de agotamiento emocional, desgaste mental y reducción del rendimiento laboral que puede afectar a docentes universitarios. Según Maslach, las principales dimensiones son:\n\n1. Agotamiento emocional: sensación de excesiva carga emocional.\n2. Despersonalización: distanciamiento hacia los estudiantes o colegas.\n3. Desgaste personal: sentimientos negativos sobre el trabajo y pérdida de satisfacción.\n\nFuente: Maslach, C., & Leiter, M. P. (1997). The truth about burnout: How organizations cause personal stress and what to do about it. Jossey-Bass.",
+      "tokens_in": 91,
+      "tokens_out": 154
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 1.57,
+      "content": "**Burnout académico**:\nSíndrome de agotamiento físico, emocional y mental asociado al estrés crónico en el ámbito educativo, caracterizado por la pérdida de motivación y despersonalización hacia el aprendizaje o la enseñanza (Schaufeli et al., 2002).\n\n**Dimensiones (Modelo de Maslach)**:\n1. **Agotamiento emocional**: Cansancio extremo por demandas académicas.\n2. **Despersonalización**: Actitud negativa o cinismo hacia compañeros/profesores.\n3. **Falta de realización personal**: Sensación de incompetencia o baja autoeficacia (Maslach & Leiter, 1997).\n\n*Fuente: Maslach, C. (1982). Burnout: The cost of caring.*",
+      "tokens_in": 86,
+      "tokens_out": 166
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 1.74,
+      "content": "**Burnout académico**: es un síndrome de agotamiento emocional, despersonalización y reducción de la eficacia personal que se produce en personas que ejercen actividades académicas prolongadas y demandantes (Maslach & Jackson, 1981).\n\n**Principales dimensiones según Maslach**  \n1. **Agotamiento emocional** – sensación de cansancio y falta de energía para desempeñar tareas.  \n2. **Despersonalización** – actitudes de indiferencia o cinismo hacia el trabajo y los estudiantes.  \n3. **Reducción de la realización personal** – sensación de ineficacia y falta de logro en el desempeño académico.  \n\n*(Maslach, C., & Jackson, S. E. (1981). The Measurement of Experienced Burnout. *Journal of Occupational Behaviour*, 2, 99‑113.)*",
+      "tokens_in": 85,
+      "tokens_out": 260
+    }
+  },
+  {
+    "category": "academic",
+    "query": "¿Qué es CONCYTEC y cuál es su rol en la investigación universitaria peruana?",
+    "qwen2.5:7b": {
+      "ok": true,
+      "latency_s": 3.73,
+      "content": "CONCYTEC es el Consejo Nacional de Ciencia, Tecnología e Innovación del Perú. Su rol en la investigación universitaria peruana incluye fomentar, financiar y evaluar proyectos de investigación científica y tecnológica en las universidades públicas y privadas, promoviendo así el desarrollo científico y tecnológico del país.",
+      "tokens_in": 96,
+      "tokens_out": 75
+    },
+    "mistral-small-4": {
+      "ok": true,
+      "latency_s": 2.94,
+      "content": "El **Consejo Nacional de Ciencia, Tecnología e Innovación Tecnológica (CONCYTEC)** es el organismo público adscrito al Ministerio de Educación del Perú, encargado de formular, dirigir, coordinar y evaluar las políticas nacionales en ciencia, tecnología e innovación (CTI).\n\n**Rol en la investigación universitaria peruana:**\n1. **Financiamiento**: Gestiona fondos para proyectos de investigación (ej. *ProCiencia*).\n2. **Evaluación**: Certifica la calidad de programas de posgrado (SINEACE).\n3. **Promoción**: Fomenta la colaboración internacional y la transferencia tecnológica.\n4. **Regulación**: Establece estándares para la investigación en universidades (ej. *Ley N° 30220*).\n\n*Fuente: Decreto Legislativo N° 1085 (2008) y Ley N° 30220 (2014).*",
+      "tokens_in": 95,
+      "tokens_out": 204
+    },
+    "nemotron-nano-30b": {
+      "ok": true,
+      "latency_s": 2.65,
+      "content": "**CONCYTEC** (Consejo Nacional de Ciencia, Tecnología y Tecnologías de la Información y Comunicación) es el organismo rector del Estado peruano encargado de formular, coordinar y promover la política nacional de ciencia, tecnología, innovación y desarrollo digital.  \n\n**Rol en la investigación universitaria:**  \n- **Financiamiento:** Gestiona fondos competitivos (Fondo de Investigación Científica, Tecnológica y de Desarrollo Tecnológico) que otorgan recursos a proyectos de investigación en universidades y centros de investigación.  \n- **Apoyo a la innovación:** Promueve la transferencia tecnológica y la colaboración entre academia, industria y gobierno mediante programas de incubadoras, parques tecnológicos y redes de innovación.  \n- **Orientación estratégica:** Define líneas de investigación prioritarias (p.ej., áreas de competitividad nacional) y orienta a las universidades en la elaboración de sus planes de desarrollo científico‑tecnológico.  \n- **Evaluación y seguimiento:** Realiza evaluaciones de impacto y seguimiento a los proyectos financiados, garantizando la calidad y la pertinencia de la investigación.  \n\nEn conjunto, CONCYTEC actúa como el motor que impulsa la investigación universitaria al proporcionar recursos, estructurar políticas y fomentar la conexión entre la academia y el sector productivo.  \n\n*Fuente: CONCYTEC – “Sobre Nosotros” y “Programas de Financiamiento” (consultado 2024).*",
+      "tokens_in": 94,
+      "tokens_out": 380
+    }
+  }
+]
