@@ -42,7 +42,7 @@ class GUIASettings(BaseSettings):
         aws_region: Región AWS para backups.
     """
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
     # Modo LLM
     guia_llm_mode: LLMMode = LLMMode.HYBRID
@@ -133,9 +133,7 @@ class GUIASettings(BaseSettings):
     router_toxicity_enabled: bool = True
     router_toxicity_threshold: float = 0.85
 
-    # Agente orquestador (ADR-050) — desactivado por defecto hasta Dia 3
-    agent_mode_enabled: bool = Field(default=False, validation_alias="GUIA_AGENT_MODE_ENABLED")
-    agent_mode_rollout_pct: int = Field(
-        default=0, ge=0, le=100, validation_alias="GUIA_AGENT_MODE_ROLLOUT_PCT"
-    )
-    agent_max_iterations: int = Field(default=3, ge=1, le=6, validation_alias="GUIA_AGENT_MAX_ITER")
+    # Agente orquestador (ADR-050)
+    agent_mode_enabled: bool = Field(default=False, alias="GUIA_AGENT_MODE_ENABLED")
+    agent_mode_rollout_pct: int = Field(default=0, ge=0, le=100, alias="GUIA_AGENT_MODE_ROLLOUT_PCT")
+    agent_max_iterations: int = Field(default=3, ge=1, le=6, alias="GUIA_AGENT_MAX_ITER")
