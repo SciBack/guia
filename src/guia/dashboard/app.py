@@ -223,6 +223,103 @@ def _audit_by_intent() -> list[dict]:
 
 
 @st.cache_data(ttl=60)
+def _audit_agent_split() -> list[dict]:
+    """A/B split agent vs legacy (últimas 7 días) con latencia comparada.
+
+    Devuelve filas con orchestrator_mode (agent/legacy), total y avg_lat.
+    Lista vacía si la migración ADR-050 aún no se aplicó.
+    """
+    container = get_container()
+    repo = container.audit_repo  # type: ignore[union-attr]
+    if repo._conn is None:  # type: ignore[union-attr]
+        return []
+    try:
+        rows = repo._conn.execute(  # type: ignore[union-attr]
+            """
+            SELECT orchestrator_mode,
+                   COUNT(*) AS total,
+                   AVG(latency_ms)::int AS avg_lat,
+                   PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms)::int AS p95_lat
+            FROM audit_log
+            WHERE created_at >= NOW() - INTERVAL '7 days'
+              AND orchestrator_mode IS NOT NULL
+            GROUP BY orchestrator_mode
+            ORDER BY orchestrator_mode
+            """
+        ).fetchall()
+        return [
+            {
+                "Bucket": r[0],
+                "Queries": r[1],
+                "Latencia media (ms)": r[2],
+                "p95 (ms)": r[3],
+            }
+            for r in rows
+        ]
+    except Exception:
+        return []
+
+
+@st.cache_data(ttl=60)
+def _audit_agent_health() -> dict:
+    """Métricas de salud del bucket agent: fallback, forced_synthesis, iters.
+
+    Sólo cuenta filas con orchestrator_mode='agent'.
+    """
+    container = get_container()
+    repo = container.audit_repo  # type: ignore[union-attr]
+    if repo._conn is None:  # type: ignore[union-attr]
+        return {}
+    try:
+        row = repo._conn.execute(  # type: ignore[union-attr]
+            """
+            SELECT COUNT(*) AS total,
+                   COUNT(*) FILTER (WHERE agent_fallback) AS fallback_count,
+                   COUNT(*) FILTER (WHERE agent_forced_synthesis) AS forced_count,
+                   COALESCE(AVG(agent_iterations)::numeric(4,2), 0) AS avg_iter
+            FROM audit_log
+            WHERE created_at >= NOW() - INTERVAL '7 days'
+              AND orchestrator_mode = 'agent'
+            """
+        ).fetchone()
+        total = int(row[0] or 0)
+        return {
+            "total": total,
+            "fallback_count": int(row[1] or 0),
+            "forced_count": int(row[2] or 0),
+            "avg_iter": float(row[3] or 0),
+            "fallback_pct": (100.0 * (row[1] or 0) / total) if total else 0.0,
+            "forced_pct": (100.0 * (row[2] or 0) / total) if total else 0.0,
+        }
+    except Exception:
+        return {}
+
+
+@st.cache_data(ttl=60)
+def _audit_agent_actions() -> list[dict]:
+    """Distribución de acciones emitidas por el LLM en el bucket agent."""
+    container = get_container()
+    repo = container.audit_repo  # type: ignore[union-attr]
+    if repo._conn is None:  # type: ignore[union-attr]
+        return []
+    try:
+        rows = repo._conn.execute(  # type: ignore[union-attr]
+            """
+            SELECT unnest(agent_actions) AS action, COUNT(*) AS total
+            FROM audit_log
+            WHERE created_at >= NOW() - INTERVAL '7 days'
+              AND orchestrator_mode = 'agent'
+              AND agent_actions IS NOT NULL
+            GROUP BY action
+            ORDER BY total DESC
+            """
+        ).fetchall()
+        return [{"Acción": r[0], "Frecuencia": r[1]} for r in rows]
+    except Exception:
+        return []
+
+
+@st.cache_data(ttl=60)
 def _opensearch_status() -> dict:
     """Estado del cluster OpenSearch."""
     container = get_container()
@@ -345,6 +442,50 @@ def main() -> None:
             st.metric("PII redactado antes de cloud", audit["pii_redacted"])
     else:
         st.info("Sin datos de audit_log todavía. Las métricas aparecen tras las primeras queries.")
+
+    # ── A/B AgentOrchestrator vs Legacy (ADR-050) ─────────────────────────
+    st.header("🧪 A/B AgentOrchestrator vs Legacy (ADR-050)")
+    split = _audit_agent_split()
+    if not split:
+        st.info(
+            "Bucket agent inactivo o sin tráfico. "
+            "Activa con `GUIA_AGENT_MODE_ENABLED=true` + `GUIA_AGENT_MODE_ROLLOUT_PCT=N`."
+        )
+    else:
+        st.subheader("Distribución y latencia por bucket")
+        st.dataframe(split, use_container_width=True, hide_index=True)
+
+        health = _audit_agent_health()
+        if health["total"] > 0:
+            ah1, ah2, ah3, ah4 = st.columns(4)
+            with ah1:
+                st.metric("Queries agent 7d", f"{health['total']:,}")
+            with ah2:
+                st.metric(
+                    "Tasa fallback",
+                    f"{health['fallback_pct']:.1f}%",
+                    delta=f"{health['fallback_count']} eventos",
+                    delta_color="inverse",
+                )
+            with ah3:
+                st.metric(
+                    "Tasa forced_synthesis",
+                    f"{health['forced_pct']:.1f}%",
+                    delta=f"{health['forced_count']} eventos",
+                    delta_color="inverse",
+                )
+            with ah4:
+                st.metric("Iteraciones promedio", f"{health['avg_iter']:.2f}")
+
+            st.caption(
+                "Criterio ADR-050 para promover a default: "
+                "tasa fallback <5%, iteraciones ≤1.8, latencia p95 ≤6000ms."
+            )
+
+            actions = _audit_agent_actions()
+            if actions:
+                st.subheader("Acciones emitidas por el LLM (frecuencia)")
+                st.dataframe(actions, use_container_width=True, hide_index=True)
 
     # ── Búsqueda de prueba ────────────────────────────────────────────────
     st.header("🔎 Búsqueda semántica")
