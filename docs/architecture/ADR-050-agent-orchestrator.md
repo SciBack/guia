@@ -73,16 +73,28 @@ tiene `extra="forbid"` para detectar alucinaciones del LLM fuera del schema.
 ```
 build messages (system + history + user_query)
 for iteration in 1..max_iter:
+    log debug: msg_count, total_chars   # observabilidad sin truncar
     action = await _ask_llm(messages)   # 1 retry en ValidationError
-    if AnswerAction → return OrchestratorResult(fallback=False)
+    if AnswerAction → return OrchestratorResult(fallback=False, forced_synthesis=False)
     if ClarifyAction → return OrchestratorResult(is_clarification=True)
-    tool_result = await _execute_action(action)
+    tool_result, new_records = await _execute_action(action)  # no muta estado
+    tool_results_by_id.update(new_records)
     messages += [assistant_action_json, user_observation]
-→ (agotado sin Answer) _force_final_synthesis(fallback=True)
-→ (ValidationError x2) _fallback_direct_answer(fallback=True)
+→ (agotado sin Answer) _force_final_synthesis
+    instruccion final como role="system" (anti-eco JSON)
+    si LLM emite JSON-like → descartado → fallback=True, forced_synthesis=True
+    si LLM emite texto → fallback=False, forced_synthesis=True
+→ (ValidationError x2) _fallback_direct_answer(fallback=True, forced_synthesis=False)
+    query del usuario envuelta en <user_query>...</user_query> (anti prompt-injection)
 ```
 
-Citations filtradas: solo doc_ids que existen en tool_results_by_id.
+Semantica de flags en OrchestratorResult:
+- fallback=False, forced_synthesis=False: respuesta normal con AnswerAction o ClarifyAction
+- fallback=False, forced_synthesis=True: sintesis al agotar max_iter, texto natural valido
+- fallback=True, forced_synthesis=True: sintesis forzada pero el LLM emitio JSON (degradacion estatica)
+- fallback=True, forced_synthesis=False: ValidationError irrecuperable, _fallback_direct_answer
+
+Citations filtradas: solo doc_ids que existen en tool_results_by_id (normalizados con strip()).
 
 ---
 

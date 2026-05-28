@@ -98,12 +98,17 @@ class QueuedLLMAdapter:
         max_tokens: int = 1024,
         temperature: float = 0.0,
     ) -> LLMResponse:
-        """Retorna la siguiente respuesta de la cola."""
+        """Retorna la siguiente respuesta de la cola.
+
+        Fix 6: input_tokens es heuristico (conteo de palabras), NO tokenizacion real.
+        No hacer asserts sobre valores exactos de tokens en los tests.
+        """
         self.complete_calls.append(list(messages))
         content = self._queue.popleft() if self._queue else self._last
         return LLMResponse(
             content=content,
             model=model or self.DEFAULT_MODEL,
+            # Heuristic: word count, NOT real tokenization. Don't assert on exact token counts.
             input_tokens=sum(len(m.content.split()) for m in messages),
             output_tokens=len(content.split()),
         )
@@ -377,7 +382,10 @@ async def test_max_iter_cap_forces_synthesis():
         f"Esperado {max_iter + 1} llamadas al LLM, got {len(llm.complete_calls)}"
     )
     assert result.iterations == max_iter
-    assert result.fallback is False, "_force_final_synthesis no es fallback"
+    assert result.fallback is False, "_force_final_synthesis con texto valido no es fallback"
+    assert result.forced_synthesis is True, (
+        "Al agotar max_iter el resultado debe tener forced_synthesis=True"
+    )
     # Las sources deben contener los docs acumulados
     source_ids = {s.id for s in result.sources}
     assert doc_id_1 in source_ids
@@ -467,4 +475,108 @@ async def test_force_local_privacy_verdict_in_system_prompt():
     assert has_privacy_mention, (
         f"System prompt debe mencionar privacidad con force_local=True:"
         f" {system_msg.content[:200]}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test Dia 3 — cascada real (Fix 7)
+# ---------------------------------------------------------------------------
+
+
+def _refine_json(new_query: str = "termino alternativo") -> str:
+    """JSON de RefineSearchAction valido."""
+    return json.dumps({
+        "action_payload": {
+            "action": "refine_search",
+            "new_query": new_query,
+            "reason": "La busqueda anterior no devolvio resultados utiles",
+        }
+    })
+
+
+@pytest.mark.asyncio
+async def test_cascade_search_refine_search_answer():
+    """Cascada real: SearchAction -> RefineSearchAction -> SearchAction -> AnswerAction.
+
+    Verifica:
+    - iterations == 4 (una por cada accion emitida por el LLM antes de AnswerAction
+      que cierra en la iteracion 4 del loop principal).
+    - tool_results_by_id acumula records de los 2 search distintos.
+    - trace contiene las 4 acciones en orden: search, refine_search, search, answer.
+    - forced_synthesis=False (termino con AnswerAction real, no force_synthesis).
+    - fallback=False.
+    """
+    doc_id_first = "koha:701"
+    doc_id_second = "ojs:702"
+    record_first = _make_record(doc_id_first, "Resultado primera busqueda")
+    record_second = _make_record(doc_id_second, "Resultado segunda busqueda")
+
+    # SearchService con respuestas distintas por llamada:
+    # llamada 1 (iter 1, SearchAction) -> record_first
+    # llamada 2 (iter 2, RefineSearchAction ejecuta busqueda) -> record_second
+    # llamada 3 (iter 3, SearchAction) -> record_second (misma query refinada)
+    # Total: 3 llamadas a search para 4 iteraciones del loop (la 4a es AnswerAction)
+    class MultiPhaseSearchService:
+        """Devuelve record_first en la primera llamada, record_second en las siguientes."""
+
+        def __init__(self) -> None:
+            self.search_calls: list[str] = []
+
+        def search(self, query: str, *, limit: int = 5, **kwargs) -> list[VectorRecord]:
+            self.search_calls.append(query)
+            if len(self.search_calls) == 1:
+                return [record_first]
+            return [record_second]
+
+    multi_phase_search = MultiPhaseSearchService()
+
+    llm = QueuedLLMAdapter([
+        _search_json("primera query sobre educacion"),            # iter 1: SearchAction
+        _refine_json("segunda query refinada educacion Peru"),    # iter 2: RefineSearchAction
+        _search_json("segunda query refinada educacion Peru"),    # iter 3: SearchAction
+        _answer_json(                                            # iter 4: AnswerAction
+            "Encontre documentos en ambas busquedas.",
+            doc_ids=[doc_id_first, doc_id_second],
+        ),
+    ])
+
+    orchestrator = AgentOrchestrator(llm, multi_phase_search, max_iter=5)
+    result = await orchestrator.run(
+        query="tesis sobre educacion en Peru",
+        history=[],
+        privacy_verdict=None,
+    )
+
+    # Termino con AnswerAction — no debe ser fallback ni forced_synthesis
+    assert result.fallback is False, "Cascada que termina con Answer no es fallback"
+    assert result.forced_synthesis is False, (
+        "Cascada que termina con Answer no activa forced_synthesis"
+    )
+    assert result.is_clarification is False
+
+    # 4 iteraciones: search, refine_search, search, answer
+    assert result.iterations == 4, (
+        f"Esperado 4 iteraciones en cascada, got {result.iterations}"
+    )
+
+    # Traza con las 4 acciones en orden correcto
+    assert len(result.trace) == 4, f"Esperado 4 entradas en trace, got {len(result.trace)}"
+    assert result.trace[0].action == "search"
+    assert result.trace[1].action == "refine_search"
+    assert result.trace[2].action == "search"
+    assert result.trace[3].action == "answer"
+
+    # Sources acumula records de las busquedas distintas
+    source_ids = {s.id for s in result.sources}
+    assert doc_id_first in source_ids, (
+        f"doc_id de primera busqueda debe estar en sources: {source_ids}"
+    )
+    assert doc_id_second in source_ids, (
+        f"doc_id de segunda busqueda debe estar en sources: {source_ids}"
+    )
+
+    # 3 llamadas a search: iter1 (SearchAction) + iter2 (RefineSearchAction) + iter3 (SearchAction)
+    assert len(multi_phase_search.search_calls) == 3, (
+        f"Esperado 3 llamadas a search (Search+Refine+Search), "
+        f"got {len(multi_phase_search.search_calls)}"
     )
