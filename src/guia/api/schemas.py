@@ -13,6 +13,7 @@ class ChatRequestSchema(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000, description="Consulta del usuario")
     session_id: str | None = Field(None, description="ID de sesión para contexto")
     language: str = Field("es", description="Código de idioma (ISO 639-1)")
+    user_id: str | None = Field(None, description="ID estable del usuario para A/B bucket (opcional)")
 
 
 class ChatResponseSchema(BaseModel):

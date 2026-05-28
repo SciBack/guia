@@ -24,6 +24,7 @@ async def chat(
         query=body.query,
         session_id=body.session_id,
         language=body.language,
+        user_id=body.user_id,
     )
     response = await chat_svc.answer(request)
 
