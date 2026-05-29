@@ -64,19 +64,22 @@ RUN ARCH=$(uname -m) && \
 
 WORKDIR /app
 
-# Copiar venv del builder (shebangs apuntan a /app/.venv/bin/python ✓)
-COPY --from=builder /app/.venv /app/.venv
+# Usuario no-root creado ANTES de los COPY para usar --chown directo.
+# Evita el `RUN chown -R guia:guia /app` que duplicaba toda la capa del venv
+# (~7GB de miles de archivos) y agotaba el disco durante el build.
+RUN useradd -m -u 1000 guia
 
-# Copiar sciback-core al mismo path que el venv espera
-# (editable installs tienen .pth files apuntando a /sciback-core/)
+# Copiar venv del builder con ownership directo (shebangs → /app/.venv/bin/python ✓)
+COPY --from=builder --chown=guia:guia /app/.venv /app/.venv
+
+# Copiar sciback-core al mismo path que el venv espera (editable .pth → /sciback-core/).
+# Ownership root: la app solo lo lee (world-readable), no necesita escribir.
 COPY --from=builder /sciback-core /sciback-core
 
-# Copiar código fuente de guia
-COPY guia/src/ ./src/
-
-# Copiar assets estáticos y config de Chainlit
-COPY guia/public/ ./public/
-COPY guia/.chainlit/ ./.chainlit/
+# Copiar código fuente y assets de guia con ownership directo
+COPY --chown=guia:guia guia/src/ ./src/
+COPY --chown=guia:guia guia/public/ ./public/
+COPY --chown=guia:guia guia/.chainlit/ ./.chainlit/
 
 # Activar venv
 ENV PATH="/app/.venv/bin:$PATH"
@@ -84,8 +87,6 @@ ENV PYTHONPATH="/app/src"
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Usuario no-root
-RUN useradd -m -u 1000 guia && chown -R guia:guia /app
 USER guia
 
 EXPOSE 8000
