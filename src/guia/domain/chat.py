@@ -6,6 +6,7 @@ Estos modelos son propios de GUIA y NO pertenecen a sciback-core.
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -107,3 +108,9 @@ class ChatResponse(BaseModel):
     source_buckets: list[SourceBucket] = Field(default_factory=list)
     explore_in: list[ExploreLink] = Field(default_factory=list)
     related_terms: list[str] = Field(default_factory=list)
+    # Tipo de respuesta — gobierna el render de citas en el canal:
+    # "list" → cada resultado es un enlace inline clicable (sin sección de fuentes
+    #          duplicada abajo). "narrative" → prosa + fuentes consultadas al final.
+    # Se deriva en ChatService (punto único para agente + legacy). Default conserva
+    # el comportamiento histórico y no invalida entradas de caché serializadas.
+    answer_type: Literal["list", "narrative"] = "narrative"

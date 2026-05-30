@@ -579,3 +579,61 @@ async def test_chat_with_pii_l2l3_forces_legacy_even_if_agent_enabled() -> None:
     # El fast_llm local SÍ se llamó
     assert len(local_fast.complete_calls) == 1
     assert response.answer == "local response"
+
+
+# ── answer_type + citas inline (listado vs narrativa) ──────────────────────────
+
+
+def test_koha_opac_url_construye_link_desde_doc_id() -> None:
+    """koha:<biblio> → URL del OPAC; otros prefijos o sin base → None."""
+    from guia.services.chat import koha_opac_url
+
+    base = "https://catalogo.upeu.edu.pe"
+    assert koha_opac_url("koha:123", base) == (
+        "https://catalogo.upeu.edu.pe/cgi-bin/koha/opac-detail.pl?biblionumber=123"
+    )
+    assert koha_opac_url("ojs:45", base) is None  # no es Koha
+    assert koha_opac_url("koha:1", "") is None     # sin base configurada
+    assert koha_opac_url("koha:", base) is None    # biblionumber vacío
+
+
+def test_classify_answer_type_lista_vs_narrativa() -> None:
+    """4+ resultados en intent de búsqueda → 'list'; si no → 'narrative'."""
+    from guia.domain.chat import Intent, Source
+    from guia.services.chat import _classify_answer_type
+
+    many = [Source(id=f"koha:{i}", title=f"t{i}") for i in range(5)]
+    few = many[:2]
+    assert _classify_answer_type(Intent.RESEARCH, many) == "list"
+    assert _classify_answer_type(Intent.GENERAL, many) == "list"
+    assert _classify_answer_type(Intent.RESEARCH, few) == "narrative"
+    assert _classify_answer_type(Intent.CAMPUS, many) == "narrative"  # no es búsqueda RAG
+
+
+def test_render_results_list_enlaces_inline_sin_seccion_duplicada() -> None:
+    """El listado pone cada ítem como enlace inline y no duplica 'Fuente consultada'."""
+    from guia.channels.render import render_results_list
+    from guia.domain.chat import ChatResponse, Intent, Source
+
+    resp = ChatResponse(
+        answer="Encontré estos libros: 1. Estadística 2. Metodología",
+        intent=Intent.RESEARCH,
+        model_used="agent",
+        answer_type="list",
+        sources=[
+            Source(
+                id="koha:1",
+                title="Estadística aplicada",
+                url="https://cat.upeu.edu.pe/opac/1",
+                authors=["Hernández"],
+                year=2019,
+                source_type="koha",
+            ),
+            Source(id="koha:2", title="Metodología", url="https://cat.upeu.edu.pe/opac/2"),
+        ],
+    )
+    out = render_results_list(resp)
+    assert "[Estadística aplicada](https://cat.upeu.edu.pe/opac/1)" in out
+    assert "[Metodología](https://cat.upeu.edu.pe/opac/2)" in out
+    assert "Fuente consultada" not in out
+    assert "2 resultados encontrados" in out

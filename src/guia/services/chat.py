@@ -33,6 +33,36 @@ if TYPE_CHECKING:
     from guia.services.cache import SemanticCache
     from guia.services.query_rewriter import QueryRewriter
 
+def koha_opac_url(doc_id: str, base_url: str) -> str | None:
+    """Construye el link al OPAC de Koha desde un doc_id `koha:<biblionumber>`.
+
+    El index no guarda URL para libros físicos de Koha, así que la derivamos
+    determinísticamente del biblionumber. Es el sistema quien arma la URL —
+    nunca el LLM — para evitar enlaces alucinados.
+
+    Devuelve None si el doc_id no es de Koha o no hay base_url configurada.
+    """
+    if not base_url or not doc_id.startswith("koha:"):
+        return None
+    biblio_id = doc_id.split(":", 1)[1]
+    if not biblio_id:
+        return None
+    return f"{base_url.rstrip('/')}/cgi-bin/koha/opac-detail.pl?biblionumber={biblio_id}"
+
+
+def _classify_answer_type(intent: "Intent", sources: list[Source]) -> str:
+    """Deriva el tipo de respuesta para el render de citas.
+
+    Heurística determinista (punto único para agente + legacy): es un LISTADO
+    cuando hay varios resultados de búsqueda enlazables; si no, NARRATIVA.
+    El umbral (4) es conservador para no convertir respuestas narrativas con
+    pocas citas de soporte en listas. Iterar si la práctica lo pide.
+    """
+    if intent in (Intent.RESEARCH, Intent.GENERAL) and len(sources) >= 4:
+        return "list"
+    return "narrative"
+
+
 _DEFAULT_SOURCES_INVENTORY = """\
 FUENTES ACTUALMENTE DISPONIBLES (las únicas que puedes consultar):
 - Koha UPeU — catálogo de la biblioteca, ~34,985 libros físicos indexados
@@ -180,9 +210,8 @@ def _hits_to_context(
         hit_id = str(hit.get("id", str(i)))
 
         # Para libros de Koha sin URL en el index, construir link al OPAC
-        if not url and source_type == "koha" and koha_opac_base_url and hit_id.startswith("koha:"):
-            biblio_id = hit_id.split(":", 1)[1]
-            url = f"{koha_opac_base_url.rstrip('/')}/cgi-bin/koha/opac-detail.pl?biblionumber={biblio_id}"
+        if not url and source_type == "koha":
+            url = koha_opac_url(hit_id, koha_opac_base_url)
 
         # Contexto para el LLM — incluir autores y año para diferenciar libros homónimos
         ctx_line = f"[{i}] {title}"
@@ -368,6 +397,7 @@ class ChatService:
                     source_buckets=getattr(cached, "source_buckets", []),
                     explore_in=getattr(cached, "explore_in", []),
                     related_terms=getattr(cached, "related_terms", []),
+                    answer_type=getattr(cached, "answer_type", "narrative"),
                 )
                 await self._emit_audit(
                     request, response, route_decision, sources_used_names, t_start
@@ -598,6 +628,11 @@ class ChatService:
                 year_int: int | None = int(str(raw_year)) if raw_year else None
                 raw_url = meta.get("url")
                 url_str: str | None = str(raw_url) if raw_url else None
+                src_type = str(meta.get("source") or "") or None
+                # Libros físicos de Koha no traen URL en el index: derivar el OPAC
+                # desde el doc_id (mismo helper que el path legacy, sin alucinación).
+                if not url_str and src_type == "koha":
+                    url_str = koha_opac_url(rec.id, self._koha_opac_base_url)
                 return Source(
                     id=rec.id,
                     title=str(meta.get("title") or rec.id),
@@ -605,7 +640,7 @@ class ChatService:
                     authors=authors_list,
                     year=year_int,
                     score=rec.score,
-                    source_type=str(meta.get("source") or "") or None,
+                    source_type=src_type,
                 )
             sources = [_rec_to_source(rec) for rec in orch_result.sources]
             agent_actions_list = [t.action for t in orch_result.trace]
@@ -619,6 +654,7 @@ class ChatService:
                 source_buckets=source_buckets,
                 explore_in=explore_in,
                 related_terms=related_terms,
+                answer_type=_classify_answer_type(intent, sources),
             )
             if self._cache is not None:
                 await asyncio.to_thread(
@@ -724,6 +760,7 @@ class ChatService:
             source_buckets=source_buckets,
             explore_in=explore_in,
             related_terms=related_terms,
+            answer_type=_classify_answer_type(intent, sources),
         )
 
         # 8. Guardar en caché (sync Redis → thread)

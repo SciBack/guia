@@ -28,6 +28,7 @@ from guia.channels.feedback_datalayer import (
 )
 from guia.config import GUIASettings
 from guia.container import GUIAContainer
+from guia.channels.render import render_results_list
 from guia.domain.chat import ChatRequest, ConversationMessage
 from guia.logging import configure_logging, get_logger
 
@@ -308,9 +309,13 @@ async def on_message(message: cl.Message) -> None:
                     cl.Pdf(name=source.title[:50], url=source.url, display="side")
                 )
 
-        # Discovery layer (serendipia controlada): se renderiza solo si el
-        # ChatService pobló estos campos (intents de búsqueda con hits).
-        if response.source_buckets:
+        # Render de citas según el tipo de respuesta (derivado en ChatService):
+        # - "list"      → cada resultado es un enlace inline; el listado SUSTITUYE
+        #                 la prosa del LLM (que repetía los títulos sin enlace).
+        # - "narrative" → prosa + sección "Fuente consultada" al final (como antes).
+        if response.answer_type == "list" and response.sources:
+            answer_text = render_results_list(response)
+        elif response.source_buckets:
             # Índice de fuentes por source_type para cruzar con sources individuales
             sources_by_type: dict[str, list] = {}
             for s in response.sources:
