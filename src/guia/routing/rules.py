@@ -86,6 +86,28 @@ _CAMPUS_PERSONAL_PATTERNS = [
 ]
 
 
+# ── Meta-preguntas sobre capacidades / fuentes del asistente ──────────────
+
+# Preguntas sobre qué es / qué tiene / a qué accede GUIA. A diferencia de los
+# saludos, suelen ser largas ("¿tienes acceso a alguna otra fuente además de
+# Koha?"), así que NO aplican la regla del remainder — se buscan con `search`
+# en cualquier posición. Deben ser específicas para NO capturar búsquedas
+# legítimas ("tienes libros de X" NO matchea: no hay 'acceso'/'fuentes').
+_META_CAPABILITY_PATTERNS = [
+    re.compile(r"\btienes?\s+(acceso|conexion|integracion)\b"),
+    re.compile(
+        r"\b(que\s+)?(fuentes?|bases?\s+de\s+datos?|repositorios?|sistemas?)\s+"
+        r"(tienes?|usas?|manejas?|hay|estan\s+disponibles?|disponibles?)\b"
+    ),
+    re.compile(r"\btienes?\s+(otras?\s+|mas\s+)?(fuentes?|repositorios?|bases?\s+de\s+datos?)\b"),
+    re.compile(r"\bademas\s+de\s+(koha|ojs|dspace|alicia)\b"),
+    re.compile(r"\bque\s+mas\s+(tienes?|puedes?|hay|conoces?|sabes?)\b"),
+    re.compile(r"\bsolo\s+(tienes?\s+)?(koha|ojs)\b"),
+    re.compile(r"\b(cuantas?\s+fuentes?|cuantos?\s+repositorios?)\b"),
+    re.compile(r"\bde\s+donde\s+(sacas?|obtienes?|viene[ns]?)\b"),
+]
+
+
 # ── Comandos directos ─────────────────────────────────────────────────────
 
 _COMMAND_PATTERN = re.compile(r"^/[a-z]+(\s|$)")
@@ -124,6 +146,19 @@ class RuleBasedRouter:
                     PrivacyLevel.ALWAYS_LOCAL,
                     t0,
                     f"campus_personal: {pat.pattern[:40]}",
+                )
+
+        # 2b. Meta-preguntas sobre capacidades/fuentes del asistente.
+        # Largas pero conversacionales → GREETING (el path GREETING describe el
+        # inventario de fuentes). No se aplica la regla del remainder.
+        for pat in _META_CAPABILITY_PATTERNS:
+            if pat.search(normalized):
+                return self._decision(
+                    IntentCategory.GREETING,
+                    Tier.T0_FAST,
+                    PrivacyLevel.CLOUD_OK,
+                    t0,
+                    f"meta_capability: {pat.pattern[:40]}",
                 )
 
         # 3. Saludos / cortesía

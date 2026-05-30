@@ -394,11 +394,14 @@ async def test_cascade_router_short_circuits_classifier_on_greeting() -> None:
 # ── Tests Día 3: AgentOrchestrator A/B (ADR-050) ─────────────────────────────
 
 
-def _make_fake_settings(*, agent_mode_enabled: bool, rollout_pct: int = 100) -> object:
+def _make_fake_settings(
+    *, agent_mode_enabled: bool, rollout_pct: int = 100, agent_timeout_s: float = 25.0
+) -> object:
     """Crea un objeto de settings mínimo para tests del agente."""
     class _FakeSettings:
         agent_mode_enabled = False
         agent_mode_rollout_pct = 100
+        agent_timeout_s = 25.0
         ojs_base_url = ""
         dspace_base_url = ""
         alicia_base_url = ""
@@ -409,6 +412,7 @@ def _make_fake_settings(*, agent_mode_enabled: bool, rollout_pct: int = 100) -> 
     s = _FakeSettings()
     s.agent_mode_enabled = agent_mode_enabled
     s.agent_mode_rollout_pct = rollout_pct
+    s.agent_timeout_s = agent_timeout_s
     return s
 
 
@@ -637,3 +641,48 @@ def test_render_results_list_enlaces_inline_sin_seccion_duplicada() -> None:
     assert "[Metodología](https://cat.upeu.edu.pe/opac/2)" in out
     assert "Fuente consultada" not in out
     assert "2 resultados encontrados" in out
+
+
+async def test_chat_agent_timeout_falls_back_to_legacy() -> None:
+    """Si el orquestador supera agent_timeout_s, se cae al pipeline legacy.
+
+    Guarda crítica (ADR-050): evita que un NIM lento deje al usuario esperando;
+    en timeout la respuesta debe venir del path legacy estable, no fallar.
+    """
+    import asyncio as _asyncio
+    from unittest.mock import MagicMock
+
+    from guia.services.agent_orchestrator import OrchestratorResult
+
+    synthesis = InMemoryLLMAdapter(canned_response="respuesta legacy", embedding_dim=8)
+    classifier = InMemoryLLMAdapter(canned_response="research", embedding_dim=8)
+
+    async def _slow_run(*args, **kwargs):
+        await _asyncio.sleep(1.0)  # excede el timeout de 0.05s
+        return OrchestratorResult(
+            answer="respuesta agente (no debería llegar)",
+            sources=[], trace=[], iterations=1,
+            fallback=False, forced_synthesis=False, is_clarification=False,
+        )
+
+    fake_orchestrator = MagicMock()
+    fake_orchestrator.run = _slow_run
+
+    service = ChatService(
+        synthesis_llm=synthesis,
+        store=InMemoryVectorStoreAdapter(dim=8),
+        embedder=FakeEmbedder(),
+        classifier_llm=classifier,
+        settings=_make_fake_settings(
+            agent_mode_enabled=True, rollout_pct=100, agent_timeout_s=0.05
+        ),  # type: ignore[arg-type]
+        agent_orchestrator=fake_orchestrator,  # type: ignore[arg-type]
+    )
+
+    response = await service.answer(
+        ChatRequest(query="tesis sobre machine learning", user_id="user-123")
+    )
+
+    # En timeout cae a legacy: respuesta del synthesis_llm, no del agente
+    assert response.answer == "respuesta legacy"
+    assert response.model_used != "agent"

@@ -281,8 +281,12 @@ async def on_message(message: cl.Message) -> None:
     await thinking_msg.send()
 
     try:
+        # user_id (email del usuario autenticado) habilita el bucketing del
+        # AgentOrchestrator (ADR-050) también en web. Anónimos → None → legacy.
+        _user = cl.user_session.get("user")
         request = ChatRequest(
             query=message.content,
+            user_id=str(_user.identifier) if _user else None,
             session_id=cl.context.session.id,
             language="es",
             history=history,

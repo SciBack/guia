@@ -138,6 +138,8 @@ class GUIASettings(BaseSettings):
     guia_agent_mode_enabled: bool = Field(default=False)        # lee GUIA_AGENT_MODE_ENABLED
     guia_agent_mode_rollout_pct: int = Field(default=0, ge=0, le=100)  # lee GUIA_AGENT_MODE_ROLLOUT_PCT
     guia_agent_max_iter: int = Field(default=3, ge=1, le=6)    # lee GUIA_AGENT_MAX_ITER
+    # Techo de tiempo total del orquestador; al superarlo → fallback a legacy.
+    guia_agent_timeout_s: float = Field(default=25.0, gt=0, le=120)  # lee GUIA_AGENT_TIMEOUT_S
 
     # Aliases de acceso corto para compatibilidad con código existente
     @property
@@ -151,3 +153,7 @@ class GUIASettings(BaseSettings):
     @property
     def agent_max_iterations(self) -> int:
         return self.guia_agent_max_iter
+
+    @property
+    def agent_timeout_s(self) -> float:
+        return self.guia_agent_timeout_s

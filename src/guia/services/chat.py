@@ -506,15 +506,20 @@ class ChatService:
             greeting_llm = self._fast_llm or self._synthesis_llm
             greeting_system = (
                 f"Eres GUIA, el asistente universitario de {self._institution}. "
-                "Responde de forma breve, amigable y directa. "
-                "No listes fuentes ni hagas búsquedas. No inventes información."
+                "Responde de forma breve, amigable y directa. No hagas búsquedas "
+                "en el catálogo. No inventes información.\n\n"
+                f"{self._sources_inventory}\n\n"
+                "Si el usuario pregunta qué puedes hacer, qué fuentes tienes o si "
+                "tienes acceso a alguna fuente, describe el inventario anterior de "
+                "forma conversacional (qué tienes y qué aún no). Tú eres quien tiene "
+                "acceso a esas fuentes — no derives al usuario a otro servicio."
             )
             g_messages = [LLMMessage(role="system", content=greeting_system)]
             for turn in request.history:
                 g_messages.append(LLMMessage(role=turn.role, content=turn.content))
             g_messages.append(LLMMessage(role="user", content=query))
             g_response = await asyncio.to_thread(
-                greeting_llm.complete, g_messages, max_tokens=200, temperature=0.3
+                greeting_llm.complete, g_messages, max_tokens=350, temperature=0.3
             )
             response = ChatResponse(
                 answer=g_response.content,
@@ -607,13 +612,30 @@ class ChatService:
             and assign_bucket(request.user_id, _rollout_pct) == "agent"
         )
 
-        # ── Rama agente ───────────────────────────────────────────────────
+        # ── Rama agente (con techo de tiempo → fallback a legacy) ─────────
+        # Guarda crítica: el orquestador hace hasta max_iter llamadas LLM
+        # secuenciales a NIM (cloud) sin cota propia; un proveedor lento podía
+        # producir respuestas de >5 min. wait_for acota y, si expira, caemos al
+        # path legacy estable en vez de dejar al usuario esperando.
+        orch_result = None
         if use_agent:
-            orch_result = await self._agent_orchestrator.run(  # type: ignore[union-attr]
-                query=query,
-                history=history_as_llm_messages,
-                privacy_verdict=privacy_verdict,
-            )
+            try:
+                orch_result = await asyncio.wait_for(
+                    self._agent_orchestrator.run(  # type: ignore[union-attr]
+                        query=query,
+                        history=history_as_llm_messages,
+                        privacy_verdict=privacy_verdict,
+                    ),
+                    timeout=getattr(self._settings, "agent_timeout_s", 25.0),
+                )
+            except (TimeoutError, asyncio.TimeoutError):
+                __import__("logging").getLogger(__name__).warning(
+                    "agent_orchestrator_timeout_fallback_legacy timeout_s=%s",
+                    getattr(self._settings, "agent_timeout_s", 25.0),
+                )
+                use_agent = False  # fallthrough al pipeline legacy de abajo
+
+        if use_agent and orch_result is not None:
             answer_text = orch_result.answer
             # Convertir VectorRecord del orquestador a Source del dominio
             def _rec_to_source(rec: "VectorRecord") -> Source:

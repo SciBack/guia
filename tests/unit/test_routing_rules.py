@@ -169,3 +169,45 @@ def test_empty_string_returns_none(router: RuleBasedRouter) -> None:
     """Query vacía no matchea."""
     assert router.decide("") is None
     assert router.decide("   ") is None
+
+
+# ── Meta-preguntas sobre capacidades / fuentes → GREETING ─────────────────
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "¿tienes acceso a alguna otra fuente además de Koha?",
+        "¿qué fuentes tienes disponibles?",
+        "¿solo tienes Koha o también OJS?",
+        "¿de dónde sacas la información?",
+        "¿cuántas fuentes tienes indexadas?",
+        "tienes acceso a DSpace",
+        "además de Koha, ¿qué más manejas?",
+        "¿qué más puedes hacer?",
+    ],
+)
+def test_meta_capability_questions_match_gate1(
+    router: RuleBasedRouter, query: str
+) -> None:
+    """Meta-preguntas sobre fuentes/capacidades → GREETING (no out_of_scope)."""
+    d = router.decide(query)
+    assert d is not None, f"Gate 1 debería capturar la meta-pregunta: {query!r}"
+    assert d.intent == IntentCategory.GREETING
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "tienes libros de estadística",
+        "busca artículos en OJS sobre nutrición",
+        "¿hay tesis sobre burnout?",
+        "libros de excel",
+    ],
+)
+def test_real_searches_not_captured_as_meta(
+    router: RuleBasedRouter, query: str
+) -> None:
+    """Búsquedas reales NO deben confundirse con meta-preguntas (pasan a Gate 2/3)."""
+    d = router.decide(query)
+    assert d is None, f"Búsqueda real no debe matchear Gate 1: {query!r} → {d}"
