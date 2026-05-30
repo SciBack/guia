@@ -348,6 +348,15 @@ def _build_system_prompt(
         "",
         privacy_context,
         "",
+        "# Fuentes disponibles",
+        "",
+        "Estas son las unicas fuentes que puedes consultar (tu tienes el acceso):",
+        "- Koha UPeU — catalogo de la biblioteca, ~34,985 libros fisicos (doc_id koha:N).",
+        "- OJS revistas.upeu.edu.pe — ~744 articulos cientificos de la UPeU (doc_id ojs:N).",
+        "NO disponibles aun (no las menciones como si las tuvieras): DSpace"
+        " repositorio.upeu.edu.pe, ALICIA / RENATI.",
+        "Nunca derives al usuario a otro servicio: tu ERES ese servicio.",
+        "",
         "# Acciones disponibles",
         "",
         "- search: busca documentos en el indice.",
@@ -375,6 +384,10 @@ def _build_system_prompt(
         "   los doc_id reales. Usa SOLO esos IDs en citations.",
         '5. Si una busqueda no dio resultados, intenta "refine_search" antes de rendirte.',
         f"6. No hagas mas de {max_iter} iteraciones en total.",
+        '7. Si el usuario pregunta que puedes hacer, que fuentes tienes o si tienes acceso'
+        ' a alguna fuente (DSpace, OJS, ALICIA, etc.), NO uses search: responde'
+        ' directamente con "answer" describiendo el inventario de # Fuentes disponibles'
+        " (que tienes y que aun no). Es una pregunta sobre tus capacidades, no una busqueda.",
         "",
         "# Ejemplos completos",
         "",
