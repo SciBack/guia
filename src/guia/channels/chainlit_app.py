@@ -94,7 +94,18 @@ def get_data_layer() -> SQLAlchemyDataLayer:
 
 @cl.on_app_startup
 async def on_app_startup() -> None:
-    """Pre-calienta los routers (ModelRouter legacy + CascadeRouter P1.2) al arrancar."""
+    """Pre-calienta routers y modelos NLP al arrancar.
+
+    Routers (warm_up): bloqueantes — deben completar antes de aceptar
+    requests para que el primer mensaje no sufra el cold-start de embeddings.
+
+    Gates NLP (lid.176.bin + detoxify): CPU-bound y potencialmente lentos en
+    la PRIMERA descarga (lid ~25s, detoxify ~1.1GB). Se lanzan como tarea
+    background (fire-and-forget) para no retrasar /healthz más allá del timeout
+    del healthcheck. Tras persistir en el volumen fastembed_cache/torch_cache,
+    los reinicios posteriores solo cargan de disco. Ver
+    incident_chainlit_coldstart_socket en memoria.
+    """
     router = getattr(_container, "router", None)
     if router is not None:
         logger.info("model_router_warmup_start")
@@ -106,6 +117,39 @@ async def on_app_startup() -> None:
         logger.info("cascade_router_warmup_start")
         await cascade.warm_up()
         logger.info("cascade_router_warmup_done")
+
+    # Gates NLP: fire-and-forget en background (no bloquea startup ni /healthz).
+    asyncio.create_task(_warmup_nlp_gates())
+
+
+async def _warmup_nlp_gates() -> None:
+    """Carga lid.176.bin (LanguageGate) y Detoxify multilingual (ToxicityGate)
+    en threads separados, para que estén calientes antes del primer mensaje
+    del usuario en vez de cargarse de forma lazy en la primera query (~25s).
+
+    Errores de carga no tumban el proceso — los gates tienen fallback seguro
+    incorporado (lid → ("es", 1.0), toxicity → score 0.0).
+    """
+    # lid.176.bin — LanguageGate
+    try:
+        logger.info("nlp_warmup_lid_start")
+        from guia.nlp.language import detect_language
+        await asyncio.to_thread(detect_language, "warmup")
+        logger.info("nlp_warmup_lid_done")
+    except Exception:
+        logger.warning("nlp_warmup_lid_failed", exc_info=True)
+
+    # Detoxify multilingual — ToxicityGate.
+    # Se invoca sobre la instancia del container para respetar enabled/threshold
+    # de settings. Si toxicity está disabled, evaluate() retorna sin cargar pesos.
+    toxicity_gate = getattr(_container, "toxicity_gate", None)
+    if toxicity_gate is not None:
+        try:
+            logger.info("nlp_warmup_toxicity_start")
+            await asyncio.to_thread(toxicity_gate.evaluate, "warmup query")
+            logger.info("nlp_warmup_toxicity_done")
+        except Exception:
+            logger.warning("nlp_warmup_toxicity_failed", exc_info=True)
 
 
 @cl.on_logout
