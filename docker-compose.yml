@@ -87,6 +87,12 @@ services:
       - ./chainlit.md:/app/chainlit.md:ro
       - ./.chainlit:/app/.chainlit:ro
       - ./public:/app/public:ro
+    # /app quedó root:root tras el commit 06c8063 (COPY --chown) y el proceso
+    # corre como guia (uid 1000): no puede crear FILES_DIRECTORY (/app/.files).
+    # tmpfs escribible por uid 1000 lo resuelve sin rebuild (uploads de sesión,
+    # efímeros). Fix de raíz pendiente en el Dockerfile cuando se amplíe el disco.
+    tmpfs:
+      - /app/.files:uid=1000,gid=1000
 
   telegram:
     build:
