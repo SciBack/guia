@@ -1,8 +1,11 @@
 # ADR-050 — AgentOrchestrator: loop agéntico multi-paso para GUIA
 
-**Estado:** Propuesto — 2026-05-28
+**Estado:** Aceptado — canary 5% en producción (web + API) desde 2026-05-30
 **Autor:** Alberto Sanchez / SciBack
 **Dia de implementacion:** Dia 1 (modelos + loop + tests basicos)
+
+> **Seguimiento al final del documento** (§ "Estado de implementación"): Días 1-4,
+> activación en web, guarda de timeout e identidad de bucket. Última actualización 2026-05-30.
 
 ---
 
@@ -143,7 +146,33 @@ Cuando el agente alcance los criterios de exito A/B y cubra el 100% del rollout:
 GUIA_AGENT_MODE_ENABLED     bool   default=False  — habilita el bucket agente
 GUIA_AGENT_MODE_ROLLOUT_PCT int    default=0      — % de usuarios en el bucket
 GUIA_AGENT_MAX_ITER         int    default=3      — max iteraciones por query
+GUIA_AGENT_TIMEOUT_S        float  default=25.0   — techo de tiempo total; al superarlo → fallback legacy
 ```
+
+---
+
+## Estado de implementación
+
+### Días 1-3 (2026-05-28) — orquestador + DI + audit
+- `agent_orchestrator.py` (async, discriminated union, loop max_iter=3, retry 1×, fallback, force_synthesis).
+- DI: `_bucket.py` (sha256 determinístico, anónimos→legacy), wiring en `chat.py` post-privacy (L2/L3 nunca van al agente cloud), `container.py` condicional a `NVIDIA_NIM_API_KEY`.
+- Audit: 5 campos nuevos (`orchestrator_mode`, `agent_iterations`, `agent_actions`, `agent_fallback`, `agent_forced_synthesis`).
+- LLM: NIM Mistral Small (ver memoria `llm_cost_strategy_post_piloto`). Flag OFF por default.
+
+### Día 4 (2026-05-29) — canary 5% (solo API)
+- `GUIA_AGENT_MODE_ENABLED=true`, `ROLLOUT_PCT=5` en la VM UPeU. Panel A/B en el dashboard.
+- Incidente de disco (VM al 100%) → Redis stop-writes; resuelto con `docker builder prune`. **No rebuilds en la VM hasta ampliar disco.**
+
+### 2026-05-30 — activación en WEB + guardas (esta sesión)
+- **Hallazgo:** el canal web (Chainlit) NO pasaba `user_id` → `assign_bucket(None)`→legacy siempre. El canary medía **0% real**; las trazas "agent" eran solo pruebas por API.
+- **Activación:** `chainlit_app.py` ahora pasa `user_id` (email autenticado) al `ChatRequest`. El bucket 5% empieza a aplicar a usuarios web. Anónimos → None → legacy (se mantiene la regla del §Decisión.3).
+- **Guarda de timeout (nueva):** `asyncio.wait_for(orchestrator.run, GUIA_AGENT_TIMEOUT_S)` en `chat.py`; en timeout → `use_agent=False` y fallthrough al pipeline legacy. Motivada por un outlier de 323s observado el 2026-05-29 (el orquestador no tenía cota de tiempo propia: hasta ~7 llamadas LLM secuenciales en el peor caso).
+- **Deuda — identidad de bucket inconsistente entre canales:** web usa `email`, Telegram usa `keycloak_sub`. El mismo usuario puede caer en buckets distintos según canal (contamina el A/B y da experiencia inconsistente). Unificar a un identificador canónico (sub o email) en los 3 canales. Señalado por architect-reviewer.
+- Decisión validada con architect-reviewer (activar **con guardas**, no tal cual).
+
+### Métricas observadas (poco tráfico, no significativas aún)
+- 1 query agent normal ~13s; 1 outlier 323s (durante el incidente de disco, con parse fallido). Fallback 0, forced 0.
+- Criterio para subir 5%→50% (recalibrar con tráfico web real): fallback <5%, iteraciones ≤1.8, p95 ≤6000ms, sin degradación legacy.
 
 ---
 

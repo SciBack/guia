@@ -14,9 +14,11 @@ Repo del **app GUIA** (Gateway Universitario de Informacion y Asistencia).
 ## Este repo
 
 - **Sprints 0.0–0.3 ✅ completos** (Setup → Harvester DSpace → Embeddings + RAG → Chainlit + OAuth Keycloak)
-- **Sprint 0.4 en curso** (mayo 2026): GROBID full-text, cl.Step CoT, cl.Pdf, scheduler semanal
-- Servicios operativos en `src/guia/services/`: `harvester`, `chat`, `search`, `router`, `intent`, `profile`, `cache`, `history`
-- Despliegue piloto UPeU: VM 192.168.15.167 con Koha + OJS indexados (DSpace bloqueado por 403, ver memoria)
+- **Sprints 0.4–0.7 ✅** (GROBID full-text, cl.Step CoT, cl.Pdf, scheduler, dashboard KPIs, backup S3, Telegram @GUIA_UPeU_bot)
+- **AgentOrchestrator (ADR-050)** en canary 5% web+API desde 2026-05-30 (NIM Mistral, flag `GUIA_AGENT_MODE_ENABLED`, guarda `GUIA_AGENT_TIMEOUT_S`=25s → fallback legacy). Ver `docs/architecture/ADR-050-agent-orchestrator.md`.
+- Servicios en `src/guia/services/`: `harvester`, `chat`, `search`, `router`, `intent`, `profile`, `cache`, `history`, `agent_orchestrator`, `query_rewriter`, `_bucket`. Render del chat: `channels/render.py` (listado enlazado vs narrativa, `ChatResponse.answer_type`).
+- Despliegue piloto UPeU: VM 192.168.15.167, Koha (~34,985) + OJS (~744) indexados (DSpace bloqueado por 403, ver memoria).
+  - **Deploy = `git pull` + `docker compose up -d --force-recreate --no-build`** (código montado en `/src`). NO rebuild en la VM (disco insuficiente, ver memoria). El compose tiene `tmpfs` en `/app/.files` (fix permisos uid 1000).
 
 ## Dependencias clave (`pyproject.toml`)
 
