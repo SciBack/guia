@@ -67,7 +67,13 @@ WORKDIR /app
 # Usuario no-root creado ANTES de los COPY para usar --chown directo.
 # Evita el `RUN chown -R guia:guia /app` que duplicaba toda la capa del venv
 # (~7GB de miles de archivos) y agotaba el disco durante el build.
-RUN useradd -m -u 1000 guia
+#
+# `install -d` ajusta el owner SOLO de /app y /app/.files (no recursivo → barato
+# en disco). Necesario porque `WORKDIR /app` crea /app como root:root: sin esto,
+# Chainlit (que corre como guia uid 1000) crashea al crear FILES_DIRECTORY
+# (/app/.files) con PermissionError [Errno 13]. Ver incidente 2026-05-30 (commit 06c8063).
+RUN useradd -m -u 1000 guia && \
+    install -d -o guia -g guia /app /app/.files
 
 # Copiar venv del builder con ownership directo (shebangs → /app/.venv/bin/python ✓)
 COPY --from=builder --chown=guia:guia /app/.venv /app/.venv
@@ -86,6 +92,20 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app/src"
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+
+# ── Fix de raíz cold-start lid.176.bin (DESCOMENTAR al ampliar disco VM) ──────
+# Hornea el modelo de detección de idioma (~131MB) en una capa cacheada de la
+# imagen para eliminar la descarga en runtime (~25s en el primer mensaje).
+# Ruta canónica /home/guia/.cache/ftlang: NO es punto de montaje de ningún
+# volumen → no la shadowa fastembed_cache. Cuando esto se active, RETIRAR el
+# override `FTLANG_CACHE: /tmp/fastembed_cache/ftlang` de docker-compose.yml.
+# Mientras el disco esté al límite, la persistencia se logra vía el volumen
+# fastembed_cache + warmup en on_app_startup (sin rebuild). Ver
+# incident_chainlit_coldstart_socket en memoria.
+# ENV FTLANG_CACHE=/home/guia/.cache/ftlang
+# RUN mkdir -p /home/guia/.cache/ftlang && \
+#     python -c "from ftlangdetect import detect; detect('warmup', low_memory=False)" && \
+#     chown -R guia:guia /home/guia/.cache/ftlang
 
 USER guia
 
