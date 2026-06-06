@@ -6,6 +6,17 @@ import os
 
 from celery import Celery
 from celery.schedules import crontab
+from kombu import Queue
+
+# Las colas harvester/grobid/health están predeclaradas por
+# docker/rabbitmq/definitions.json con dead-letter hacia sciback.events.dlx.
+# Celery DEBE declararlas con los mismos argumentos o RabbitMQ rechaza con
+# PRECONDITION_FAILED (406). Ver definitions.json. La cola "indexer" es propia
+# de Celery (no canónica → sin args). La canónica del bus es "search.indexer".
+_DLX_ARGS = {
+    "x-dead-letter-exchange": "sciback.events.dlx",
+    "x-dead-letter-routing-key": "dlq",
+}
 
 broker_url = os.environ.get(
     "CELERY_BROKER_URL",
@@ -40,6 +51,13 @@ app.conf.update(
         "guia.worker.tasks.grobid.*": {"queue": "grobid"},
         "guia.worker.tasks.health.*": {"queue": "health"},
     },
+    # Declarar colas con los argumentos que definitions.json ya fijó en RabbitMQ.
+    task_queues=[
+        Queue("indexer"),
+        Queue("harvester", queue_arguments=_DLX_ARGS),
+        Queue("grobid", queue_arguments=_DLX_ARGS),
+        Queue("health", queue_arguments=_DLX_ARGS),
+    ],
     beat_schedule={
         "harvest-dspace-daily": {
             "task": "guia.worker.tasks.harvester.harvest_dspace",
