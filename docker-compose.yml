@@ -164,8 +164,9 @@ services:
     image: lfoppiano/grobid:0.8.1
     ports:
       - "8070:8070"
+    # La imagen grobid no trae curl; TCP check al puerto 8070 con bash (builtin /dev/tcp).
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8070/api/isalive"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8070"]
       interval: 20s
       timeout: 10s
       retries: 5
@@ -181,8 +182,10 @@ services:
       KC_DB: dev-mem
     ports:
       - "8080:8080"
+    # Keycloak 26 es distroless (sin curl/wget); /health/ready vive en el puerto
+    # mgmt 9000 que aquí no está habilitado. TCP check al puerto app 8080 con bash.
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8080"]
       interval: 30s
       timeout: 10s
       retries: 10
