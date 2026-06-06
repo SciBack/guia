@@ -73,7 +73,9 @@ dependencies = [
     # Gates router (ADR-045)
     # fasttext-langdetect requiere C++17 — compilado en builder stage (gcc/g++ en Dockerfile)
     "fasttext-langdetect>=1.0",
-    # detoxify se instala en Dockerfile con torch CPU-only (evita 2GB CUDA de PyPI)
+    # torch declarado explícito para fijarle el índice CPU-only (ver [tool.uv.sources]).
+    # detoxify lo arrastra como transitiva; sin esto uv resuelve la variante CUDA (~2GB).
+    "torch>=1.7.0",
 ]
 
 [dependency-groups]
@@ -86,6 +88,9 @@ dev = [
 ]
 
 [tool.uv.sources]
+# torch CPU-only desde el índice de PyTorch (evita ~2GB de wheels CUDA/nvidia en linux).
+# Requiere [[tool.uv.index]] pytorch-cpu con explicit=true (abajo).
+torch = [{ index = "pytorch-cpu" }]
 sciback-core = { path = "../sciback-core/packages/sciback-core", editable = true }
 sciback-adapter-dspace = { path = "../sciback-core/packages/sciback-adapter-dspace", editable = true }
 sciback-adapter-ojs = { path = "../sciback-core/packages/sciback-adapter-ojs", editable = true }
@@ -103,6 +108,13 @@ sciback-search-opensearch = { path = "../sciback-core/packages/sciback-search-op
 sciback-storage-s3 = { path = "../sciback-core/packages/sciback-storage-s3", editable = true }
 sciback-identity-keycloak = { path = "../sciback-core/packages/sciback-identity-keycloak", editable = true }
 sciback-identity-midpoint = { path = "../sciback-core/packages/sciback-identity-midpoint", editable = true }
+
+# Índice CPU-only de PyTorch. explicit=true ⇒ solo se consulta para paquetes que lo
+# declaren en [tool.uv.sources] (torch), no para el resto (es-core-news-lg, etc.).
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]

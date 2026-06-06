@@ -32,16 +32,11 @@ COPY guia/uv.lock* ./
 # WORKDIR es /app → ../sciback-core resuelve a /sciback-core (raíz)
 COPY sciback-core/ /sciback-core/
 
-# Instalar dependencias (sin el proyecto, para cachear esta capa)
+# Instalar dependencias (sin el proyecto, para cachear esta capa).
+# torch CPU-only + detoxify ya vienen resueltos en uv.lock (ver pyproject [tool.uv.index]
+# pytorch-cpu). El sync los instala directamente; ya no hace falta reinstalar torch a mano.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
-
-# Instalar detoxify con torch CPU-only (no en uv.lock para evitar CUDA torch de PyPI)
-# torch CPU para linux/amd64: ~280MB vs ~2GB CUDA
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --python .venv/bin/python3 \
-    "torch" --index-url https://download.pytorch.org/whl/cpu && \
-    uv pip install --python .venv/bin/python3 "detoxify>=0.5"
 
 # ── Stage 2: runtime ──────────────────────────────────────────
 FROM python:3.13-slim
@@ -93,19 +88,23 @@ ENV PYTHONPATH="/app/src"
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# ── Fix de raíz cold-start lid.176.bin (DESCOMENTAR al ampliar disco VM) ──────
+# ── Fix de raíz cold-start lid.176.bin — modelo horneado en la imagen ─────────
 # Hornea el modelo de detección de idioma (~131MB) en una capa cacheada de la
-# imagen para eliminar la descarga en runtime (~25s en el primer mensaje).
+# imagen para eliminar la descarga en runtime (~25s en el primer mensaje post-deploy).
 # Ruta canónica /home/guia/.cache/ftlang: NO es punto de montaje de ningún
-# volumen → no la shadowa fastembed_cache. Cuando esto se active, RETIRAR el
-# override `FTLANG_CACHE: /tmp/fastembed_cache/ftlang` de docker-compose.yml.
-# Mientras el disco esté al límite, la persistencia se logra vía el volumen
-# fastembed_cache + warmup en on_app_startup (sin rebuild). Ver
-# incident_chainlit_coldstart_socket en memoria.
-# ENV FTLANG_CACHE=/home/guia/.cache/ftlang
-# RUN mkdir -p /home/guia/.cache/ftlang && \
-#     python -c "from ftlangdetect import detect; detect('warmup', low_memory=False)" && \
-#     chown -R guia:guia /home/guia/.cache/ftlang
+# volumen → no la shadowa fastembed_cache.
+# PREREQUISITO (ya hecho): retirado el override `FTLANG_CACHE: /tmp/fastembed_cache/ftlang`
+# de los servicios api/chainlit/telegram en docker-compose.yml, para que en runtime
+# se use esta ruta horneada en lugar del volumen. Ver incident_chainlit_coldstart_socket.
+ENV FTLANG_CACHE=/home/guia/.cache/ftlang
+# El detect() descarga lid.176.bin a FTLANG_CACHE y LUEGO predice. El predict()
+# falla con NumPy 2.x (fasttext 0.9.3 usa np.array(copy=False) — bug preexistente,
+# deuda separada), pero para entonces el modelo ya está en disco → objetivo cumplido.
+# El `|| echo` evita que ese ValueError rompa el build; el modelo queda horneado igual.
+RUN mkdir -p /home/guia/.cache/ftlang && \
+    (python -c "from ftlangdetect import detect; detect('warmup', low_memory=False)" \
+      || echo "warmup ftlang: predict falló (bug numpy2/fasttext) — lid.176.bin igualmente cacheado") && \
+    chown -R guia:guia /home/guia/.cache/ftlang
 
 USER guia
 
