@@ -22,6 +22,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ cmake &
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
+# Timeout alto para descargas grandes (es-core-news-lg ~542MB, torch CPU, hf-xet)
+# en redes con ancho de banda limitado (VM UPeU). Default uv = 30s → insuficiente.
+ENV UV_HTTP_TIMEOUT=600
+
 WORKDIR /app
 
 # Copiar manifiestos de guia
