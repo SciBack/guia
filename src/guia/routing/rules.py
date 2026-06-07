@@ -173,7 +173,8 @@ class RuleBasedRouter:
             if not m:
                 continue
             remainder = normalized[m.end():].strip()
-            remainder_words = [w for w in remainder.split() if w not in {"guia", "asistente"}]
+            remainder_clean = re.sub(r"[^\w\s]", "", remainder)
+            remainder_words = [w for w in remainder_clean.split() if w not in {"guia", "asistente"}]
             # Si tras el saludo quedan ≥3 palabras significativas, hay una
             # pregunta real — dejar que Gate 2/3 la clasifiquen.
             if len(remainder_words) >= 3:

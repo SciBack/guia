@@ -160,6 +160,7 @@ def test_harvest_all_without_token_development(app_client: TestClient) -> None:
     mock_harvester.harvest_dspace.return_value = {"total": 10, "ok": 8, "error": 2}
     mock_harvester.harvest_ojs.return_value = {"total": 5, "ok": 5, "error": 0}
     mock_harvester.harvest_alicia.return_value = {"total": 3, "ok": 3, "error": 0}
+    mock_harvester.harvest_indico.return_value = {"total": 0, "ok": 0, "error": 0}
 
     resp = app_client.post("/api/admin/harvest", json={"source": "all"})
     assert resp.status_code == 200
