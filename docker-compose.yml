@@ -34,6 +34,32 @@ services:
     restart: unless-stopped
 
   # ── GUIA servicios ────────────────────────────────────────────
+  # ── Embeddings sidecar ────────────────────────────────────────
+  # Una sola copia del modelo fastembed e5-large (~2.5GB) servida por HTTP
+  # con el protocolo Ollama /api/embeddings. api/chainlit/telegram/workers
+  # la consumen vía E5EmbeddingAdapter (EMBEDDING_BACKEND=ollama +
+  # E5_OLLAMA_BASE_URL=http://embeddings:11434 en .env) en vez de cargar
+  # cada uno su propia copia — antes saturaban RAM+swap de la VM (9.7GB).
+  # Reutiliza la imagen de api (mismo Dockerfile) → sin build propio.
+  embeddings:
+    image: guia-api
+    command: python -m uvicorn guia.embeddings_sidecar:app --host 0.0.0.0 --port 11434
+    env_file: .env
+    expose:
+      - "11434"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # La carga del modelo ONNX tarda ~60s en la VM; no marcar unhealthy antes.
+      start_period: 180s
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
+      - fastembed_cache:/tmp/fastembed_cache
+
   api:
     build:
       context: ..
@@ -48,6 +74,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      embeddings:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -79,6 +107,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      embeddings:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/healthz"]
@@ -112,6 +142,8 @@ services:
     # (Dockerfile.prod ENV FTLANG_CACHE=/home/guia/.cache/ftlang).
     depends_on:
       redis:
+        condition: service_healthy
+      embeddings:
         condition: service_healthy
     restart: unless-stopped
     volumes:
