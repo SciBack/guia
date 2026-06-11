@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
@@ -34,10 +36,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     container = GUIAContainer(settings)
     app.state.container = container
 
+    # Warmup en background: embedder (~2.5GB, ~60s en la VM) + gates NLP.
+    # Sin esto, la primera query research tras un recreate pagaba el lazy-load
+    # completo dentro del request (OOM-kill con swap saturado / 504 de nginx).
+    from guia.services.warmup import warmup_models
+
+    warmup_task = asyncio.create_task(warmup_models(container))
+
     logger.info("guia_ready")
     yield
 
     logger.info("guia_shutting_down")
+    warmup_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await warmup_task
     await container.aclose()
 
 

@@ -76,6 +76,12 @@ async def main() -> None:
     # Container GUIA
     container = GUIAContainer(_settings)
 
+    # Warmup en background del embedder + gates NLP (ver services/warmup.py).
+    # Evita que la primera consulta de un usuario pague el lazy-load (~60s).
+    from guia.services.warmup import warmup_models
+
+    _warmup_task = asyncio.create_task(warmup_models(container))  # noqa: F841, RUF006
+
     bot = Bot(token=token)
     dp = Dispatcher(storage=redis_storage)
 
