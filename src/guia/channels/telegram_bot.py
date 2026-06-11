@@ -76,11 +76,13 @@ async def main() -> None:
     # Container GUIA
     container = GUIAContainer(_settings)
 
-    # Warmup en background del embedder + gates NLP (ver services/warmup.py).
-    # Evita que la primera consulta de un usuario pague el lazy-load (~60s).
-    from guia.services.warmup import warmup_models
-
-    _warmup_task = asyncio.create_task(warmup_models(container))  # noqa: F841, RUF006
+    # NOTA: telegram NO hace warmup de modelos (a diferencia del api).
+    # Pre-cargar el embedder aquí cuesta ~2.5GB residentes permanentes en una
+    # VM de 9.7GB que ya aloja opensearch+chainlit+api con sus propias copias
+    # — verificado 2026-06-11: con los 4 procesos calientes el swap se saturó
+    # y las queries pasaron de 5s a 62s por thrashing. Con ~0 tráfico Telegram,
+    # la primera consulta paga el lazy-load (~60-90s, sin OOM gracias al lock
+    # del adapter y al swap ampliado) y las siguientes van normales.
 
     bot = Bot(token=token)
     dp = Dispatcher(storage=redis_storage)
