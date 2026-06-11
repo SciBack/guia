@@ -140,6 +140,11 @@ class GUIASettings(BaseSettings):
     guia_agent_max_iter: int = Field(default=3, ge=1, le=6)    # lee GUIA_AGENT_MAX_ITER
     # Techo de tiempo total del orquestador; al superarlo → fallback a legacy.
     guia_agent_timeout_s: float = Field(default=25.0, gt=0, le=120)  # lee GUIA_AGENT_TIMEOUT_S
+    # Techo de tiempo de la síntesis LLM del path legacy; al superarlo → respuesta
+    # honesta con las fuentes ya recuperadas (evita el cuelgue de minutos que mató
+    # la adopción del piloto). 45s deja completar una query RAG normal (~23s con
+    # qwen2.5:7b) con margen, pero corta los outliers de >1 min.
+    guia_legacy_synthesis_timeout_s: float = Field(default=45.0, gt=0, le=300)  # lee GUIA_LEGACY_SYNTHESIS_TIMEOUT_S
 
     # Aliases de acceso corto para compatibilidad con código existente
     @property
@@ -157,3 +162,7 @@ class GUIASettings(BaseSettings):
     @property
     def agent_timeout_s(self) -> float:
         return self.guia_agent_timeout_s
+
+    @property
+    def legacy_synthesis_timeout_s(self) -> float:
+        return self.guia_legacy_synthesis_timeout_s

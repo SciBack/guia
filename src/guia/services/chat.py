@@ -763,9 +763,57 @@ class ChatService:
         for turn in request.history:
             messages.append(LLMMessage(role=turn.role, content=turn.content))
         messages.append(LLMMessage(role="user", content=query_for_llm))
-        llm_response = await asyncio.to_thread(
-            synthesis_llm.complete, messages, max_tokens=1024, temperature=0.1
-        )
+
+        # Techo de tiempo de la síntesis legacy. El LLM sync no tiene cota propia;
+        # un modelo lento/saturado producía cuelgues de minutos (histórico p95 254s)
+        # que dejaban al usuario esperando indefinidamente → causa raíz de la baja
+        # adopción del piloto. Al expirar devolvemos una respuesta honesta con las
+        # fuentes que SÍ recuperamos, en vez de colgar.
+        _legacy_timeout = getattr(self._settings, "legacy_synthesis_timeout_s", 45.0)
+        try:
+            llm_response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    synthesis_llm.complete, messages, max_tokens=1024, temperature=0.1
+                ),
+                timeout=_legacy_timeout,
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            __import__("logging").getLogger(__name__).warning(
+                "legacy_synthesis_timeout query_hash=%s timeout_s=%s sources=%d",
+                hash_query(query), _legacy_timeout, len(sources),
+            )
+            if sources:
+                fallback_answer = (
+                    "La consulta está tardando más de lo normal y no pude redactar "
+                    "una respuesta a tiempo. De todos modos encontré estas fuentes que "
+                    "pueden ayudarte — revísalas mientras tanto, o reformula la pregunta "
+                    "de forma más específica e inténtalo de nuevo."
+                )
+            else:
+                fallback_answer = (
+                    "La consulta está tardando más de lo normal y no pude responder a "
+                    "tiempo. Por favor reformúlala de forma más específica e inténtalo "
+                    "de nuevo en un momento."
+                )
+            timeout_response = ChatResponse(
+                answer=fallback_answer,
+                intent=intent,
+                sources=sources,
+                model_used="legacy_timeout",
+                cached=False,
+                tokens_used=0,
+                source_buckets=source_buckets,
+                explore_in=explore_in,
+                related_terms=related_terms,
+                answer_type=_classify_answer_type(intent, sources),
+            )
+            # No cacheamos un timeout: la próxima vez puede sintetizar bien.
+            await self._emit_audit(
+                request, timeout_response, route_decision, sources_used_names,
+                t_start, privacy_verdict, pii_redacted=bool(pii_replacements),
+                orchestrator_mode="legacy",
+            )
+            return timeout_response
 
         # 7b. Re-hidratar la respuesta del LLM (si redactamos antes)
         answer_text = llm_response.content

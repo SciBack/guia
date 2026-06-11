@@ -395,13 +395,18 @@ async def test_cascade_router_short_circuits_classifier_on_greeting() -> None:
 
 
 def _make_fake_settings(
-    *, agent_mode_enabled: bool, rollout_pct: int = 100, agent_timeout_s: float = 25.0
+    *,
+    agent_mode_enabled: bool,
+    rollout_pct: int = 100,
+    agent_timeout_s: float = 25.0,
+    legacy_synthesis_timeout_s: float = 45.0,
 ) -> object:
     """Crea un objeto de settings mínimo para tests del agente."""
     class _FakeSettings:
         agent_mode_enabled = False
         agent_mode_rollout_pct = 100
         agent_timeout_s = 25.0
+        legacy_synthesis_timeout_s = 45.0
         ojs_base_url = ""
         dspace_base_url = ""
         alicia_base_url = ""
@@ -413,6 +418,7 @@ def _make_fake_settings(
     s.agent_mode_enabled = agent_mode_enabled
     s.agent_mode_rollout_pct = rollout_pct
     s.agent_timeout_s = agent_timeout_s
+    s.legacy_synthesis_timeout_s = legacy_synthesis_timeout_s
     return s
 
 
@@ -686,3 +692,38 @@ async def test_chat_agent_timeout_falls_back_to_legacy() -> None:
     # En timeout cae a legacy: respuesta del synthesis_llm, no del agente
     assert response.answer == "respuesta legacy"
     assert response.model_used != "agent"
+
+
+async def test_legacy_synthesis_timeout_returns_honest_fallback() -> None:
+    """Si la síntesis legacy supera legacy_synthesis_timeout_s, se devuelve una
+    respuesta honesta en vez de colgar indefinidamente.
+
+    Guarda crítica: el LLM sync no tenía cota propia; un modelo lento dejaba al
+    usuario esperando minutos (causa raíz de la baja adopción del piloto).
+    """
+    import time as _time
+
+    def _slow_complete(messages, **kwargs):  # noqa: ANN001
+        _time.sleep(0.5)  # excede el timeout de 0.05s
+        raise AssertionError("la síntesis no debería completar bajo timeout")
+
+    slow_llm = MagicMock()
+    slow_llm.complete = _slow_complete
+
+    service = ChatService(
+        synthesis_llm=slow_llm,  # type: ignore[arg-type]
+        store=InMemoryVectorStoreAdapter(dim=8),
+        embedder=FakeEmbedder(),
+        classifier_llm=InMemoryLLMAdapter(canned_response="research", embedding_dim=8),
+        settings=_make_fake_settings(
+            agent_mode_enabled=False, legacy_synthesis_timeout_s=0.05
+        ),  # type: ignore[arg-type]
+    )
+
+    response = await service.answer(
+        ChatRequest(query="tesis sobre machine learning", user_id="user-x")
+    )
+
+    assert response.model_used == "legacy_timeout"
+    assert "tardando más de lo normal" in response.answer
+    assert response.cached is False
