@@ -29,8 +29,10 @@ async def transparency(request: Request) -> dict:
             "cloud_fallback": "claude-sonnet-4-6 (solo queries no sensibles)",
         },
         "data_sources": [
-            {"name": "Koha UPeU", "type": "biblioteca", "records_approx": 35000},
-            {"name": "OJS revistas.upeu.edu.pe", "type": "revistas_academicas", "records_approx": 744},
+            {"name": "Koha UPeU", "type": "biblioteca", "records_approx": 34900},
+            {"name": "DSpace repositorio.upeu.edu.pe", "type": "repositorio_institucional", "records_approx": 10000},
+            {"name": "OJS revistas.upeu.edu.pe", "type": "revistas_academicas", "records_approx": 12500},
+            {"name": "Indico UPeU", "type": "eventos_academicos", "records_approx": 550},
         ],
         "privacy": {
             "regulation": "Ley 29733 + DS 016-2024-JUS",

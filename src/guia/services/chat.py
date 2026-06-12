@@ -65,12 +65,14 @@ def _classify_answer_type(intent: "Intent", sources: list[Source]) -> str:
 
 _DEFAULT_SOURCES_INVENTORY = """\
 FUENTES ACTUALMENTE DISPONIBLES (las únicas que puedes consultar):
-- Koha UPeU — catálogo de la biblioteca, ~34,985 libros físicos indexados
+- Koha UPeU — catálogo de la biblioteca, ~34,900 libros físicos indexados
   (puedes buscar libros, autores, materias y disponibilidad de ejemplares).
-- OJS revistas.upeu.edu.pe — ~744 artículos científicos publicados por la UPeU.
+- DSpace repositorio.upeu.edu.pe — ~10,000 tesis y trabajos de investigación
+  del repositorio institucional (tesis de pregrado, maestría y doctorado).
+- OJS revistas.upeu.edu.pe — ~12,500 artículos científicos publicados por la UPeU.
+- Indico UPeU — ~550 eventos académicos y sus contribuciones.
 
 FUENTES NO DISPONIBLES AÚN (NO las menciones como si las tuvieras):
-- DSpace repositorio.upeu.edu.pe — bloqueado, sin acceso desde el servidor.
 - ALICIA / RENATI — pendiente de integración."""
 
 
@@ -162,8 +164,9 @@ Si no sabes, dilo directamente: "No encontré eso en el índice disponible."
 
 _CAMPUS_UNAVAILABLE = (
     "Los servicios de campus (notas, matrícula, horarios) aún no están disponibles. "
-    "Por ahora puedo ayudarte con el catálogo de la biblioteca Koha (~34,985 libros) "
-    "y artículos de las revistas académicas OJS de UPeU (~744 artículos)."
+    "Por ahora puedo ayudarte con el catálogo de la biblioteca Koha (~34,900 libros), "
+    "las tesis del repositorio institucional DSpace (~10,000) y los artículos de las "
+    "revistas académicas OJS de UPeU (~12,500 artículos)."
 )
 
 _OUT_OF_SCOPE = (

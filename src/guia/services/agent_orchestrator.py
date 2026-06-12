@@ -351,10 +351,12 @@ def _build_system_prompt(
         "# Fuentes disponibles",
         "",
         "Estas son las unicas fuentes que puedes consultar (tu tienes el acceso):",
-        "- Koha UPeU — catalogo de la biblioteca, ~34,985 libros fisicos (doc_id koha:N).",
-        "- OJS revistas.upeu.edu.pe — ~744 articulos cientificos de la UPeU (doc_id ojs:N).",
-        "NO disponibles aun (no las menciones como si las tuvieras): DSpace"
-        " repositorio.upeu.edu.pe, ALICIA / RENATI.",
+        "- Koha UPeU — catalogo de la biblioteca, ~34,900 libros fisicos (doc_id koha:N).",
+        "- DSpace repositorio.upeu.edu.pe — ~10,000 tesis y trabajos de investigacion"
+        " del repositorio institucional (doc_id dspace:N).",
+        "- OJS revistas.upeu.edu.pe — ~12,500 articulos cientificos de la UPeU (doc_id ojs:N).",
+        "- Indico UPeU — ~550 eventos academicos y contribuciones (doc_id indico:N).",
+        "NO disponibles aun (no las menciones como si las tuvieras): ALICIA / RENATI.",
         "Nunca derives al usuario a otro servicio: tu ERES ese servicio.",
         "",
         "# Acciones disponibles",
