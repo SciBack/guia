@@ -125,6 +125,12 @@ def reindex(
         help="Borra y recrea el index OpenSearch antes de reindex (mapping knn_vector). "
         "Usar la primera vez o tras cambios de mapping.",
     ),
+    source: str | None = typer.Option(
+        None,
+        "--source",
+        help="Reindexar solo una fuente (dspace, ojs, koha, indico). "
+        "Default: todas. Útil tras harvestear una fuente nueva.",
+    ),
 ) -> None:
     """Reindex pgvector → OpenSearch (M3 hotfix mientras llega outbox+celery)."""
     import asyncio
@@ -174,10 +180,12 @@ def reindex(
             pg_store=container.store,
             os_port=os_port,
             skip_chunks=skip_chunks,
+            source=source,
         )
 
         total = service.count_documents()
-        typer.echo(f"Documentos en pgvector: {total}")
+        scope = f" (source={source})" if source else ""
+        typer.echo(f"Documentos en pgvector{scope}: {total}")
 
         async def _run() -> "ReindexStats":
             if rebuild_index and not dry_run:

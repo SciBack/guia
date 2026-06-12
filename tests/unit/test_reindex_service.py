@@ -238,3 +238,44 @@ def test_count_documents_handles_null() -> None:
 
     service = ReindexService(pg_store=pg, os_port=MagicMock())
     assert service.count_documents() == 0
+
+
+def test_count_documents_sin_source_no_filtra() -> None:
+    pg = _fake_pg_store_with_rows([])
+    conn = pg._engine.connect.return_value.__enter__.return_value
+    conn.execute.return_value.scalar.return_value = 100
+
+    service = ReindexService(pg_store=pg, os_port=MagicMock())
+    service.count_documents()
+
+    sql = str(conn.execute.call_args[0][0])
+    assert "WHERE" not in sql
+    assert "source" not in conn.execute.call_args[0][1]
+
+
+def test_count_documents_con_source_filtra() -> None:
+    """source='dspace' acota el COUNT con WHERE metadata->>'source'."""
+    pg = _fake_pg_store_with_rows([])
+    conn = pg._engine.connect.return_value.__enter__.return_value
+    conn.execute.return_value.scalar.return_value = 145
+
+    service = ReindexService(pg_store=pg, os_port=MagicMock(), source="dspace")
+    assert service.count_documents() == 145
+
+    sql = str(conn.execute.call_args[0][0])
+    assert "metadata->>'source'" in sql
+    assert conn.execute.call_args[0][1]["source"] == "dspace"
+
+
+def test_iter_batches_con_source_propaga_param() -> None:
+    """El filtro de fuente llega al SQL de la primera página del keyset."""
+    rows = [("dspace:1", "[0.1,0.2]", {"source": "dspace", "title": "T"})]
+    pg = _fake_pg_store_with_rows(rows)
+    service = ReindexService(pg_store=pg, os_port=MagicMock(), source="dspace")
+
+    next(service._iter_batches(batch_size=10))  # consume la primera página
+
+    conn = pg._engine.connect.return_value.__enter__.return_value
+    sql = str(conn.execute.call_args[0][0])
+    assert "metadata->>'source'" in sql
+    assert conn.execute.call_args[0][1]["source"] == "dspace"

@@ -111,19 +111,27 @@ class ReindexService:
         os_port: OpenSearchSearchPort,
         *,
         skip_chunks: bool = True,
+        source: str | None = None,
     ) -> None:
         self._pg = pg_store
         self._os = os_port
         self._skip_chunks = skip_chunks
+        # Filtro opcional por fuente (metadata->>'source'). Permite reindexar
+        # solo una fuente recién harvesteada (p. ej. dspace) sin reprocesar las
+        # demás ya presentes en OpenSearch.
+        self._source = source
 
     def count_documents(self) -> int:
-        """Cuenta total de documentos en pgvector."""
+        """Cuenta documentos en pgvector (acotado a la fuente si se filtró)."""
         from sqlalchemy import text
 
+        sql = "SELECT COUNT(*) FROM sciback_vectors"
+        params: dict[str, object] = {}
+        if self._source is not None:
+            sql += " WHERE metadata->>'source' = :source"
+            params["source"] = self._source
         with self._pg._engine.connect() as conn:  # type: ignore[attr-defined]
-            result = conn.execute(
-                text("SELECT COUNT(*) FROM sciback_vectors")
-            ).scalar()
+            result = conn.execute(text(sql), params).scalar()
             return int(result or 0)
 
     async def setup_index_publication(self) -> None:
@@ -143,24 +151,32 @@ class ReindexService:
         """
         from sqlalchemy import text
 
+        # Cláusula de fuente opcional, compartida por ambas ramas del keyset.
+        src_clause = " AND metadata->>'source' = :source" if self._source else ""
+
         last_id: str | None = None
         while True:
             with self._pg._engine.connect() as conn:  # type: ignore[attr-defined]
+                params: dict[str, object] = {"limit": batch_size}
+                if self._source:
+                    params["source"] = self._source
                 if last_id is None:
+                    # WHERE TRUE permite concatenar src_clause con AND uniforme.
                     rows = conn.execute(
                         text(
                             "SELECT id, vector::text, metadata FROM sciback_vectors "
-                            "ORDER BY id LIMIT :limit"
+                            f"WHERE TRUE{src_clause} ORDER BY id LIMIT :limit"
                         ),
-                        {"limit": batch_size},
+                        params,
                     ).fetchall()
                 else:
+                    params["last"] = last_id
                     rows = conn.execute(
                         text(
                             "SELECT id, vector::text, metadata FROM sciback_vectors "
-                            "WHERE id > :last ORDER BY id LIMIT :limit"
+                            f"WHERE id > :last{src_clause} ORDER BY id LIMIT :limit"
                         ),
-                        {"last": last_id, "limit": batch_size},
+                        params,
                     ).fetchall()
 
             if not rows:
