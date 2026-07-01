@@ -146,6 +146,15 @@ class GUIASettings(BaseSettings):
     # qwen2.5:7b) con margen, pero corta los outliers de >1 min.
     guia_legacy_synthesis_timeout_s: float = Field(default=45.0, gt=0, le=300)  # lee GUIA_LEGACY_SYNTHESIS_TIMEOUT_S
 
+    # Sidecar Dify (FASE A migración GUIA→Dify, ver ADR pendiente).
+    # El chat de Chainlit reenvía la consulta al sidecar; Dify hace routing,
+    # gates, RAG y síntesis. verify=False mientras el sidecar use el cert de
+    # la CA interna (192.168.15.210).
+    dify_sidecar_url: str = "https://192.168.15.210/sidecar"
+    dify_sidecar_key: str = ""
+    dify_sidecar_verify_tls: bool = False
+    dify_sidecar_timeout_s: float = Field(default=120.0, gt=0, le=300)
+
     # Aliases de acceso corto para compatibilidad con código existente
     @property
     def agent_mode_enabled(self) -> bool:

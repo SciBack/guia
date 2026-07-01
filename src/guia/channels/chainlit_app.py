@@ -18,25 +18,34 @@ from chainlit.server import app as _chainlit_app
 from chainlit.types import ThreadDict
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
+from sciback_core.ports.llm import LLMMessage
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from sciback_core.ports.llm import LLMMessage
-
+from guia.channels.dify_client import DifyClient, DifyClientError
 from guia.channels.feedback_datalayer import (
     FeedbackCapturingDataLayer,
     stash_response_metadata,
 )
 from guia.config import GUIASettings
 from guia.container import GUIAContainer
-from guia.channels.render import render_results_list
-from guia.domain.chat import ChatRequest, ConversationMessage
+from guia.domain.chat import ConversationMessage
 from guia.logging import configure_logging, get_logger
 
 _settings = GUIASettings()
 configure_logging(level=_settings.log_level, json_logs=False)
 logger = get_logger(__name__)
 
+# _container se conserva para el data layer (Postgres), feedback (Redis) y
+# generación de título de thread — YA NO se usa para responder el chat
+# (FASE A migración GUIA→Dify: el "cerebro" es Dify vía el sidecar).
 _container = GUIAContainer(_settings)
+
+_dify_client = DifyClient(
+    base_url=_settings.dify_sidecar_url,
+    api_key=_settings.dify_sidecar_key,
+    verify=_settings.dify_sidecar_verify_tls,
+    timeout=_settings.dify_sidecar_timeout_s,
+)
 
 
 class _NoCacheSettingsMiddleware:
@@ -94,62 +103,15 @@ def get_data_layer() -> SQLAlchemyDataLayer:
 
 @cl.on_app_startup
 async def on_app_startup() -> None:
-    """Pre-calienta routers y modelos NLP al arrancar.
+    """Arranque de la app.
 
-    Routers (warm_up): bloqueantes — deben completar antes de aceptar
-    requests para que el primer mensaje no sufra el cold-start de embeddings.
-
-    Gates NLP (lid.176.bin + detoxify): CPU-bound y potencialmente lentos en
-    la PRIMERA descarga (lid ~25s, detoxify ~1.1GB). Se lanzan como tarea
-    background (fire-and-forget) para no retrasar /healthz más allá del timeout
-    del healthcheck. Tras persistir en el volumen fastembed_cache/torch_cache,
-    los reinicios posteriores solo cargan de disco. Ver
-    incident_chainlit_coldstart_socket en memoria.
+    FASE A migración GUIA→Dify: Dify (vía el sidecar) ahora hace el routing,
+    los gates NLP y el RAG — el warmup de `router`/`cascade_router` y de los
+    gates NLP locales (lid.176.bin, detoxify) ya no aplica al chat y se
+    elimina. `_container` se sigue construyendo para el data layer, feedback
+    y generación de título de thread.
     """
-    router = getattr(_container, "router", None)
-    if router is not None:
-        logger.info("model_router_warmup_start")
-        await router.warm_up()
-        logger.info("model_router_warmup_done")
-
-    cascade = getattr(_container, "cascade_router", None)
-    if cascade is not None:
-        logger.info("cascade_router_warmup_start")
-        await cascade.warm_up()
-        logger.info("cascade_router_warmup_done")
-
-    # Gates NLP: fire-and-forget en background (no bloquea startup ni /healthz).
-    asyncio.create_task(_warmup_nlp_gates())
-
-
-async def _warmup_nlp_gates() -> None:
-    """Carga lid.176.bin (LanguageGate) y Detoxify multilingual (ToxicityGate)
-    en threads separados, para que estén calientes antes del primer mensaje
-    del usuario en vez de cargarse de forma lazy en la primera query (~25s).
-
-    Errores de carga no tumban el proceso — los gates tienen fallback seguro
-    incorporado (lid → ("es", 1.0), toxicity → score 0.0).
-    """
-    # lid.176.bin — LanguageGate
-    try:
-        logger.info("nlp_warmup_lid_start")
-        from guia.nlp.language import detect_language
-        await asyncio.to_thread(detect_language, "warmup")
-        logger.info("nlp_warmup_lid_done")
-    except Exception:
-        logger.warning("nlp_warmup_lid_failed", exc_info=True)
-
-    # Detoxify multilingual — ToxicityGate.
-    # Se invoca sobre la instancia del container para respetar enabled/threshold
-    # de settings. Si toxicity está disabled, evaluate() retorna sin cargar pesos.
-    toxicity_gate = getattr(_container, "toxicity_gate", None)
-    if toxicity_gate is not None:
-        try:
-            logger.info("nlp_warmup_toxicity_start")
-            await asyncio.to_thread(toxicity_gate.evaluate, "warmup query")
-            logger.info("nlp_warmup_toxicity_done")
-        except Exception:
-            logger.warning("nlp_warmup_toxicity_failed", exc_info=True)
+    logger.info("chainlit_startup_dify_backend")
 
 
 @cl.on_logout
@@ -158,6 +120,7 @@ async def on_logout(request: Request, response: Response) -> JSONResponse:
     y devuelve la URL de logout de Microsoft para que el JS encadene el cierre.
     """
     import urllib.parse
+
     import httpx
 
     base   = os.environ.get("OAUTH_KEYCLOAK_BASE_URL", "").rstrip("/")
@@ -316,90 +279,67 @@ async def _generate_thread_title(query: str) -> str:
         return query[:60]
 
 
+def _render_citations(citations: list[dict]) -> str:
+    """Sección simple de fuentes a partir de los `retriever_resource` de Dify.
+
+    Dify devuelve document_name/content/score (y otros campos internos) por
+    cada chunk recuperado — no hay bucketing por fuente institucional como en
+    el GUIA legacy, así que listamos directo lo que llega.
+    """
+    if not citations:
+        return ""
+    lines = ["\n\n📚 **Fuentes consultadas**"]
+    seen: set[str] = set()
+    for c in citations:
+        name = c.get("document_name") or c.get("dataset_name") or "Fuente"
+        if name in seen:
+            continue
+        seen.add(name)
+        score = c.get("score")
+        score_txt = f" — *score {score:.2f}*" if isinstance(score, (int, float)) else ""
+        lines.append(f"- {name}{score_txt}")
+    return "\n".join(lines) + "\n"
+
+
 @cl.on_message
 async def on_message(message: cl.Message) -> None:
-    """Procesa cada mensaje del usuario."""
+    """Procesa cada mensaje del usuario reenviándolo al sidecar de Dify.
+
+    FASE A migración GUIA→Dify: Dify es el "cerebro" — routing, gates, RAG y
+    síntesis viven ahí. GUIA solo reenvía la consulta y renderiza la
+    respuesta. La memoria multi-turno la gestiona Dify vía `conversation_id`
+    (guardado en `cl.user_session`); el `history` local ya NO se envía al LLM.
+    """
     history: list[ConversationMessage] = cl.user_session.get("history", [])
+    conversation_id: str = cl.user_session.get("dify_conversation_id", "")
 
     thinking_msg = cl.Message(content="")
     await thinking_msg.send()
 
     try:
-        # user_id (email del usuario autenticado) habilita el bucketing del
-        # AgentOrchestrator (ADR-050) también en web. Anónimos → None → legacy.
         _user = cl.user_session.get("user")
-        request = ChatRequest(
+        user_email = str(_user.identifier) if _user else "anon"
+
+        result = await _dify_client.chat(
             query=message.content,
-            user_id=str(_user.identifier) if _user else None,
-            session_id=cl.context.session.id,
-            language="es",
-            history=history,
+            user=user_email,
+            conversation_id=conversation_id,
         )
 
-        response = await _container.chat_service.answer(request)
-
-        # Solo mostrar el step de retrieval cuando hubo búsqueda académica real
-        if response.sources or response.cached:
+        # Solo mostrar el step de retrieval cuando hubo citas reales
+        if result.citations:
             rag_step = cl.Step(name="Búsqueda académica", type="retrieval")
             rag_step.input = message.content
-            rag_step.output = (
-                "Caché semántico"
-                if response.cached
-                else f"{len(response.sources)} fuente(s) académica(s) encontrada(s)"
-            )
+            rag_step.output = f"{len(result.citations)} fuente(s) encontrada(s)"
             await rag_step.send()
 
-        answer_text = response.answer
-        elements: list[cl.Element] = []
-        for source in response.sources:
-            if source.url and source.url.lower().endswith(".pdf"):
-                elements.append(
-                    cl.Pdf(name=source.title[:50], url=source.url, display="side")
-                )
-
-        # Render de citas según el tipo de respuesta (derivado en ChatService):
-        # - "list"      → cada resultado es un enlace inline; el listado SUSTITUYE
-        #                 la prosa del LLM (que repetía los títulos sin enlace).
-        # - "narrative" → prosa + sección "Fuente consultada" al final (como antes).
-        if response.answer_type == "list" and response.sources:
-            answer_text = render_results_list(response)
-        elif response.source_buckets:
-            # Índice de fuentes por source_type para cruzar con sources individuales
-            sources_by_type: dict[str, list] = {}
-            for s in response.sources:
-                key = s.source_type or "unknown"
-                sources_by_type.setdefault(key, []).append(s)
-
-            answer_text += "\n\n📚 **Fuente consultada**\n"
-            for bucket in response.source_buckets:
-                answer_text += f"\n**[{bucket.label}]({bucket.url})**\n"
-                for s in sources_by_type.get(bucket.source_type, []):
-                    title_link = f"[{s.title}]({s.url})" if s.url else s.title
-                    meta_parts = []
-                    if s.authors:
-                        meta_parts.append(", ".join(s.authors[:2]))
-                    if s.year:
-                        meta_parts.append(str(s.year))
-                    meta = f" — *{' · '.join(meta_parts)}*" if meta_parts else ""
-                    answer_text += f"- {title_link}{meta}\n"
-
-        if response.explore_in:
-            answer_text += "\n🔎 **Explora también este tema en**\n"
-            for link in response.explore_in:
-                tag = "" if link.available else " *(pendiente de habilitar en GUIA)*"
-                answer_text += f"- [{link.label}]({link.url}){tag}\n"
-
-        if response.related_terms:
-            terms = " · ".join(response.related_terms)
-            answer_text += f"\n💡 **Búsquedas relacionadas:** {terms}\n"
-
-        if response.cached:
-            answer_text += "\n\n*Respuesta desde caché semántico*"
+        answer_text = result.answer + _render_citations(result.citations)
 
         thinking_msg.content = answer_text
-        if elements:
-            thinking_msg.elements = elements
         await thinking_msg.update()
+
+        # Persistir el conversation_id de Dify para el siguiente turno
+        cl.user_session.set("dify_conversation_id", result.conversation_id)
 
         # Stash de metadatos en Redis para que el DataLayer los recoja si el
         # usuario califica con 👍/👎. TTL 7 días — suficiente para feedback diferido.
@@ -411,10 +351,10 @@ async def on_message(message: cl.Message) -> None:
                     redis_client,
                     str(thinking_msg.id),
                     query=message.content,
-                    response=response.answer,
-                    sources=[s.model_dump() for s in response.sources],
-                    intent=str(response.intent.value) if response.intent else None,
-                    model_used=response.model_used,
+                    response=result.answer,
+                    sources=result.citations,
+                    intent=None,
+                    model_used=result.ai_label.get("model") if result.ai_label else None,
                     user_id=str(getattr(user, "identifier", "anonymous")) if user else "anonymous",
                 )
         except Exception:
@@ -432,13 +372,22 @@ async def on_message(message: cl.Message) -> None:
             except Exception:
                 pass  # cosmético — no interrumpe la respuesta
 
-        # Actualizar historial en memoria de sesión (bounded a 20 mensajes = 10 turnos)
+        # Historial local en memoria de sesión — ya no alimenta al LLM (Dify
+        # mantiene su propia memoria vía conversation_id), pero se conserva
+        # para on_chat_resume/UI. Bounded a 20 mensajes = 10 turnos.
         history = history + [
             ConversationMessage(role="user", content=message.content),
-            ConversationMessage(role="assistant", content=response.answer),
+            ConversationMessage(role="assistant", content=result.answer),
         ]
         cl.user_session.set("history", history[-20:])
 
+    except DifyClientError as exc:
+        logger.exception("dify_sidecar_error", exc_info=exc)
+        thinking_msg.content = (
+            "Lo siento, ocurrió un error consultando el asistente. "
+            "Por favor, inténtalo de nuevo."
+        )
+        await thinking_msg.update()
     except Exception as exc:
         logger.exception("chainlit_error", exc_info=exc)
         thinking_msg.content = (
