@@ -1,0 +1,127 @@
+# GUIA en producción UPeU (guia-prod, 192.168.15.167) — 8-sep-2026.
+#
+# ── POR QUÉ ESTE FICHERO EXISTE ─────────────────────────────────────────────
+# El compose de desarrollo levanta 19 servicios y publica puertos que en este
+# host ya están ocupados: Apache/Koha tiene el 80, el 8000 y el 8001, y
+# Langfuse tiene el 3000, 5432, 6379 y 9090. Intentar levantarlo tal cual
+# falla en el primer contenedor.
+#
+# Además, GUIA murió aquí en julio con código 137 —matada por falta de
+# memoria— compitiendo con Langfuse en una máquina de 9 GB. Por eso este
+# fichero levanta SOLO lo que hace falta para conversar:
+#
+#     postgres · redis · embeddings · api · chainlit
+#
+# Fuera quedan opensearch, rabbitmq, grobid, los cinco workers de Celery, el
+# panel, nginx y un Keycloak local que no se usa (el real está en AWS).
+#
+# ── DECISIONES ──────────────────────────────────────────────────────────────
+# · postgres y redis NO publican puerto: los servicios se hablan por la red
+#   interna del compose. Publicarlos era lo que chocaba con Langfuse.
+# · api y chainlit se publican en puertos altos y libres.
+# · chainlit se expone directamente en vez de por nginx: en este host el 80 es
+#   de Apache. Chainlit sirve su propio WebSocket, así que funciona.
+#
+# Uso:  docker compose -f docker-compose.upeu.yml up -d
+name: guia
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-guia_db}
+      POSTGRES_USER: ${POSTGRES_USER:-guia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-guia} -d ${POSTGRES_DB:-guia_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # Una sola copia del modelo e5-large para todos los canales (ADR-051).
+  # Sin esto, cada servicio cargaba la suya y la VM moría por OOM.
+  embeddings:
+    image: guia-api
+    command: python -m uvicorn guia.embeddings_sidecar:app --host 0.0.0.0 --port 11434
+    env_file: .env
+    expose: ["11434"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 180s   # cargar el ONNX tarda ~60s en esta VM
+    volumes:
+      - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
+      - fastembed_cache:/tmp/fastembed_cache
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: guia/docker/api/Dockerfile.prod
+    image: guia-api
+    command: python -m guia serve
+    env_file: .env
+    ports:
+      - "8010:8000"        # el 8000 es de Koha en este host
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      embeddings: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
+      - fastembed_cache:/tmp/fastembed_cache
+      - torch_cache:/home/guia/.cache/torch
+    restart: unless-stopped
+
+  chainlit:
+    image: guia-api
+    command: chainlit run src/guia/channels/chainlit_app.py --host 0.0.0.0 --port 8001
+    env_file: .env
+    ports:
+      - "8011:8001"        # el 8001 es de Koha staff en este host
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      embeddings: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./src:/app/src:ro
+      - ../sciback-core:/sciback-core:ro
+      - fastembed_cache:/tmp/fastembed_cache
+      - torch_cache:/home/guia/.cache/torch
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  fastembed_cache:
+  torch_cache:
