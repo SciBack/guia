@@ -31,7 +31,7 @@ dependencies = [
     "llama-index>=0.12",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
-    "chainlit>=2.0",
+    "chainlit>=2.12",
     # Canales
     "aiogram>=3.15",
     # Cache + auth

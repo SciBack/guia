@@ -75,21 +75,18 @@ reaction_on_message_received = false
     sample_rate = 24000
 
 [features.mcp]
-    # Enable Model Context Protocol (MCP) features
+    # Enable Model Context Protocol (MCP) features.
+    #
+    # Se mantiene APAGADO. Las dos vulnerabilidades que corrige Chainlit 2.12.0
+    # (CVE-2026-45018, inyección de comandos, CVSS 9.8; y CVE-2026-45019, SSRF)
+    # solo son explotables con este interruptor en true, y por un atacante SIN
+    # autenticar. Encenderlo exige antes declarar servidores concretos en
+    # [[features.mcp.servers]] y revisar el aviso de seguridad.
+    #
+    # Los bloques heredados [features.mcp.sse], [features.mcp.streamable-http]
+    # y [features.mcp.stdio] se retiraron el 2026-09-08: desde 2.12.0 abortan
+    # el arranque, y aquí no servían para nada con MCP desactivado.
     enabled = false
-
-[features.mcp.sse]
-    enabled = true
-
-[features.mcp.streamable-http]
-    enabled = true
-
-[features.mcp.stdio]
-    enabled = true
-    # Only the executables in the allow list can be used for MCP stdio server.
-    # Only need the base name of the executable, e.g. "npx", not "/usr/bin/npx".
-    # Please don't comment this line for now, we need it to parse the executable name.
-    allowed_executables = [ "npx", "uvx" ]
 
 [UI]
 # Name of the assistant.
