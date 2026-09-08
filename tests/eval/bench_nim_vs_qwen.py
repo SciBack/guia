@@ -26,7 +26,7 @@ from typing import Any
 import httpx
 
 # ----- Config -----
-OLLAMA_URL = os.environ.get("OLLAMA_BASE_URL", "http://192.168.62.73:8080")
+OLLAMA_URL = os.environ.get("OLLAMA_BASE_URL", "http://192.168.14.100:8080")
 OLLAMA_KEY = os.environ.get("OLLAMA_API_KEY", "")
 NIM_URL = os.environ.get("NVIDIA_NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NIM_KEY = os.environ.get("NVIDIA_NIM_API_KEY", "")

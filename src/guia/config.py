@@ -121,7 +121,7 @@ class GUIASettings(BaseSettings):
     oai_base_url: str = "http://localhost:8000/oai"
 
     # M3: midPoint enrichment (ADR-034) — opcional
-    midpoint_url: str = "http://192.168.15.230:8080/midpoint"
+    midpoint_url: str = "http://192.168.15.166:8080/midpoint"
     midpoint_username: str = "administrator"
     midpoint_password: str = ""
     midpoint_cache_ttl: int = 900
