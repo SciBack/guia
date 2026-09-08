@@ -87,6 +87,7 @@ class GUIAContainer:
         self.search_adapter: SearchAdapter | None = get_search_adapter(
             self.settings.search_backend,
             self.store,
+            self.settings,
         )
 
         # Redis para caché semántico y sesiones

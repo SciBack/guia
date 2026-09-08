@@ -90,6 +90,27 @@ class GUIASettings(BaseSettings):
     # dual: escribe a ambos, lee de OpenSearch con fallback a pgvector
     search_backend: str = "dual"
 
+    # Fusión de las dos ramas de la búsqueda híbrida (BM25 + kNN).
+    # "rrf"      — Reciprocal Rank Fusion: fusiona posiciones, inmune a que las
+    #              escalas de BM25 y kNN no sean comparables. Default.
+    # "weighted" — suma ponderada de scores (comportamiento previo). Se conserva
+    #              para poder comparar A/B y para revertir sin redeploy.
+    search_fusion: Literal["rrf", "weighted"] = "rrf"
+    # Amortiguación de RRF; menor = más peso a las primeras posiciones.
+    search_rrf_k: int = 60
+    # Candidatos que pide cada rama antes de fusionar. Debe superar con holgura
+    # al límite final, o la fusión no tiene material que reordenar.
+    search_candidates: int = 50
+
+    # Reranking (cross-encoder) sobre el resultado de la fusión.
+    rerank_enabled: bool = False
+    # El sidecar de embeddings sirve también el reranker (una copia en RAM).
+    rerank_url: str = "http://embeddings:11434"
+    # Cuántos candidatos entran al cross-encoder. Es el coste dominante: cada
+    # uno es una pasada del modelo.
+    rerank_top_n: int = 30
+    rerank_timeout_s: float = 20.0
+
     # M3: Auth / dominio permitido (ADR-034) — antes hardcodeado como @upeu.edu.pe
     # Comma-separated: "upeu.edu.pe,sciback.com"
     keycloak_allowed_domains: str = "upeu.edu.pe"

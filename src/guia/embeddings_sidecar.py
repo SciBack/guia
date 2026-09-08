@@ -22,6 +22,11 @@ Despliegue: servicio compose ``embeddings`` reutilizando la imagen guia-api
 
     python -m uvicorn guia.embeddings_sidecar:app --host 0.0.0.0 --port 11434
 
+Además del embedder, este proceso sirve el **reranker** (cross-encoder) por
+``POST /api/rerank``. Vive aquí por la misma razón: una sola copia del modelo
+en RAM para todos los canales. Se carga perezosamente en la primera petición,
+así que un despliegue con ``RERANK_ENABLED=false`` no paga su memoria.
+
 Supuestos documentados (review 2026-06-11):
 - El modelo canónico es el del índice: ``intfloat/multilingual-e5-large``
   (default de FastEmbedConfig; fijar FASTEMBED_MODEL en .env si cambia).
@@ -39,6 +44,7 @@ Supuestos documentados (review 2026-06-11):
 from __future__ import annotations
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
@@ -54,6 +60,15 @@ logger = get_logger(__name__)
 
 _QUERY_PREFIX = "query: "
 
+# Reranker por defecto: mMARCO mMiniLMv2 (Apache-2.0, ONNX oficial en HF).
+# Se eligió sobre jina-reranker-v2-multilingual —mejor en benchmarks— porque
+# aquel es cc-by-nc-4.0 y este producto se licencia a instituciones; y sobre
+# bge-reranker-base (MIT) porque el fine-tuning de aquel es zh/en, mientras
+# mMARCO incluye español entre sus 14 idiomas.
+_DEFAULT_RERANK_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+_RERANK_MODEL = os.getenv("RERANK_MODEL", _DEFAULT_RERANK_MODEL)
+_RERANK_ONNX_FILE = os.getenv("RERANK_ONNX_FILE", "onnx/model.onnx")
+
 # Una inferencia a la vez: la InferenceSession ONNX y los buffers de fastembed
 # se comparten; además el pico de RAM por forward no debe multiplicarse.
 _infer_sem = asyncio.Semaphore(1)
@@ -64,9 +79,15 @@ class _State:
 
     adapter: object | None = None
     ready: bool = False
+    reranker: object | None = None
+    """Cross-encoder — cargado perezosamente en la primera petición de rerank."""
 
 
 _state = _State()
+
+# Carga del reranker: serializa a los concurrentes para no bajar dos veces el
+# modelo ni tener dos copias en RAM durante el arranque.
+_rerank_load_lock = asyncio.Lock()
 
 
 def _build_adapter() -> object:
@@ -76,6 +97,42 @@ def _build_adapter() -> object:
     return FastEmbedAdapter(
         FastEmbedConfig(_env_file=None, query_prefix="", passage_prefix="")
     )
+
+
+def _build_reranker() -> object:
+    """TextCrossEncoder de fastembed, registrando el modelo si no es built-in.
+
+    fastembed trae un registro cerrado de cross-encoders; el nuestro no está en
+    él, así que se declara con ``add_custom_model`` apuntando al ONNX oficial
+    del repo de HuggingFace. Si algún día entra al registro, el ``try`` de abajo
+    lo toma directamente y esta rama deja de ejecutarse sin tocar código.
+    """
+    from fastembed.rerank.cross_encoder import TextCrossEncoder
+
+    supported = {m["model"] for m in TextCrossEncoder.list_supported_models()}
+    if _RERANK_MODEL not in supported:
+        from fastembed.common.model_description import ModelSource
+
+        TextCrossEncoder.add_custom_model(
+            model=_RERANK_MODEL,
+            sources=ModelSource(hf=_RERANK_MODEL),
+            model_file=_RERANK_ONNX_FILE,
+            description="Cross-encoder multilingüe (mMARCO) para reranking",
+            license="apache-2.0",
+        )
+    return TextCrossEncoder(model_name=_RERANK_MODEL)
+
+
+async def _get_reranker() -> object:
+    """Devuelve el cross-encoder, cargándolo la primera vez."""
+    if _state.reranker is not None:
+        return _state.reranker
+    async with _rerank_load_lock:
+        if _state.reranker is None:
+            logger.info("reranker_loading", model=_RERANK_MODEL)
+            _state.reranker = await asyncio.to_thread(_build_reranker)
+            logger.info("reranker_ready", model=_RERANK_MODEL)
+    return _state.reranker
 
 
 @asynccontextmanager
@@ -100,6 +157,15 @@ class EmbeddingsRequest(BaseModel):
 
     model: str = ""
     prompt: str
+
+
+class RerankRequest(BaseModel):
+    """Petición de reranking — forma cercana a la API de Cohere/Jina rerank."""
+
+    query: str
+    documents: list[str]
+    top_n: int | None = None
+    """Cuántos devolver. None = todos, reordenados."""
 
 
 @app.get("/health")
@@ -143,3 +209,40 @@ async def embeddings(req: EmbeddingsRequest) -> dict[str, list[float]]:
         raise HTTPException(status_code=500, detail=f"inference failed: {exc}") from exc
 
     return {"embedding": vector}
+
+
+@app.post("/api/rerank")
+async def rerank(req: RerankRequest) -> dict[str, object]:
+    """Reordena ``documents`` por relevancia real frente a ``query``.
+
+    A diferencia del embedding, que comprime consulta y documento por separado
+    y los compara por coseno, el cross-encoder lee el par (consulta, documento)
+    junto y puntúa esa relación. Es bastante más caro —una pasada por par— y por
+    eso solo se aplica al top-N que ya seleccionó la búsqueda híbrida.
+
+    Devuelve índices contra la lista recibida, no los textos: quien llama ya
+    tiene los documentos y solo necesita el nuevo orden.
+    """
+    if not req.query:
+        raise HTTPException(status_code=400, detail="empty query")
+    if not req.documents:
+        return {"results": [], "model": _RERANK_MODEL}
+
+    try:
+        encoder = await _get_reranker()
+        async with _infer_sem:
+            scores: list[float] = await asyncio.to_thread(
+                lambda: list(encoder.rerank(req.query, req.documents))  # type: ignore[attr-defined]
+            )
+    except Exception as exc:
+        logger.exception("rerank_failed")
+        raise HTTPException(status_code=500, detail=f"rerank failed: {exc}") from exc
+
+    ranked = sorted(
+        ({"index": i, "score": float(s)} for i, s in enumerate(scores)),
+        key=lambda r: r["score"],
+        reverse=True,
+    )
+    if req.top_n is not None:
+        ranked = ranked[: req.top_n]
+    return {"results": ranked, "model": _RERANK_MODEL}

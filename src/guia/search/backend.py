@@ -7,6 +7,15 @@ Soporta tres modos configurables via SEARCH_BACKEND:
 
 M4: ChatService es async — usar hybrid_dicts() con await directamente.
     hybrid_sync() se mantiene solo para Celery workers y contextos síncronos.
+
+La lectura tiene dos etapas configurables sobre OpenSearch:
+
+  1. **Fusión** de las ramas BM25 y kNN. Default ``rrf`` (Reciprocal Rank
+     Fusion), que fusiona posiciones en vez de scores. La alternativa
+     ``weighted`` suma los scores de ambas ramas y se conserva solo para
+     comparar: BM25 no está acotado y el score kNN vive en (0, 1], así que esa
+     suma la gana BM25 casi siempre y los pesos no significan lo que aparentan.
+  2. **Reranking** opcional con cross-encoder sobre la cabeza de la fusión.
 """
 
 from __future__ import annotations
@@ -17,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sciback_core.ports.vector_store import VectorStorePort
+    from guia.search.rerank import RerankClient
     from sciback_core.search import SearchFilters, SearchHit, SearchResponse
 
 logger = logging.getLogger(__name__)
@@ -64,10 +74,21 @@ class SearchAdapter:
     """
 
     def __init__(
-        self, opensearch_port: object, pgvector_port: VectorStorePort | None = None
+        self,
+        opensearch_port: object,
+        pgvector_port: VectorStorePort | None = None,
+        *,
+        fusion: str = "rrf",
+        rrf_k: int = 60,
+        candidates: int = 50,
+        reranker: RerankClient | None = None,
     ) -> None:
         self._os = opensearch_port
         self._pg = pgvector_port
+        self._fusion = fusion
+        self._rrf_k = rrf_k
+        self._candidates = candidates
+        self._reranker = reranker
 
     # ── M4: métodos async nativos ──────────────────────────────────────────────
 
@@ -81,19 +102,43 @@ class SearchAdapter:
     ) -> list[dict[str, Any]]:
         """M4: hybrid search async que retorna list[dict] para ChatService.
 
-        Fallback a pgvector si OpenSearch falla.
+        Fusiona (RRF o ponderada), rerankea si hay cross-encoder y recorta a
+        ``limit``. Fallback a pgvector si OpenSearch falla.
         """
         try:
-            result: SearchResponse = await self._os.hybrid(  # type: ignore[union-attr]
-                text=text,
-                vector=vector,
-                weights=weights,
-                filters=filters,
-            )
-            return [_hit_to_dict(h) for h in result.hits[:limit]]
+            result: SearchResponse = await self._fused(text, vector, weights, filters)
         except Exception as exc:
             logger.warning("opensearch_hybrid_failed", extra={"exc": str(exc)})
             return await self._pgvector_fallback(vector, limit)
+
+        hits = [_hit_to_dict(h) for h in result.hits]
+        if self._reranker is not None:
+            return await self._reranker.rerank(text, hits, limit)
+        return hits[:limit]
+
+    async def _fused(
+        self,
+        text: str,
+        vector: list[float],
+        weights: tuple[float, float],
+        filters: SearchFilters | None,
+    ) -> SearchResponse:
+        """Ejecuta la búsqueda híbrida con la estrategia de fusión configurada."""
+        if self._fusion == "rrf":
+            return await self._os.rrf_hybrid(  # type: ignore[union-attr]
+                text=text,
+                vector=vector,
+                filters=filters,
+                candidates=self._candidates,
+                rrf_k=self._rrf_k,
+                weights=weights,
+            )
+        return await self._os.hybrid(  # type: ignore[union-attr]
+            text=text,
+            vector=vector,
+            weights=weights,
+            filters=filters,
+        )
 
     async def _pgvector_fallback(
         self, vector: list[float], limit: int
@@ -146,14 +191,12 @@ class SearchAdapter:
         """
         try:
             result: SearchResponse = asyncio.run(
-                self._os.hybrid(  # type: ignore[union-attr]
-                    text=text,
-                    vector=vector,
-                    weights=weights,
-                    filters=filters,
-                )
+                self._fused(text, vector, weights, filters)
             )
-            return [_hit_to_dict(h) for h in result.hits[:limit]]
+            hits = [_hit_to_dict(h) for h in result.hits]
+            if self._reranker is not None:
+                return asyncio.run(self._reranker.rerank(text, hits, limit))
+            return hits[:limit]
         except Exception as exc:
             logger.warning("opensearch_hybrid_failed", extra={"exc": str(exc)})
             if self._pg is not None:
@@ -177,12 +220,15 @@ SyncSearchAdapter = SearchAdapter
 def get_search_adapter(
     backend: str,
     pgvector_store: VectorStorePort | None = None,
+    settings: object | None = None,
 ) -> SearchAdapter | None:
     """Factory de search backend según configuración.
 
     Args:
         backend: "pgvector" | "opensearch" | "dual"
         pgvector_store: instancia existente de PgVectorStore (para reutilizar)
+        settings: GUIASettings. Si es None se usan los defaults del adapter —
+            los tests y los scripts que solo indexan no necesitan pasarlo.
 
     Returns:
         SearchAdapter si backend incluye OpenSearch, None si es solo pgvector.
@@ -194,9 +240,38 @@ def get_search_adapter(
         from sciback_search_opensearch import OpenSearchSearchPort, OpenSearchSettings
         os_port = OpenSearchSearchPort(OpenSearchSettings(_env_file=None))
         pg_fallback = pgvector_store if backend == "dual" else None
+
+        fusion = getattr(settings, "search_fusion", "rrf")
+        rrf_k = getattr(settings, "search_rrf_k", 60)
+        candidates = getattr(settings, "search_candidates", 50)
+
+        reranker: RerankClient | None = None
+        if getattr(settings, "rerank_enabled", False):
+            from guia.search.rerank import RerankClient as _RerankClient
+
+            reranker = _RerankClient(
+                settings.rerank_url,  # type: ignore[union-attr]
+                top_n=settings.rerank_top_n,  # type: ignore[union-attr]
+                timeout_s=settings.rerank_timeout_s,  # type: ignore[union-attr]
+            )
+
         # logger es stdlib logging.Logger (no structlog) — kwargs van en extra={}
-        logger.info("search_backend_initialized", extra={"backend": backend})
-        return SearchAdapter(os_port, pg_fallback)
+        logger.info(
+            "search_backend_initialized",
+            extra={
+                "backend": backend,
+                "fusion": fusion,
+                "rerank": reranker is not None,
+            },
+        )
+        return SearchAdapter(
+            os_port,
+            pg_fallback,
+            fusion=fusion,
+            rrf_k=rrf_k,
+            candidates=candidates,
+            reranker=reranker,
+        )
     except Exception as exc:
         logger.warning(
             "opensearch_init_failed",
