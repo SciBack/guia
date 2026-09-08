@@ -111,7 +111,15 @@ services:
     command: chainlit run src/guia/channels/chainlit_app.py --host 0.0.0.0 --port 8001
     env_file: .env
     ports:
-      - "8011:8001"        # el 8001 es de Koha staff en este host
+      # El balanceador pr-lb-intranet1 (192.168.12.199) termina el TLS del
+      # wildcard *.upeu.edu.pe y reenvía HTTP plano al backend. Onyx servía
+      # guia.upeu.edu.pe por el 80 de este host, así que se publica ahí para
+      # que el dominio funcione en cuanto el LB vuelva a apuntar aquí.
+      - "80:8001"
+      # El 8011 se mantiene como acceso directo estable, y es el que conviene
+      # pedirle al LB si algún día el 80 vuelve a estar disputado: el Apache del
+      # clon de Koha lo tuvo ocupado del 14-jul al 08-sep-2026.
+      - "8011:8001"
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
