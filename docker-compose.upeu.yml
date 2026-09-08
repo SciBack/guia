@@ -60,6 +60,14 @@ services:
     image: guia-api
     command: python -m uvicorn guia.embeddings_sidecar:app --host 0.0.0.0 --port 11434
     env_file: .env
+    environment:
+      # El HOME de la imagen es de root y el proceso corre como uid 1000, así que
+      # la caché de HuggingFace por defecto no es escribible. Xet —el transporte
+      # que sirve los ficheros grandes— necesita escribir ahí y, si no puede,
+      # aborta la descarga SIN error: deja el ONNX a medias y el modelo falla
+      # después al cargar, con un "file doesn't exist" que no señala la causa.
+      # Apuntar HF_HOME al volumen que ya es escribible lo resuelve.
+      HF_HOME: /tmp/fastembed_cache/hf
     expose: ["11434"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/health"]
