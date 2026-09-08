@@ -112,13 +112,15 @@ services:
     env_file: .env
     ports:
       # El balanceador pr-lb-intranet1 (192.168.12.199) termina el TLS del
-      # wildcard *.upeu.edu.pe y reenvía HTTP plano al backend. Onyx servía
-      # guia.upeu.edu.pe por el 80 de este host, así que se publica ahí para
-      # que el dominio funcione en cuanto el LB vuelva a apuntar aquí.
-      - "80:8001"
-      # El 8011 se mantiene como acceso directo estable, y es el que conviene
-      # pedirle al LB si algún día el 80 vuelve a estar disputado: el Apache del
-      # clon de Koha lo tuvo ocupado del 14-jul al 08-sep-2026.
+      # wildcard *.upeu.edu.pe y reenvía HTTP plano a 192.168.15.167:8001.
+      # Comprobado el 2026-09-08 publicando SOLO este puerto: el dominio pasó
+      # de 502 a servir GUIA. Si se mueve de aquí, guia.upeu.edu.pe se cae.
+      #
+      # Estuvo ocupado del 14-jul al 08-sep-2026 por el Apache de un clon de
+      # Koha que vivía en este host; ese es el motivo de que el dominio llevara
+      # meses en 502 y de que Chainlit hubiera tenido que refugiarse en el 8011.
+      - "8001:8001"
+      # Acceso directo estable, útil para diagnosticar sin pasar por el LB.
       - "8011:8001"
     depends_on:
       postgres: {condition: service_healthy}
