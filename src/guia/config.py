@@ -47,6 +47,14 @@ class GUIASettings(BaseSettings):
     # Modo LLM
     guia_llm_mode: LLMMode = LLMMode.HYBRID
 
+    # Quién redacta la respuesta final. Estaba fijado a Claude en el código, y
+    # eso dejó a GUIA muda el día que se agotó el saldo de Anthropic: la API
+    # devuelve 400 con un mensaje de facturación, el adapter lo convierte en
+    # IntegrationError y la consulta muere ahí, sin alternativa a la que caer.
+    # "claude" mantiene el comportamiento anterior; "nim" usa el catálogo de
+    # NVIDIA; "ollama" el modelo local del Mac Mini.
+    guia_synthesis_provider: Literal["claude", "nim", "ollama"] = "claude"
+
     # Entorno
     environment: Literal["development", "staging", "production"] = "development"
     guia_base_url: str = "http://localhost:8000"

@@ -61,19 +61,19 @@ class GUIAContainer:
         mode = self.settings.guia_llm_mode
 
         if mode == LLMMode.CLOUD:
-            self.synthesis_llm = self._build_claude()
+            self.synthesis_llm = self._build_synthesis()
             self.classifier_llm: LLMPort = self.synthesis_llm
             self.fast_llm: LLMPort | None = None  # Cloud: sin fast path local
 
         elif mode == LLMMode.LOCAL:
-            self.synthesis_llm = self._build_ollama()       # qwen2.5:7b
-            self.fast_llm = self._build_ollama_fast()       # qwen2.5:3b
-            self.classifier_llm = self.fast_llm             # 3b también clasifica
+            self.synthesis_llm = self._build_ollama()       # modelo local grande
+            self.fast_llm = self._build_ollama_fast()       # modelo local pequeño
+            self.classifier_llm = self.fast_llm             # el pequeño clasifica
 
         else:  # HYBRID (default)
-            self.synthesis_llm = self._build_claude()       # Claude para síntesis compleja
-            self.fast_llm = self._build_ollama_fast()       # 3b para queries simples
-            self.classifier_llm = self.fast_llm             # 3b clasifica intent
+            self.synthesis_llm = self._build_synthesis()    # síntesis compleja
+            self.fast_llm = self._build_ollama_fast()       # queries simples
+            self.classifier_llm = self.fast_llm             # clasifica intent
 
         # Adapters de fuentes (opcionales)
         self.dspace_adapter = self._try_build_dspace()
@@ -100,6 +100,24 @@ class GUIAContainer:
             return FastEmbedAdapter(FastEmbedConfig(_env_file=None))
         from sciback_embeddings_e5 import E5Config, E5EmbeddingAdapter
         return E5EmbeddingAdapter(E5Config(_env_file=None))
+
+    def _build_synthesis(self) -> LLMPort:
+        """Construye el LLM que redacta la respuesta final.
+
+        Existe porque tener un solo proveedor cableado es un punto único de
+        fallo con aviso nulo: cuando se agotó el saldo de Anthropic, GUIA dejó
+        de responder y el error que llegaba al usuario era un 500 genérico.
+        """
+        proveedor = self.settings.guia_synthesis_provider
+        if proveedor == "nim":
+            return self._build_nim()
+        if proveedor == "ollama":
+            return self._build_ollama()
+        return self._build_claude()
+
+    def _build_nim(self) -> LLMPort:
+        from sciback_llm_nim import NIMAdapter, NIMConfig
+        return NIMAdapter(NIMConfig(_env_file=None))
 
     def _build_claude(self) -> LLMPort:
         from sciback_llm_claude import ClaudeConfig, ClaudeLLMAdapter
