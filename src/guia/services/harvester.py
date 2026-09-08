@@ -92,24 +92,97 @@ def _publication_to_embedding_text(pub: Publication) -> str:
 def _stable_pub_id(pub: Publication, source_name: str, fallback_idx: int) -> str:
     """Devuelve un identificador determinístico para upserts idempotentes.
 
-    Prioriza external_ids con prefijo conocido (koha:, doi:, handle:) sobre el
-    UUID interno de la Publication. Fallback al UUID o al índice si nada existe.
+    "Determinístico" quiere decir: el mismo registro de la misma fuente produce
+    el mismo id en cosechas distintas. Si no lo cumple, cada cosecha inserta
+    filas nuevas en vez de actualizar las existentes.
+
+    Eso es exactamente lo que pasaba: la versión anterior caía a
+    ``f"{source}:uuid:{pub.id}"``, y ``Publication.id`` es un UUIDv7 que
+    ``SciBackBaseEntity`` genera **en el constructor**. Cada cosecha fabricaba
+    Publications nuevas, luego un id nuevo, luego una fila nueva. Medido el
+    2026-09-08 sobre el índice de UPeU: 15.949 registros de OJS para 682 títulos
+    distintos, hasta 23 copias del mismo artículo. El ``idx`` de reserva tenía el
+    mismo defecto por otra vía — depende de la posición dentro de la cosecha.
+
+    Orden de preferencia, de más a menos fiable:
+
+    1. ``external_ids`` que ya viene con el prefijo de la fuente (``koha:12345``).
+    2. Identificador OAI-PMH del registro. El protocolo lo obliga a ser único y
+       estable, así que para todo lo cosechado por OAI es la mejor identidad —
+       **por delante del DOI**, que es igual de estable pero no siempre está:
+       un artículo sin DOI asignado todavía entraba por otra rama, y al
+       asignárselo cambiaba de id. Esa divergencia es la que duplicaba.
+    3. DOI o handle, globalmente únicos.
+    4. URL canónica del recurso.
+    5. Huella determinística del contenido — último recurso para registros sin
+       ningún identificador. No es tan buena (dos ediciones con idéntico título,
+       año y editorial colapsan en una), pero es estable, que es lo que aquí
+       importa: preferimos fundir dos registros gemelos antes que multiplicar
+       uno solo en cada cosecha.
+
+    ``fallback_idx`` se conserva en la firma por compatibilidad con las llamadas
+    existentes, pero ya no participa: era una fuente de inestabilidad.
     """
     ext_ids = getattr(pub, "external_ids", None) or []
+    extra = getattr(pub, "extra", None) or {}
+
+    # 1) Identificador ya prefijado por la fuente.
     for eid in ext_ids:
-        value = str(getattr(eid, "value", ""))
-        # Si ya viene con prefijo "fuente:..." lo usamos tal cual.
+        value = str(getattr(eid, "value", "") or "")
         if value.startswith(f"{source_name}:"):
             return value
-        # DOI/handle son globalmente únicos: úsalos también
+
+    # 2) Identificador OAI-PMH del registro.
+    if isinstance(extra, dict):
+        oai_id = str(extra.get("oai_identifier") or "").strip()
+        if oai_id:
+            return oai_id if oai_id.startswith("oai:") else f"oai:{oai_id}"
+
+    # 3) DOI o handle.
+    for eid in ext_ids:
+        value = str(getattr(eid, "value", "") or "").strip()
         scheme = str(getattr(eid, "scheme", "")).lower()
-        if scheme in ("doi", "handle") and value:
+        # IdentifierScheme puede serializarse como "IdentifierScheme.DOI".
+        scheme = scheme.rsplit(".", 1)[-1]
+        if value and scheme in ("doi", "handle"):
             return f"{scheme}:{value}"
 
-    pub_uuid = getattr(pub, "id", None)
-    if pub_uuid:
-        return f"{source_name}:uuid:{pub_uuid}"
-    return f"{source_name}:idx:{fallback_idx}"
+    # 4) URL canónica.
+    if isinstance(extra, dict):
+        url = str(extra.get("url") or "").strip()
+        if url:
+            return f"{source_name}:url:{url}"
+
+    # 5) Huella del contenido.
+    return f"{source_name}:sha1:{_content_fingerprint(pub)}"
+
+
+def _content_fingerprint(pub: Publication) -> str:
+    """Huella estable de un registro sin identificador propio.
+
+    Se calcula sobre campos que no cambian entre cosechas: título normalizado,
+    año de publicación y editorial. Se dejan fuera resumen y materias, que sí
+    varían cuando la fuente corrige metadatos — y un cambio así no debería
+    convertir el registro en otro distinto.
+    """
+    import hashlib
+    import unicodedata
+
+    def _norm(value: object) -> str:
+        text = str(value or "").strip().lower()
+        text = unicodedata.normalize("NFKD", text)
+        text = "".join(c for c in text if not unicodedata.combining(c))
+        return " ".join(text.split())
+
+    titulo = _norm(_localized_str_or_empty(getattr(pub, "title", None)))
+    fecha = getattr(pub, "publication_date", None)
+    # AcademicDate expone year_int (no year): guarda las partes por separado
+    # para no inventar mes y día cuando la fuente solo declara el año.
+    anio = _norm(getattr(fecha, "year_int", "") if fecha else "")
+    editorial = _norm(getattr(pub, "publisher", None))
+
+    semilla = "\x1f".join([titulo, anio, editorial])
+    return hashlib.sha1(semilla.encode("utf-8")).hexdigest()[:16]
 
 
 def _publication_to_metadata(pub: Publication) -> dict[str, object]:
