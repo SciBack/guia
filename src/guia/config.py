@@ -55,6 +55,17 @@ class GUIASettings(BaseSettings):
     # NVIDIA; "ollama" el modelo local del Mac Mini.
     guia_synthesis_provider: Literal["claude", "nim", "ollama"] = "claude"
 
+    # Quién clasifica la intención de cada consulta (Gate 3 del enrutador).
+    # Compartía objeto con fast_llm, y eso obliga a elegir entre dos cosas
+    # incompatibles: fast_llm es también el modelo LOCAL al que se desvían las
+    # consultas con datos personales, así que tiene que ser local; pero el
+    # clasificador corre en TODAS las consultas y tiene que ser rápido. Medido
+    # el 2026-09-08 con gemma4:12b haciendo ambos papeles: ~60 s por consulta
+    # solo para clasificar, y encima devolviendo una categoría que el enrutador
+    # no reconocía.
+    # "fast" conserva el comportamiento anterior (el mismo objeto que fast_llm).
+    guia_classifier_provider: Literal["fast", "claude", "nim", "ollama"] = "fast"
+
     # Entorno
     environment: Literal["development", "staging", "production"] = "development"
     guia_base_url: str = "http://localhost:8000"

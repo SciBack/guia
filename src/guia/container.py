@@ -62,18 +62,20 @@ class GUIAContainer:
 
         if mode == LLMMode.CLOUD:
             self.synthesis_llm = self._build_synthesis()
-            self.classifier_llm: LLMPort = self.synthesis_llm
             self.fast_llm: LLMPort | None = None  # Cloud: sin fast path local
+            clasificador_por_defecto: LLMPort = self.synthesis_llm
 
         elif mode == LLMMode.LOCAL:
             self.synthesis_llm = self._build_ollama()       # modelo local grande
             self.fast_llm = self._build_ollama_fast()       # modelo local pequeño
-            self.classifier_llm = self.fast_llm             # el pequeño clasifica
+            clasificador_por_defecto = self.fast_llm
 
         else:  # HYBRID (default)
             self.synthesis_llm = self._build_synthesis()    # síntesis compleja
-            self.fast_llm = self._build_ollama_fast()       # queries simples
-            self.classifier_llm = self.fast_llm             # clasifica intent
+            self.fast_llm = self._build_ollama_fast()       # queries simples y PII
+            clasificador_por_defecto = self.fast_llm
+
+        self.classifier_llm: LLMPort = self._build_classifier(clasificador_por_defecto)
 
         # Adapters de fuentes (opcionales)
         self.dspace_adapter = self._try_build_dspace()
@@ -114,6 +116,27 @@ class GUIAContainer:
         if proveedor == "ollama":
             return self._build_ollama()
         return self._build_claude()
+
+    def _build_classifier(self, por_defecto: LLMPort) -> LLMPort:
+        """Construye el LLM que clasifica la intención de cada consulta.
+
+        Se separa de ``fast_llm`` porque los dos papeles tiran en direcciones
+        opuestas: ``fast_llm`` recibe las consultas con datos personales, así
+        que debe ser local; el clasificador corre en todas y debe ser barato.
+        Con un solo modelo cumpliendo ambos, uno de los dos sale perdiendo.
+
+        ``"fast"`` (default) mantiene el comportamiento anterior — el mismo
+        objeto que ``fast_llm`` — para que nadie cambie de clasificador por
+        actualizar.
+        """
+        proveedor = self.settings.guia_classifier_provider
+        if proveedor == "nim":
+            return self._build_nim()
+        if proveedor == "claude":
+            return self._build_claude()
+        if proveedor == "ollama":
+            return self._build_ollama_fast()
+        return por_defecto
 
     def _build_nim(self) -> LLMPort:
         from sciback_llm_nim import NIMAdapter, NIMConfig
