@@ -9,9 +9,10 @@ M4: answer() es async end-to-end.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
-from sciback_core.ports.llm import LLMMessage, LLMPort
+from sciback_core.ports.llm import LLMMessage, LLMPort, LLMResponse
 from sciback_privacy import PrivacyRouter, PrivacyVerdict, redact, restore
 
 from guia.audit import AuditLogEntry, AuditLogRepository, hash_query
@@ -342,8 +343,58 @@ class ChatService:
         # ADR-050: AgentOrchestrator — None = legacy siempre (flag ignorado)
         self._agent_orchestrator = agent_orchestrator
 
-    async def answer(self, request: ChatRequest) -> ChatResponse:
+    async def _synthesize_streaming(
+        self,
+        synthesis_llm: object,
+        messages: list[LLMMessage],
+        on_token: Callable[[str], Awaitable[None]],
+    ) -> LLMResponse:
+        """Sintetiza emitiendo cada fragmento y devuelve la respuesta completa.
+
+        El generador del adapter es síncrono y bloqueante, así que se consume
+        en un thread y los fragmentos se van pasando al bucle de eventos con
+        ``run_coroutine_threadsafe``. Lo que se devuelve es un LLMResponse
+        equivalente al de ``complete()``, para que el resto de ``answer()``
+        —auditoría, caché, historial, render de fuentes— no distinga.
+
+        Un fallo a mitad de emisión se propaga: el usuario ya ha visto texto
+        parcial, y fingir que todo fue bien sería peor que decirlo.
+        """
+        bucle = asyncio.get_running_loop()
+        trozos: list[str] = []
+
+        def consumir() -> None:
+            for trozo in synthesis_llm.stream(  # type: ignore[attr-defined]
+                messages, max_tokens=1024, temperature=0.1
+            ):
+                trozos.append(trozo)
+                asyncio.run_coroutine_threadsafe(on_token(trozo), bucle).result()
+
+        await asyncio.to_thread(consumir)
+
+        texto = "".join(trozos)
+        return LLMResponse(
+            content=texto,
+            model=getattr(getattr(synthesis_llm, "config", None), "default_model", "stream"),
+            input_tokens=0,
+            output_tokens=0,
+        )
+
+    async def answer(
+        self,
+        request: ChatRequest,
+        on_token: Callable[[str], Awaitable[None]] | None = None,
+    ) -> ChatResponse:
         """Genera una respuesta para el ChatRequest del usuario (async).
+
+        Args:
+            request: La consulta y su contexto.
+            on_token: Si se pasa y el proveedor de síntesis sabe emitir por
+                fragmentos, se le entrega cada trozo según se genera. La
+                respuesta devuelta es la misma con o sin él — el callback es
+                un canal adicional, no un sustituto —, así que auditoría,
+                caché e historial siguen funcionando igual.
+
 
         Todas las operaciones bloqueantes se ejecutan en un thread pool
         via asyncio.to_thread() para no bloquear el event loop.
@@ -774,12 +825,18 @@ class ChatService:
         # fuentes que SÍ recuperamos, en vez de colgar.
         _legacy_timeout = getattr(self._settings, "legacy_synthesis_timeout_s", 45.0)
         try:
-            llm_response = await asyncio.wait_for(
-                asyncio.to_thread(
-                    synthesis_llm.complete, messages, max_tokens=1024, temperature=0.1
-                ),
-                timeout=_legacy_timeout,
-            )
+            if on_token is not None and hasattr(synthesis_llm, "stream"):
+                llm_response = await asyncio.wait_for(
+                    self._synthesize_streaming(synthesis_llm, messages, on_token),
+                    timeout=_legacy_timeout,
+                )
+            else:
+                llm_response = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        synthesis_llm.complete, messages, max_tokens=1024, temperature=0.1
+                    ),
+                    timeout=_legacy_timeout,
+                )
         except (TimeoutError, asyncio.TimeoutError):
             __import__("logging").getLogger(__name__).warning(
                 "legacy_synthesis_timeout query_hash=%s timeout_s=%s sources=%d",

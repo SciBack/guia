@@ -336,7 +336,20 @@ async def on_message(message: cl.Message) -> None:
             history=history,
         )
 
-        response = await _container.chat_service.answer(request)
+        # El texto se va escribiendo en el mensaje ya enviado, en vez de
+        # aparecer de golpe al final. El modelo tarda lo mismo —13 tok/s en el
+        # Mac Mini, ~48 s para una respuesta larga—, pero la espera en blanco
+        # es lo que hacía parecer que GUIA estaba rota.
+        #
+        # Se emite siempre, aunque para las respuestas de tipo listado el
+        # contenido acabe sustituido más abajo por el render con enlaces: el
+        # texto escribiéndose y luego reemplazado sigue siendo mejor señal que
+        # varios segundos de mensaje vacío. Si algún día molesta, la decisión
+        # está aquí y no en el servicio.
+        async def escribir(trozo: str) -> None:
+            await thinking_msg.stream_token(trozo)
+
+        response = await _container.chat_service.answer(request, on_token=escribir)
 
         # Solo mostrar el step de retrieval cuando hubo búsqueda académica real
         if response.sources or response.cached:
