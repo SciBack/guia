@@ -65,15 +65,54 @@ def _encabezado_listado(sources: list[Source]) -> str:
     )
 
 
-def _classify_answer_type(intent: "Intent", sources: list[Source]) -> str:
+#: Formas de pedir una explicación. Cuando la consulta empieza por una de
+#: estas, el usuario quiere prosa aunque el buscador devuelva veinte fuentes:
+#: "explícame qué es la quinua" no se contesta con una lista de tesis sobre
+#: derivados de quinua. Se comparan sin tildes y en minúsculas.
+_PIDE_EXPLICACION = (
+    "explica", "explicame", "que es", "que son", "que significa",
+    "como funciona", "como se", "por que", "porque",
+    "resume", "resumen", "resumeme", "diferencia", "diferencias",
+    "compara", "comparacion", "en que consiste", "para que sirve",
+    "cuentame sobre", "hablame de", "definicion",
+)
+
+
+def _pide_explicacion(query: str) -> bool:
+    """¿La consulta está redactada como pregunta, no como búsqueda?"""
+    import unicodedata
+
+    texto = unicodedata.normalize("NFKD", query.strip().lower())
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    texto = " ".join(texto.split())
+    return any(texto.startswith(p) or f" {p}" in texto for p in _PIDE_EXPLICACION)
+
+
+def _classify_answer_type(
+    intent: "Intent",
+    sources: list[Source],
+    query: str = "",
+) -> str:
     """Deriva el tipo de respuesta para el render de citas.
 
     Heurística determinista (punto único para agente + legacy): es un LISTADO
     cuando hay varios resultados de búsqueda enlazables; si no, NARRATIVA.
     El umbral (4) es conservador para no convertir respuestas narrativas con
-    pocas citas de soporte en listas. Iterar si la práctica lo pide.
+    pocas citas de soporte en listas.
+
+    El umbral por sí solo miraba **cuántas** fuentes hay, no **qué** se
+    preguntó, y eso se tragaba también las preguntas: medido el 2026-09-09,
+    "explícame en dos frases qué es la quinua" devolvía cinco tesis sobre
+    derivados de quinua. Por eso una consulta redactada como pregunta gana al
+    umbral y va a prosa.
+
+    Se mantiene el listado como comportamiento por defecto: ante una consulta
+    que es solo un tema ("nutrición infantil"), la lista de lo que hay es mejor
+    respuesta que un párrafo, y además no cuesta ni una llamada al modelo.
     """
     if intent in (Intent.RESEARCH, Intent.GENERAL) and len(sources) >= 4:
+        if query and _pide_explicacion(query):
+            return "narrative"
         return "list"
     return "narrative"
 
@@ -754,7 +793,7 @@ class ChatService:
                 source_buckets=source_buckets,
                 explore_in=explore_in,
                 related_terms=related_terms,
-                answer_type=_classify_answer_type(intent, sources),
+                answer_type=_classify_answer_type(intent, sources, query),
             )
             if self._cache is not None:
                 await asyncio.to_thread(
@@ -831,7 +870,7 @@ class ChatService:
         # y las fuentes, y ambos ya están resueltos en este punto. La respuesta
         # que se devuelve lleva un texto de reserva: el canal lo reemplaza, y
         # quien consuma la API sin ese render sigue recibiendo algo legible.
-        if _classify_answer_type(intent, sources) == "list":
+        if _classify_answer_type(intent, sources, query) == "list":
             return ChatResponse(
                 answer=_encabezado_listado(sources),
                 intent=intent,
@@ -912,7 +951,7 @@ class ChatService:
                 source_buckets=source_buckets,
                 explore_in=explore_in,
                 related_terms=related_terms,
-                answer_type=_classify_answer_type(intent, sources),
+                answer_type=_classify_answer_type(intent, sources, query),
             )
             # No cacheamos un timeout: la próxima vez puede sintetizar bien.
             await self._emit_audit(
@@ -937,7 +976,7 @@ class ChatService:
             source_buckets=source_buckets,
             explore_in=explore_in,
             related_terms=related_terms,
-            answer_type=_classify_answer_type(intent, sources),
+            answer_type=_classify_answer_type(intent, sources, query),
         )
 
         # 8. Guardar en caché (sync Redis → thread)
