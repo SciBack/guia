@@ -88,6 +88,12 @@ services:
     image: guia-api
     command: python -m guia serve
     env_file: .env
+    environment:
+      # Detoxify escribe la cache de HuggingFace. Sin esto apuntaba a
+      # /home/guia/.cache/huggingface, que es de root en la imagen: fallaba con
+      # PermissionError tras 15 s y el filtro de toxicidad quedaba desactivado
+      # en silencio. Se comparte con el sidecar, que ya usaba esta ruta.
+      HF_HOME: /tmp/fastembed_cache/hf
     ports:
       - "8010:8000"        # el 8000 es de Koha en este host
     depends_on:
@@ -95,10 +101,13 @@ services:
       redis: {condition: service_healthy}
       embeddings: {condition: service_healthy}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 15s
+      # /ready, no /health: aquel contesta 200 mientras los modelos siguen
+      # cargando, y una consulta en esa ventana esperaba mas de un minuto.
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 180s
     volumes:
       - ./src:/app/src:ro
       - ../sciback-core:/sciback-core:ro
@@ -110,6 +119,12 @@ services:
     image: guia-api
     command: python -m uvicorn guia.channels.web:app --host 0.0.0.0 --port 8001
     env_file: .env
+    environment:
+      # Detoxify escribe la cache de HuggingFace. Sin esto apuntaba a
+      # /home/guia/.cache/huggingface, que es de root en la imagen: fallaba con
+      # PermissionError tras 15 s y el filtro de toxicidad quedaba desactivado
+      # en silencio. Se comparte con el sidecar, que ya usaba esta ruta.
+      HF_HOME: /tmp/fastembed_cache/hf
     ports:
       # El balanceador pr-lb-intranet1 (192.168.12.199) termina el TLS del
       # wildcard *.upeu.edu.pe y reenvía HTTP plano a 192.168.15.167:8001.
@@ -127,10 +142,13 @@ services:
       redis: {condition: service_healthy}
       embeddings: {condition: service_healthy}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/healthz"]
-      interval: 15s
+      # Ver la nota del servicio api. Ademas /healthz de Chainlit ya no
+      # distingue nada util: con mount_chainlit responde el sub-app montado.
+      test: ["CMD", "curl", "-f", "http://localhost:8001/ready"]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 180s
     volumes:
       - ./src:/app/src:ro
       - ../sciback-core:/sciback-core:ro
