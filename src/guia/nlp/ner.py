@@ -5,21 +5,33 @@ Si spaCy no está disponible, retorna dict vacío sin error.
 """
 from __future__ import annotations
 
-_NLP = None
-_NLP_LOADED = False
+import threading
+
+from guia.nlp._carga import CargaUnica
+
+_CARGAS: dict[str, CargaUnica[object]] = {}
+_CARGAS_LOCK = threading.Lock()
 
 
 def _get_nlp(model: str = "es_core_news_lg") -> object | None:
-    global _NLP, _NLP_LOADED
-    if _NLP_LOADED:
-        return _NLP
-    _NLP_LOADED = True
-    try:
-        import spacy
-        _NLP = spacy.load(model)
-    except Exception:
-        _NLP = None
-    return _NLP
+    """Carga el modelo de spaCy una sola vez por nombre.
+
+    es_core_news_lg tarda ~10 s en abrir. Sin el cerrojo, la consulta que caia
+    durante el warmup lo abria por su cuenta en paralelo.
+    """
+    carga = _CARGAS.get(model)
+    if carga is None:
+        with _CARGAS_LOCK:
+            carga = _CARGAS.get(model)
+            if carga is None:
+                def _cargar() -> object:
+                    import spacy
+
+                    return spacy.load(model)
+
+                carga = CargaUnica(_cargar)
+                _CARGAS[model] = carga
+    return carga.obtener()
 
 
 def extract_entities(

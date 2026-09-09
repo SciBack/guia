@@ -6,11 +6,13 @@ opera como identidad (sin error).
 """
 from __future__ import annotations
 
+import threading
+
+from guia.nlp._carga import CargaUnica
+
 import urllib.request
 from pathlib import Path
 
-_SYMSPELL = None
-_SYMSPELL_LOADED = False
 _DEFAULT_DICT_PATH = Path("data/symspell/es_full.txt")
 _DICT_URL = (
     "https://raw.githubusercontent.com/hermitdave/FrequencyWords"
@@ -28,24 +30,35 @@ def _download_dict(target: Path) -> bool:
         return False
 
 
+_CARGA: CargaUnica[object] | None = None
+_CARGA_LOCK = threading.Lock()
+
+
 def _get_symspell(dict_path: Path | None = None) -> object | None:
-    global _SYMSPELL, _SYMSPELL_LOADED
-    if _SYMSPELL_LOADED:
-        return _SYMSPELL
-    _SYMSPELL_LOADED = True
-    target = dict_path or _DEFAULT_DICT_PATH
-    if not target.exists():
-        _download_dict(target)
-    if not target.exists():
-        return None
-    try:
-        from symspellpy import SymSpell
-        sym = SymSpell(max_dictionary_edit_distance=2, prefix_length=7)
-        sym.load_dictionary(str(target), term_index=0, count_index=1)
-        _SYMSPELL = sym
-    except Exception:
-        _SYMSPELL = None
-    return _SYMSPELL
+    """Carga el diccionario una sola vez, esperando si otro ya esta en ello.
+
+    Ojo: la primera carga puede DESCARGAR el diccionario de internet. Sin
+    cerrojo, dos hilos disparaban dos descargas del mismo fichero dentro de
+    la peticion del usuario.
+    """
+    global _CARGA
+    if _CARGA is None:
+        with _CARGA_LOCK:
+            if _CARGA is None:
+                def _cargar() -> object | None:
+                    target = dict_path or _DEFAULT_DICT_PATH
+                    if not target.exists():
+                        _download_dict(target)
+                    if not target.exists():
+                        return None
+                    from symspellpy import SymSpell
+
+                    sym = SymSpell(max_dictionary_edit_distance=2, prefix_length=7)
+                    sym.load_dictionary(str(target), term_index=0, count_index=1)
+                    return sym
+
+                _CARGA = CargaUnica(_cargar)
+    return _CARGA.obtener()
 
 
 def correct_typos(text: str, dict_path: Path | None = None) -> str:

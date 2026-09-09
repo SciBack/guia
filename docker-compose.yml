@@ -66,6 +66,12 @@ services:
       dockerfile: guia/docker/api/Dockerfile.prod
     command: python -m guia serve
     env_file: .env
+    environment:
+      # Detoxify escribe la cache de HuggingFace. Sin esto apuntaba a
+      # /home/guia/.cache/huggingface, que es de root en la imagen: fallaba con
+      # PermissionError tras 15 s y el filtro de toxicidad quedaba desactivado
+      # en silencio. Se comparte con el sidecar, que ya usaba esta ruta.
+      HF_HOME: /tmp/fastembed_cache/hf
     # FTLANG_CACHE ya no se overridea: lid.176.bin viene horneado en la imagen
     # (Dockerfile.prod ENV FTLANG_CACHE=/home/guia/.cache/ftlang).
     ports:
@@ -100,6 +106,12 @@ services:
       dockerfile: guia/docker/api/Dockerfile.prod
     command: chainlit run src/guia/channels/chainlit_app.py --host 0.0.0.0 --port 8001
     env_file: .env
+    environment:
+      # Detoxify escribe la cache de HuggingFace. Sin esto apuntaba a
+      # /home/guia/.cache/huggingface, que es de root en la imagen: fallaba con
+      # PermissionError tras 15 s y el filtro de toxicidad quedaba desactivado
+      # en silencio. Se comparte con el sidecar, que ya usaba esta ruta.
+      HF_HOME: /tmp/fastembed_cache/hf
     # FTLANG_CACHE ya no se overridea: lid.176.bin viene horneado en la imagen
     # (Dockerfile.prod ENV FTLANG_CACHE=/home/guia/.cache/ftlang).
     # Puerto 8001 solo interno — acceso externo via nginx:80
@@ -144,6 +156,12 @@ services:
       dockerfile: guia/docker/api/Dockerfile.prod
     command: python -m guia.channels.telegram_bot
     env_file: .env
+    environment:
+      # Detoxify escribe la cache de HuggingFace. Sin esto apuntaba a
+      # /home/guia/.cache/huggingface, que es de root en la imagen: fallaba con
+      # PermissionError tras 15 s y el filtro de toxicidad quedaba desactivado
+      # en silencio. Se comparte con el sidecar, que ya usaba esta ruta.
+      HF_HOME: /tmp/fastembed_cache/hf
     # FTLANG_CACHE ya no se overridea: lid.176.bin viene horneado en la imagen
     # (Dockerfile.prod ENV FTLANG_CACHE=/home/guia/.cache/ftlang).
     depends_on:

@@ -98,5 +98,31 @@ async def warmup_models(container: GUIAContainer) -> None:
         except Exception:
             logger.warning("warmup_failed", component="toxicity_gate", exc_info=True)
 
+    # NLP del reescritor de consultas: spaCy es_core_news_lg (~10 s) y el
+    # diccionario de SymSpell (que en la primera carga puede DESCARGARSE).
+    # Estaban fuera del warmup, asi que los pagaba integros la primera
+    # consulta real — la mitad de los 65 s medidos el 09-sep-2026.
+    for componente, cargar in (
+        ("ner_spacy", _cargar_spacy),
+        ("speller_symspell", _cargar_symspell),
+    ):
+        try:
+            await asyncio.to_thread(cargar)
+            logger.info("warmup_done", component=componente)
+        except Exception:
+            logger.warning("warmup_failed", component=componente, exc_info=True)
+
     ESTADO.marcar_listo()
     logger.info("warmup_complete")
+
+
+def _cargar_spacy() -> None:
+    from guia.nlp.ner import extract_entities
+
+    extract_entities("warmup en la Universidad Peruana Union")
+
+
+def _cargar_symspell() -> None:
+    from guia.nlp.speller import correct_typos
+
+    correct_typos("warmup")
