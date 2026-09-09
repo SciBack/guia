@@ -46,7 +46,7 @@ from __future__ import annotations
 import asyncio
 import os
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -81,7 +81,7 @@ class _State:
     ready: bool = False
     reranker: object | None = None
     """Cross-encoder — cargado perezosamente en la primera petición de rerank."""
-    nlp: dict[str, object] = {}
+    nlp: ClassVar[dict[str, object]] = {}
     """Modelos NLP compartidos. Ver la nota de ``/api/nlp``."""
 
 
