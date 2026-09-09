@@ -17,11 +17,23 @@ import urllib.request
 from pathlib import Path
 
 _DEFAULT_DICT_PATH = Path("data/symspell/es_full.txt")
+
+#: Cuantas entradas del diccionario se cargan, contando desde la mas frecuente.
+#: El fichero de hermitdave trae 1.202.520 palabras ordenadas por frecuencia, y
+#: la cola son erratas, nombres propios y formas rarisimas que no aportan a una
+#: consulta de biblioteca. Construir el indice de borrados completo costaba 45 s
+#: en cada arranque; con 200.000 son 6,8 s. 0 carga el fichero entero.
+_MAX_ENTRIES = int(os.getenv("GUIA_SPELLER_MAX_ENTRIES", "200000"))
+
 #: Indice ya construido. Va al volumen compartido (el mismo de fastembed) para
-#: sobrevivir a los recreates; sin el, cada despliegue reconstruia 1,2 millones
-#: de entradas dentro de la primera consulta del primer usuario.
+#: sobrevivir a los recreates. El numero de entradas forma parte del nombre: sin
+#: eso, cambiar el recorte reutilizaria en silencio el indice del tamano
+#: anterior y la configuracion nueva no tendria ningun efecto visible.
 _PICKLE_DIR = os.getenv("GUIA_NLP_CACHE_DIR", "/tmp/fastembed_cache").strip()
-_PICKLE_PATH = Path(_PICKLE_DIR) / "symspell_es_ed2_p7.pkl" if _PICKLE_DIR else None
+_SUFIJO = f"top{_MAX_ENTRIES}" if _MAX_ENTRIES > 0 else "full"
+_PICKLE_PATH = (
+    Path(_PICKLE_DIR) / f"symspell_es_ed2_p7_{_SUFIJO}.pkl" if _PICKLE_DIR else None
+)
 _DICT_URL = (
     "https://raw.githubusercontent.com/hermitdave/FrequencyWords"
     "/master/content/2018/es/es_full.txt"
@@ -83,7 +95,9 @@ def _get_symspell(dict_path: Path | None = None) -> object | None:
                                 max_dictionary_edit_distance=2, prefix_length=7
                             )
 
-                    sym.load_dictionary(str(target), term_index=0, count_index=1)
+                    sym.load_dictionary(
+                        str(_recortar(target)), term_index=0, count_index=1
+                    )
                     if pickle_path is not None:
                         try:
                             pickle_path.parent.mkdir(parents=True, exist_ok=True)
@@ -130,3 +144,39 @@ def correct_typos(text: str, dict_path: Path | None = None) -> str:
         return " ".join(corrected)
     except Exception:
         return text
+
+
+def _recortar(origen: Path) -> Path:
+    """Devuelve el diccionario recortado a ``_MAX_ENTRIES``, generandolo si falta.
+
+    El fichero viene ordenado de mas a menos frecuente, asi que quedarse con las
+    primeras N lineas es quedarse con el vocabulario util. El recorte se escribe
+    junto al pickle (volumen compartido) y no toca el original, para poder subir
+    o quitar el limite sin volver a descargar nada.
+
+    Si no se puede escribir el recorte, se usa el diccionario completo: mas
+    lento de cargar, pero correcto.
+    """
+    if _MAX_ENTRIES <= 0 or not _PICKLE_DIR:
+        return origen
+
+    destino = Path(_PICKLE_DIR) / f"es_{_SUFIJO}.txt"
+    if destino.exists():
+        return destino
+
+    try:
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        with (
+            origen.open(encoding="utf-8", errors="ignore") as entrada,
+            destino.open("w", encoding="utf-8") as salida,
+        ):
+            for i, linea in enumerate(entrada):
+                if i >= _MAX_ENTRIES:
+                    break
+                salida.write(linea)
+        return destino
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "symspell_recorte_fallido se_usa_el_completo path=%s", destino, exc_info=True
+        )
+        return origen
