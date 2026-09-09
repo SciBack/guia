@@ -5,7 +5,12 @@ ToxicityGate: filtra queries abusivas antes del retriever.
 """
 from __future__ import annotations
 
+import logging
+import threading
 from dataclasses import dataclass
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -78,6 +83,11 @@ class ToxicityGate:
         self._threshold = threshold
         self._model: object | None = None
         self._model_loaded = False
+        # Detoxify tarda ~15 s en cargar y pesa ~1,1 GB. Sin este cerrojo, una
+        # consulta que llegaba mientras el warmup lo cargaba arrancaba UNA
+        # SEGUNDA carga: dos copias compitiendo por RAM en una VM con 2 GB
+        # libres, medido en 65 s de respuesta cuando esperar habria costado 15.
+        self._load_lock = threading.Lock()
 
     def evaluate(self, query: str) -> GateResult:
         if not self._enabled or not query.strip():
@@ -94,13 +104,7 @@ class ToxicityGate:
         )
 
     def _predict(self, query: str) -> float:
-        if not self._model_loaded:
-            self._model_loaded = True
-            try:
-                from detoxify import Detoxify
-                self._model = Detoxify("multilingual")
-            except Exception:
-                self._model = None
+        self._ensure_model()
 
         if self._model is None:
             return 0.0
@@ -110,3 +114,26 @@ class ToxicityGate:
             return float(max(results.values()))
         except Exception:
             return 0.0
+
+    def _ensure_model(self) -> None:
+        """Carga el modelo una sola vez, y espera si otro hilo ya lo esta cargando.
+
+        La bandera se marca DESPUES de cargar, no antes. Marcarla antes tenia un
+        efecto peor que la lentitud: mientras el warmup cargaba, una consulta
+        concurrente veia ``_model_loaded=True`` con ``_model=None`` y se saltaba
+        el filtro de toxicidad en silencio, sin dejar rastro en los logs.
+        """
+        if self._model_loaded:
+            return
+        with self._load_lock:
+            if self._model_loaded:  # otro hilo lo cargo mientras esperabamos
+                return
+            try:
+                from detoxify import Detoxify
+
+                self._model = Detoxify("multilingual")
+            except Exception:
+                logger.warning("toxicity_model_load_failed", exc_info=True)
+                self._model = None
+            finally:
+                self._model_loaded = True

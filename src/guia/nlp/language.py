@@ -5,24 +5,35 @@ Si fasttext no está disponible, retorna ("es", 1.0) como fallback seguro.
 """
 from __future__ import annotations
 
+import threading
+
 _LID_MODEL = None
 _LID_LOADED = False
+# La primera llamada descarga y carga lid.176.bin. Sin cerrojo, dos hilos
+# —el warmup y la primera consulta— lo cargaban a la vez; y como la bandera
+# se marcaba ANTES de terminar, el segundo se iba con _LID_MODEL=None y daba
+# "es" por defecto sin haber mirado el texto. Ahora espera al primero.
+_LID_LOCK = threading.Lock()
 
 
 def _get_model() -> object | None:
     global _LID_MODEL, _LID_LOADED
     if _LID_LOADED:
         return _LID_MODEL
-    _LID_LOADED = True
-    try:
-        # El paquete fasttext-langdetect instala el módulo como `ftlangdetect`.
-        # fasttext 0.9.3 tiene incompatibilidad con NumPy 2.x (ValueError en predict);
-        # el except captura ambos casos y activa el fallback seguro.
-        from ftlangdetect import detect
-        detect("hola")
-        _LID_MODEL = detect
-    except Exception:
-        _LID_MODEL = None
+    with _LID_LOCK:
+        if _LID_LOADED:  # otro hilo lo cargo mientras esperabamos
+            return _LID_MODEL
+        try:
+            # El paquete fasttext-langdetect instala el módulo como `ftlangdetect`.
+            # fasttext 0.9.3 tiene incompatibilidad con NumPy 2.x (ValueError en
+            # predict); el except captura ambos casos y activa el fallback seguro.
+            from ftlangdetect import detect
+            detect("hola")
+            _LID_MODEL = detect
+        except Exception:
+            _LID_MODEL = None
+        finally:
+            _LID_LOADED = True
     return _LID_MODEL
 
 

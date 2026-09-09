@@ -24,6 +24,31 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+class _EstadoDeWarmup:
+    """Si los modelos pesados ya estan cargados en ESTE proceso.
+
+    Existe porque ``/health`` respondia 200 a los 7 s de arrancar mientras el
+    warmup seguia 12 s mas. En esa ventana el contenedor figuraba sano y una
+    consulta que cayera dentro tardaba 65 s (medido el 09-sep-2026). Con esto
+    la sonda de readiness puede decir la verdad y el orquestador esperar.
+    """
+
+    def __init__(self) -> None:
+        self._done = False
+
+    @property
+    def done(self) -> bool:
+        return self._done
+
+    def marcar_listo(self) -> None:
+        self._done = True
+
+
+#: Estado compartido del proceso; lo consultan las sondas /ready.
+ESTADO = _EstadoDeWarmup()
+
+
+
 async def warmup_models(container: GUIAContainer) -> None:
     """Pre-carga embedder, routers y gates NLP. Nunca propaga errores.
 
@@ -73,4 +98,5 @@ async def warmup_models(container: GUIAContainer) -> None:
         except Exception:
             logger.warning("warmup_failed", component="toxicity_gate", exc_info=True)
 
+    ESTADO.marcar_listo()
     logger.info("warmup_complete")

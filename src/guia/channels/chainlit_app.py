@@ -31,6 +31,7 @@ from guia.container import GUIAContainer
 from guia.channels.render import render_results_list
 from guia.domain.chat import ChatRequest, ConversationMessage
 from guia.logging import configure_logging, get_logger
+from guia.services.warmup import ESTADO as ESTADO_WARMUP
 
 _settings = GUIASettings()
 configure_logging(level=_settings.log_level, json_logs=False)
@@ -179,6 +180,24 @@ async def _warmup_nlp_gates() -> None:
             logger.info("nlp_warmup_toxicity_done")
         except Exception:
             logger.warning("nlp_warmup_toxicity_failed", exc_info=True)
+
+    # A partir de aqui el proceso ya puede responder rapido: es lo que mira
+    # /ready, y con ello el healthcheck del contenedor.
+    ESTADO_WARMUP.marcar_listo()
+    logger.info("nlp_warmup_complete")
+
+
+@_chainlit_app.get("/ready", include_in_schema=False)
+async def ready() -> JSONResponse:
+    """Sonda de readiness del canal web.
+
+    ``/healthz`` (de Chainlit) contesta en cuanto el proceso levanta, que es
+    lo correcto para liveness pero enganoso para enrutar trafico: los modelos
+    tardan ~19 s mas y una consulta que cae en esa ventana tardaba 65 s.
+    """
+    if ESTADO_WARMUP.done:
+        return JSONResponse({"ready": True})
+    return JSONResponse({"ready": False, "reason": "cargando modelos"}, status_code=503)
 
 
 @cl.on_logout

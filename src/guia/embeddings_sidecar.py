@@ -143,6 +143,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Cargar el modelo ONNX ya (no lazy): el healthcheck del contenedor pasa
     # recién cuando /health responde 200, y los dependientes esperan healthy.
     await asyncio.to_thread(_state.adapter.embed_query, "warmup")  # type: ignore[attr-defined]
+
+    # El reranker tambien, por el mismo motivo: cargarlo perezosamente movia
+    # sus ~2,7 s a la primera consulta real del primer usuario tras cada
+    # despliegue. Solo si esta activado, para no pagar su RAM cuando no se usa.
+    if os.getenv("RERANK_ENABLED", "").strip().lower() in {"1", "true", "yes"}:
+        try:
+            await _get_reranker()
+        except Exception:
+            # Un reranker que no carga degrada el ranking, no tumba el servicio:
+            # rerank.py conserva el orden de la fusion cuando el sidecar falla.
+            logger.warning("reranker_warmup_failed", exc_info=True)
+
     _state.ready = True
     logger.info("embeddings_sidecar_ready")
     yield
