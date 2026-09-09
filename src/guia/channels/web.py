@@ -46,6 +46,44 @@ logger = get_logger(__name__)
 #: del contenedor (/app). ``mount_chainlit`` lo carga con ``load_module``.
 _APP_CHAINLIT = "src/guia/channels/chainlit_app.py"
 
+#: Se monta en la raiz para no mover ninguna URL (ver la nota del modulo).
+_RUTA_MONTAJE = "/"
+
+
+def _retirar_guarda_de_submontaje() -> None:
+    """Quita el ChainlitMiddleware que anade ``mount_chainlit``.
+
+    Ese middleware existe para que, cuando Chainlit va en un subcamino, su
+    catch-all no responda a las rutas del padre: devuelve 404 a todo lo que no
+    empiece por el prefijo de montaje. Montando en "/" el prefijo es "/", asi
+    que la comprobacion se cumple SIEMPRE y el middleware no filtra nada.
+
+    Pero no es inocuo: es un ``BaseHTTPMiddleware``, que no soporta respuestas
+    en streaming. Rompia el long-polling de Socket.io con ``AssertionError`` en
+    ``starlette/middleware/base.py`` — el chat aceptaba el mensaje y no
+    contestaba nunca. Visto en produccion al probar en el navegador.
+
+    Se retira antes del primer request: Starlette construye la pila de
+    middleware perezosamente en ``__call__``, asi que tocar ``user_middleware``
+    en tiempo de importacion es efectivo.
+    """
+    if _RUTA_MONTAJE != "/":
+        # En un subcamino la guarda SI hace falta; entonces hay que convivir
+        # con ella y montar Socket.io fuera de su alcance.
+        return
+
+    from chainlit.server import app as app_chainlit
+
+    antes = len(app_chainlit.user_middleware)
+    app_chainlit.user_middleware = [
+        m
+        for m in app_chainlit.user_middleware
+        if getattr(m.cls, "__name__", "") != "ChainlitMiddleware"
+    ]
+    if len(app_chainlit.user_middleware) != antes:
+        app_chainlit.middleware_stack = None  # se reconstruye en el primer request
+        logger.info("chainlit_guarda_de_submontaje_retirada")
+
 
 class _SinCacheEnAjustes:
     """``/project/settings`` no puede quedar cacheado.
@@ -130,4 +168,5 @@ async def ready() -> JSONResponse:
 app.add_middleware(_SinCacheEnAjustes)
 
 # Ultimo: al montar en "/" atrapa todo lo que no haya casado arriba.
-mount_chainlit(app=app, target=str(Path(_APP_CHAINLIT)), path="/")
+mount_chainlit(app=app, target=str(Path(_APP_CHAINLIT)), path=_RUTA_MONTAJE)
+_retirar_guarda_de_submontaje()
