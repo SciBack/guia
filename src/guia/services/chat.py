@@ -88,6 +88,70 @@ def _pide_explicacion(query: str) -> bool:
     return any(texto.startswith(p) or f" {p}" in texto for p in _PIDE_EXPLICACION)
 
 
+#: Palabras con las que se pide algo, pero que no dicen SOBRE QUÉ. Si al
+#: quitarlas no queda nada, la consulta no tiene tema que buscar.
+_ANDAMIAJE_DE_PETICION = frozenset("""
+busco buscando buscar quiero quisiera necesito necesitaba deseo dame damos
+ayuda ayudame ayudarme apoyo recomienda recomiendame recomendacion sugiere
+sugerencia informacion info datos material materiales recurso recursos
+bibliografia fuente fuentes documento documentos libro libros texto textos
+tesis tesina articulo articulos paper papers publicacion publicaciones
+trabajo trabajos investigacion investigaciones estudio estudios lectura
+academico academica academicos academicas cientifico cientifica
+algo alguna alguno algunos algunas cosa tema temas
+si claro ok vale bueno gracias por favor porfavor hola
+""".split())
+
+#: Palabras sin carga semántica propia.
+_VACIAS = frozenset("""
+a al ante bajo con contra de del desde durante en entre hacia hasta para por
+segun sin sobre tras y o u e ni que qué cual cuales como cuando donde
+el la los las un una unos unas lo mi mis tu tus su sus me te se nos les
+es son era eran esta estan estoy estamos estas ese esa eso este esta estos
+hay tiene tienen tengo mas menos muy tambien pero
+""".split())
+
+
+def _sin_tema(query: str) -> bool:
+    """¿La consulta pide algo pero no dice sobre qué?
+
+    Existe por un caso real del 09-sep-2026. El usuario escribió "estoy
+    buscando algo para mi tesis" y GUIA fue al catálogo con la palabra "tesis",
+    devolviendo cinco libros sobre *cómo redactar una tesis* — "Guía para
+    elaborar una tesis", "7 Pasos para elaborar una tesis"—. Ninguno tenía que
+    ver con lo que esa persona investiga, porque nunca dijo de qué trata.
+
+    La comprobación es por vaciado: se quitan las palabras con las que se pide
+    algo y las vacías; si no queda ninguna palabra de contenido, no hay tema
+    que buscar y lo correcto es preguntar.
+    """
+    import unicodedata
+
+    texto = unicodedata.normalize("NFKD", query.strip().lower())
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    palabras = [p.strip(".,;:¿?¡!()\"'") for p in texto.split()]
+    # Sin filtro por longitud: descartar palabras cortas se comía las siglas
+    # ("¿qué tesis hay sobre IA?" quedaba sin tema, y con ella ADN, TI o 5G).
+    # Las palabras cortas sin carga ya están en _VACIAS.
+    return not [
+        p
+        for p in palabras
+        if p and p not in _ANDAMIAJE_DE_PETICION and p not in _VACIAS
+    ]
+
+
+def _pregunta_por_el_tema() -> str:
+    """Lo que GUIA responde cuando le piden algo sin decir sobre qué."""
+    return (
+        "Con mucho gusto — pero necesito saber **sobre qué tema**. "
+        "Puedo buscar en el catálogo de la biblioteca, en las tesis del "
+        "repositorio, en los artículos de las revistas de la UPeU y en los "
+        "eventos académicos.\n\n"
+        "¿De qué trata lo que buscas? Por ejemplo: *nutrición infantil*, "
+        "*contaminación del lago Titicaca* o *hábitos de estudio*."
+    )
+
+
 def _classify_answer_type(
     intent: "Intent",
     sources: list[Source],
@@ -643,6 +707,26 @@ class ChatService:
                 intent=intent,
                 sources=[],
                 model_used=g_response.model,
+                cached=False,
+            )
+            await self._emit_audit(
+                request, response, route_decision, sources_used_names, t_start
+            )
+            return response
+
+        # 4c. Sin tema no hay nada que buscar: preguntar en vez de adivinar.
+        #
+        # Caso real del 09-sep-2026: "estoy buscando algo para mi tesis" fue al
+        # catálogo con la palabra "tesis" y devolvió cinco libros sobre cómo
+        # redactar una tesis. Ninguno servía, porque el usuario nunca dijo de
+        # qué trata la suya. Buscar sin tema no es dar un resultado imperfecto:
+        # es dar uno que no responde a nada.
+        if intent in (Intent.RESEARCH, Intent.GENERAL) and _sin_tema(query):
+            response = ChatResponse(
+                answer=_pregunta_por_el_tema(),
+                intent=intent,
+                sources=[],
+                model_used="pregunta_por_el_tema",
                 cached=False,
             )
             await self._emit_audit(
