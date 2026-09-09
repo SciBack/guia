@@ -369,6 +369,18 @@ async def on_message(message: cl.Message) -> None:
     """Procesa cada mensaje del usuario."""
     history: list[ConversationMessage] = cl.user_session.get("history", [])
 
+    if not ESTADO_WARMUP.done:
+        # Mismo motivo que el 503 de /api/chat: durante el arranque la consulta
+        # se quedaba esperando detras de la carga de los modelos y tardaba mas
+        # de un minuto. Decirlo es mejor trato que hacerle esperar en blanco.
+        await cl.Message(
+            content=(
+                "Estoy terminando de arrancar (cargando los modelos). "
+                "Dame unos segundos y vuelve a enviarme tu consulta."
+            )
+        ).send()
+        return
+
     thinking_msg = cl.Message(content="")
     await thinking_msg.send()
 

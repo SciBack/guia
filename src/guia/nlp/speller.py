@@ -8,12 +8,20 @@ from __future__ import annotations
 
 import threading
 
+import logging
+import os
+
 from guia.nlp._carga import CargaUnica
 
 import urllib.request
 from pathlib import Path
 
 _DEFAULT_DICT_PATH = Path("data/symspell/es_full.txt")
+#: Indice ya construido. Va al volumen compartido (el mismo de fastembed) para
+#: sobrevivir a los recreates; sin el, cada despliegue reconstruia 1,2 millones
+#: de entradas dentro de la primera consulta del primer usuario.
+_PICKLE_DIR = os.getenv("GUIA_NLP_CACHE_DIR", "/tmp/fastembed_cache").strip()
+_PICKLE_PATH = Path(_PICKLE_DIR) / "symspell_es_ed2_p7.pkl" if _PICKLE_DIR else None
 _DICT_URL = (
     "https://raw.githubusercontent.com/hermitdave/FrequencyWords"
     "/master/content/2018/es/es_full.txt"
@@ -54,7 +62,39 @@ def _get_symspell(dict_path: Path | None = None) -> object | None:
                     from symspellpy import SymSpell
 
                     sym = SymSpell(max_dictionary_edit_distance=2, prefix_length=7)
+
+                    # El diccionario tiene 1,2 millones de entradas y construir
+                    # su indice de borrados cuesta ~45 s en la VM. symspellpy
+                    # sabe serializar ese indice ya construido: 22 s en vez de
+                    # 45, con el mismo diccionario y las mismas correcciones.
+                    # El pickle vive en el volumen compartido, asi que solo se
+                    # paga entero la primera vez, no en cada recreate.
+                    pickle_path = _PICKLE_PATH
+                    if pickle_path is not None and pickle_path.exists():
+                        try:
+                            sym.load_pickle(str(pickle_path))
+                            return sym
+                        except Exception:
+                            logging.getLogger(__name__).warning(
+                                "symspell_pickle_ilegible_se_reconstruye path=%s",
+                                pickle_path,
+                            )
+                            sym = SymSpell(
+                                max_dictionary_edit_distance=2, prefix_length=7
+                            )
+
                     sym.load_dictionary(str(target), term_index=0, count_index=1)
+                    if pickle_path is not None:
+                        try:
+                            pickle_path.parent.mkdir(parents=True, exist_ok=True)
+                            sym.save_pickle(str(pickle_path))
+                        except Exception:
+                            # Que no se pueda cachear no impide corregir.
+                            logging.getLogger(__name__).warning(
+                                "symspell_pickle_no_guardado path=%s",
+                                pickle_path,
+                                exc_info=True,
+                            )
                     return sym
 
                 _CARGA = CargaUnica(_cargar)
