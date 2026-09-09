@@ -51,6 +51,20 @@ def koha_opac_url(doc_id: str, base_url: str) -> str | None:
     return f"{base_url.rstrip('/')}/cgi-bin/koha/opac-detail.pl?biblionumber={biblio_id}"
 
 
+def _encabezado_listado(sources: list[Source]) -> str:
+    """Texto de reserva para las respuestas que se renderizan como listado.
+
+    El canal lo sustituye por el listado con enlaces, así que casi nunca se ve.
+    Existe para quien consuma la API en crudo: sin esto recibiría una respuesta
+    con fuentes y el campo ``answer`` vacío, que parece un fallo.
+    """
+    total = len(sources)
+    return (
+        f"Encontré {total} resultado{'s' if total != 1 else ''} relacionado"
+        f"{'s' if total != 1 else ''} con tu consulta."
+    )
+
+
 def _classify_answer_type(intent: "Intent", sources: list[Source]) -> str:
     """Deriva el tipo de respuesta para el render de citas.
 
@@ -796,6 +810,29 @@ class ChatService:
                 pii_replacements = {**d_query.replacements, **d_context.replacements}
 
         # 7. Síntesis LLM (sync → thread)
+        #
+        # Salvo cuando la respuesta va a ser un LISTADO. En ese caso el canal
+        # sustituye la prosa del modelo por el render con enlaces
+        # (render_results_list), así que sintetizar es pagar la espera entera
+        # por un texto que se descarta: medido el 2026-09-08, entre 48 y 107
+        # segundos tirados en las consultas más frecuentes del piloto.
+        #
+        # Se puede decidir aquí porque _classify_answer_type solo mira el intent
+        # y las fuentes, y ambos ya están resueltos en este punto. La respuesta
+        # que se devuelve lleva un texto de reserva: el canal lo reemplaza, y
+        # quien consuma la API sin ese render sigue recibiendo algo legible.
+        if _classify_answer_type(intent, sources) == "list":
+            return ChatResponse(
+                answer=_encabezado_listado(sources),
+                intent=intent,
+                sources=sources,
+                model_used="sin_sintesis_listado",
+                cached=False,
+                tokens_used=0,
+                source_buckets=source_buckets,
+                answer_type="list",
+            )
+
         context_block = (
             context_for_llm
             if context_for_llm
