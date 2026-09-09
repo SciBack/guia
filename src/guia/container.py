@@ -75,7 +75,9 @@ class GUIAContainer:
             self.fast_llm = self._build_ollama_fast()       # queries simples y PII
             clasificador_por_defecto = self.fast_llm
 
-        self.classifier_llm: LLMPort = self._build_classifier(clasificador_por_defecto)
+        self.classifier_llm: LLMPort | None = self._build_classifier(
+            clasificador_por_defecto
+        )
 
         # Adapters de fuentes (opcionales)
         self.dspace_adapter = self._try_build_dspace()
@@ -117,7 +119,7 @@ class GUIAContainer:
             return self._build_ollama()
         return self._build_claude()
 
-    def _build_classifier(self, por_defecto: LLMPort) -> LLMPort:
+    def _build_classifier(self, por_defecto: LLMPort) -> LLMPort | None:
         """Construye el LLM que clasifica la intención de cada consulta.
 
         Se separa de ``fast_llm`` porque los dos papeles tiran en direcciones
@@ -130,6 +132,8 @@ class GUIAContainer:
         actualizar.
         """
         proveedor = self.settings.guia_classifier_provider
+        if proveedor == "none":
+            return None
         if proveedor == "nim":
             return self._build_nim()
         if proveedor == "claude":
@@ -262,7 +266,13 @@ class GUIAContainer:
             CascadeRouter(
                 rules=RuleBasedRouter(),
                 embedding=EmbeddingRouter(self.embedder),
-                llm_classifier=LLMIntentCategoryClassifier(self.classifier_llm),
+                # Sin clasificador, CascadeRouter acepta la decisión de Gate 2
+                # en vez de invocar Gate 3. Está contemplado en su contrato.
+                llm_classifier=(
+                    LLMIntentCategoryClassifier(self.classifier_llm)
+                    if self.classifier_llm is not None
+                    else None
+                ),
             )
             if self.fast_llm is not None
             else None

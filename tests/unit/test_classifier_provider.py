@@ -87,3 +87,11 @@ def test_clasificar_en_nim_no_toca_el_modelo_local() -> None:
     assert elegido is not local
     nim.assert_called_once()
     ollama_fast.assert_not_called()
+
+
+def test_none_apaga_gate3() -> None:
+    """Medido el 2026-09-09: Gate 3 con NIM fallaba el 100% de las veces y aun
+    así costaba hasta 100 s. Poder apagarlo es poder dejar de pagar por nada."""
+    contenedor, _ = _contenedor("none")
+
+    assert GUIAContainer._build_classifier(contenedor, "el-de-siempre") is None

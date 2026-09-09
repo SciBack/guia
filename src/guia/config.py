@@ -64,7 +64,12 @@ class GUIASettings(BaseSettings):
     # solo para clasificar, y encima devolviendo una categoría que el enrutador
     # no reconocía.
     # "fast" conserva el comportamiento anterior (el mismo objeto que fast_llm).
-    guia_classifier_provider: Literal["fast", "claude", "nim", "ollama"] = "fast"
+    # "none" apaga Gate 3 entero: el enrutador se queda con Gate 1 (reglas,
+    # ~0 ms) y Gate 2 (embeddings, ~1 ms), que es como funciona cuando no hay
+    # clasificador. Medido el 2026-09-09 con NIM en ese puesto: fallaba el 100%
+    # de las veces y aun así costaba hasta 100 s por consulta — se pagaba la
+    # espera para obtener un fallo.
+    guia_classifier_provider: Literal["none", "fast", "claude", "nim", "ollama"] = "fast"
 
     # Entorno
     environment: Literal["development", "staging", "production"] = "development"
