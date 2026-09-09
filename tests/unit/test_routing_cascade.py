@@ -27,9 +27,11 @@ class FakeLLMClassifier:
     def __init__(self, category: IntentCategory) -> None:
         self.category = category
         self.calls = 0
+        self.historial_recibido: list | None = None
 
-    def classify_category(self, query: str) -> IntentCategory:
+    def classify_category(self, query, history=None) -> IntentCategory:  # noqa: ANN001
         self.calls += 1
+        self.historial_recibido = history
         return self.category
 
 
@@ -174,3 +176,61 @@ def test_latency_is_recorded(cascade: CascadeRouter) -> None:
     qv = FakeEmbedder().embed_query("hola")
     d = cascade.decide("hola", qv)
     assert d.latency_ms >= 0.0
+
+
+# ── Historial hacia Gate 3 ────────────────────────────────────────────────
+
+
+def test_gate3_recibe_el_historial(
+    cascade_with_llm: tuple[CascadeRouter, FakeLLMClassifier],
+) -> None:
+    """Sin contexto, un turno de continuación es imposible de clasificar.
+
+    Medido en producción el 2026-09-09: "sí, quiero información académica"
+    —una respuesta a lo que GUIA acababa de preguntar— se enrutó como búsqueda
+    y devolvió libros cuyo título contenía esas palabras.
+    """
+    from sciback_core.ports.llm import LLMMessage
+
+    cascade, llm = cascade_with_llm
+    historial = [
+        LLMMessage(role="user", content="puedes ayudarme?"),
+        LLMMessage(role="assistant", content="¡Claro! ¿Qué necesitas?"),
+    ]
+    qv = FakeEmbedder().embed_query("xyzzy nonsense")
+
+    cascade.decide("xyzzy nonsense", qv, history=historial)
+
+    assert llm.historial_recibido == historial
+
+
+def test_sin_historial_gate3_sigue_funcionando(
+    cascade_with_llm: tuple[CascadeRouter, FakeLLMClassifier],
+) -> None:
+    """El parámetro es opcional: los llamantes que no lo pasan no se rompen."""
+    cascade, llm = cascade_with_llm
+    qv = FakeEmbedder().embed_query("xyzzy nonsense")
+
+    d = cascade.decide("xyzzy nonsense", qv)
+
+    assert d.gate_used == Gate.LLM
+    assert llm.historial_recibido is None
+
+
+def test_gate1_y_gate2_no_necesitan_historial(
+    cascade_with_llm: tuple[CascadeRouter, FakeLLMClassifier],
+) -> None:
+    """Solo Gate 3 lo usa: las otras dos puertas resuelven por sí solas.
+
+    Importa porque pasar historial no debe encarecer el camino barato.
+    """
+    from sciback_core.ports.llm import LLMMessage
+
+    cascade, llm = cascade_with_llm
+    historial = [LLMMessage(role="user", content="hola")]
+    qv = FakeEmbedder().embed_query("compara metodologías síntesis bibliométrico tendencias")
+
+    d = cascade.decide("compara metodologías síntesis", qv, history=historial)
+
+    assert d.gate_used == Gate.EMBEDDING
+    assert llm.calls == 0

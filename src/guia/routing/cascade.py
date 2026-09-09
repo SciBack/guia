@@ -11,6 +11,8 @@ Cada gate suma su latencia a la decisión final para métricas/observabilidad.
 
 from __future__ import annotations
 
+from sciback_core.ports.llm import LLMMessage
+
 import time
 from typing import TYPE_CHECKING, Protocol
 
@@ -35,7 +37,11 @@ class IntentLLMClassifier(Protocol):
     pendiente; por ahora opcional (CascadeRouter funciona sin Gate 3).
     """
 
-    def classify_category(self, query: str) -> IntentCategory: ...
+    def classify_category(
+        self,
+        query: str,
+        history: list[LLMMessage] | None = None,
+    ) -> IntentCategory: ...
 
 
 # Threshold de confianza por debajo del cual se activa Gate 3 (si está disponible).
@@ -76,8 +82,26 @@ class CascadeRouter:
         """True si Gate 2 está warm (los gates 1 y 3 son stateless)."""
         return self._embedding.ready
 
-    def decide(self, query: str, query_vector: list[float]) -> RouteDecision:
-        """Resuelve la cascada y retorna una RouteDecision (nunca None)."""
+    def decide(
+        self,
+        query: str,
+        query_vector: list[float],
+        history: list[LLMMessage] | None = None,
+    ) -> RouteDecision:
+        """Resuelve la cascada y retorna una RouteDecision (nunca None).
+
+        Args:
+            query: El mensaje actual del usuario.
+            query_vector: Su embedding, para Gate 2.
+            history: Turnos previos de la conversación. Solo lo usa Gate 3, y
+                es la razón de que exista este parámetro: Gate 1 y Gate 2 miran
+                el mensaje aislado, que para un turno de continuación no basta.
+                Medido en producción el 2026-09-09: "sí, quiero información
+                académica" —una respuesta a lo que GUIA acababa de preguntar—
+                se enrutó como búsqueda y devolvió libros cuyo título contenía
+                esas palabras. Ningún clasificador puede acertar eso sin ver
+                el turno anterior.
+        """
         t_start = time.perf_counter()
 
         # ── Gate 1: reglas deterministas ──────────────────────────────────
@@ -94,7 +118,7 @@ class CascadeRouter:
 
         # ── Gate 3: LLM classifier (opt-in) ───────────────────────────────
         if self._llm is not None and decision.confidence < self._gate3_threshold:
-            return self._invoke_gate3(query, decision, t_start)
+            return self._invoke_gate3(query, decision, t_start, history)
 
         return decision
 
@@ -103,6 +127,7 @@ class CascadeRouter:
         query: str,
         gate2_decision: RouteDecision,
         t_start: float,
+        history: list[LLMMessage] | None = None,
     ) -> RouteDecision:
         """Activa el LLM classifier para resolver ambigüedad de Gate 2.
 
@@ -110,7 +135,7 @@ class CascadeRouter:
         elige (vía tabla _CATEGORY_TO_TIER_PRIVACY).
         """
         assert self._llm is not None
-        category = self._llm.classify_category(query)
+        category = self._llm.classify_category(query, history=history)
         tier, privacy = _category_to_tier_privacy(category)
 
         latency_ms = (time.perf_counter() - t_start) * 1000

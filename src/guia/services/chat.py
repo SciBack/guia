@@ -480,7 +480,17 @@ class ChatService:
         if request.intent_hint is not None:
             intent = request.intent_hint
         elif self._cascade is not None:
-            route_decision = self._cascade.decide(query, query_vector)
+            # El historial va a Gate 3: sin él, un turno de continuación
+            # ("sí, quiero información académica") se clasifica por sus
+            # palabras sueltas en vez de por lo que significa en la conversación.
+            route_decision = self._cascade.decide(
+                query,
+                query_vector,
+                history=[
+                    LLMMessage(role=t.role, content=t.content)
+                    for t in request.history
+                ],
+            )
             intent = category_to_intent(route_decision.intent)
         else:
             intent = await self._classifier.classify(query)
