@@ -82,7 +82,7 @@ services:
     build:
       context: ..
       dockerfile: guia/docker/api/Dockerfile.prod
-    command: python /app/.venv/bin/chainlit run src/guia/channels/chainlit_app.py --host 0.0.0.0 --port 8001
+    command: python -m uvicorn guia.channels.web:app --host 0.0.0.0 --port 8001
     env_file: .env
     environment:
       SEARCH_BACKEND: pgvector

@@ -48,6 +48,18 @@ class _EstadoDeWarmup:
 ESTADO = _EstadoDeWarmup()
 
 
+def respuesta_de_readiness() -> tuple[int, dict[str, object]]:
+    """Codigo y cuerpo que debe devolver ``/ready``.
+
+    Vive aqui, y no en el canal, porque api y web deben responder lo mismo y
+    porque importar el canal web arrastra el contenedor entero (y con el,
+    Postgres), lo que haria imposible probar esto.
+    """
+    if ESTADO.done:
+        return 200, {"ready": True}
+    return 503, {"ready": False, "reason": "cargando modelos"}
+
+
 
 async def warmup_models(container: GUIAContainer) -> None:
     """Pre-carga embedder, routers y gates NLP. Nunca propaga errores.

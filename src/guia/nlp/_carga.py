@@ -16,7 +16,8 @@ Medido el 09-sep-2026: consulta a t+2s del arranque, 65 s; a t+20s, 0,44 s.
 from __future__ import annotations
 
 import threading
-from typing import Callable, Generic, TypeVar
+from collections.abc import Callable
+from typing import Generic, TypeVar
 
 T = TypeVar("T")
 

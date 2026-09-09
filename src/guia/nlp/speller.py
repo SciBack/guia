@@ -6,15 +6,13 @@ opera como identidad (sin error).
 """
 from __future__ import annotations
 
-import threading
-
 import logging
 import os
-
-from guia.nlp._carga import CargaUnica
-
+import threading
 import urllib.request
 from pathlib import Path
+
+from guia.nlp._carga import CargaUnica
 
 _DEFAULT_DICT_PATH = Path("data/symspell/es_full.txt")
 
@@ -44,7 +42,7 @@ def _download_dict(target: Path) -> bool:
     """Descarga el diccionario de frecuencias español si no existe."""
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        urllib.request.urlretrieve(_DICT_URL, target)  # noqa: S310
+        urllib.request.urlretrieve(_DICT_URL, target)
         return target.exists() and target.stat().st_size > 1000
     except Exception:
         return False

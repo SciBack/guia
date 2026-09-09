@@ -1,10 +1,15 @@
-"""La sonda /ready del canal web tiene que ganarle al catch-all de Chainlit.
+"""El orden de registro decide quien atiende /ready.
 
-Comprobado en produccion el 09-sep-2026: registrada como ruta con
-``@app.get("/ready")`` sobre ``chainlit.server.app``, la peticion la atendia el
-catch-all ``/{full_path:path}`` que Chainlit registra al importarse, devolviendo
-el HTML de la SPA con 200. El healthcheck del contenedor daba "healthy" sin que
-los modelos estuvieran cargados: justo lo que la sonda existe para impedir.
+Comprobado en produccion el 09-sep-2026: con ``chainlit run``, una ruta
+anadida al ``app`` de ``chainlit.server`` quedaba DETRAS del catch-all
+``/{full_path:path}`` que Chainlit registra al importarse, y la peticion la
+atendia la SPA — 200 con HTML. El healthcheck del contenedor daba "healthy"
+con los modelos a medio cargar: justo lo que la sonda existe para impedir.
+
+La forma documentada (``mount_chainlit`` dentro de un FastAPI propio) invierte
+el orden: nuestras rutas se registran antes del montaje y ganan. Estas pruebas
+fijan las dos mitades — que registrar despues no vale, y que registrar antes
+si.
 """
 
 from __future__ import annotations
@@ -44,38 +49,49 @@ class TestSondaDeReadiness:
         assert r.status_code == 200
         assert "<html>" in r.text, "si esto falla, FastAPI cambio el orden de match"
 
-    def test_el_middleware_si_la_atiende(self, app_con_catchall: FastAPI) -> None:
-        from guia.channels.readiness import ReadinessMiddleware
+
+class TestOrdenDeRegistro:
+    """La mitad que arregla el fallo: registrar ANTES del catch-all."""
+
+    def test_una_ruta_registrada_antes_si_gana(self) -> None:
+        """Es lo que consigue mount_chainlit al montar sobre nuestro FastAPI."""
+        app = FastAPI()
+
+        @app.get("/ready")
+        async def ready() -> dict[str, bool]:
+            return {"ready": True}
+
+        @app.get("/{full_path:path}")
+        async def spa(full_path: str) -> HTMLResponse:
+            return HTMLResponse("<html><div id='root'></div></html>")
+
+        cliente = TestClient(app)
+
+        assert json.loads(cliente.get("/ready").text) == {"ready": True}
+        assert "<html>" in cliente.get("/cualquier/otra").text
+
+
+class TestRespuestaDeLaSonda:
+    """api y web tienen que contestar lo mismo: una sola fuente de verdad."""
+
+    def test_503_mientras_cargan_los_modelos(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from guia.services import warmup
 
-        warmup.ESTADO.marcar_listo()
-        app_con_catchall.add_middleware(ReadinessMiddleware)
+        monkeypatch.setattr(warmup, "ESTADO", warmup._EstadoDeWarmup())
 
-        r = TestClient(app_con_catchall).get("/ready")
+        codigo, cuerpo = warmup.respuesta_de_readiness()
 
-        assert r.status_code == 200
-        assert json.loads(r.text) == {"ready": True}
+        assert codigo == 503
+        assert cuerpo["ready"] is False
+        assert "cargando" in str(cuerpo["reason"])
 
-    def test_responde_503_mientras_cargan_los_modelos(
-        self, app_con_catchall: FastAPI, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        from guia.channels import readiness as modulo_readiness
-        from guia.services.warmup import _EstadoDeWarmup
+    def test_200_cuando_ya_estan_dentro(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from guia.services import warmup
 
-        monkeypatch.setattr("guia.services.warmup.ESTADO", _EstadoDeWarmup())
-        app_con_catchall.add_middleware(modulo_readiness.ReadinessMiddleware)
+        estado = warmup._EstadoDeWarmup()
+        estado.marcar_listo()
+        monkeypatch.setattr(warmup, "ESTADO", estado)
 
-        r = TestClient(app_con_catchall).get("/ready")
-
-        assert r.status_code == 503
-        assert json.loads(r.text)["ready"] is False
-
-    def test_el_resto_de_rutas_pasa_de_largo(self, app_con_catchall: FastAPI) -> None:
-        """La sonda no puede secuestrar la SPA ni el websocket."""
-        from guia.channels.readiness import ReadinessMiddleware
-
-        app_con_catchall.add_middleware(ReadinessMiddleware)
-
-        r = TestClient(app_con_catchall).get("/cualquier/otra/cosa")
-
-        assert "<html>" in r.text
+        assert warmup.respuesta_de_readiness() == (200, {"ready": True})

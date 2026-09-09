@@ -104,7 +104,7 @@ services:
     build:
       context: ..
       dockerfile: guia/docker/api/Dockerfile.prod
-    command: chainlit run src/guia/channels/chainlit_app.py --host 0.0.0.0 --port 8001
+    command: python -m uvicorn guia.channels.web:app --host 0.0.0.0 --port 8001
     env_file: .env
     environment:
       # Detoxify escribe la cache de HuggingFace. Sin esto apuntaba a

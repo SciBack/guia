@@ -3,8 +3,12 @@
 Integra ChatService con la interfaz web de Chainlit.
 Soporta streaming cuando el LLM lo provea.
 
-Arranque:
-    chainlit run src/guia/channels/chainlit_app.py --host 0.0.0.0 --port 8001
+Arranque: este modulo NO se ejecuta directamente. Lo carga
+``guia.channels.web``, que crea el FastAPI, registra las rutas propias y monta
+esto con ``mount_chainlit`` — la forma documentada de convivir con rutas
+propias. Ver la nota de ese modulo.
+
+    python -m uvicorn guia.channels.web:app --host 0.0.0.0 --port 8001
 """
 
 from __future__ import annotations
@@ -14,24 +18,20 @@ import os
 
 import chainlit as cl
 from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
-from chainlit.server import app as _chainlit_app
 from chainlit.types import ThreadDict
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
-from starlette.types import ASGIApp, Receive, Scope, Send
-
 from sciback_core.ports.llm import LLMMessage
 
 from guia.channels.feedback_datalayer import (
     FeedbackCapturingDataLayer,
     stash_response_metadata,
 )
+from guia.channels.render import render_results_list
 from guia.config import GUIASettings
 from guia.container import GUIAContainer
-from guia.channels.render import render_results_list
 from guia.domain.chat import ChatRequest, ConversationMessage
 from guia.logging import configure_logging, get_logger
-from guia.channels.readiness import ReadinessMiddleware
 from guia.services.warmup import ESTADO as ESTADO_WARMUP
 
 _settings = GUIASettings()
@@ -41,37 +41,10 @@ logger = get_logger(__name__)
 _container = GUIAContainer(_settings)
 
 
-class _NoCacheSettingsMiddleware:
-    """/project/settings nunca debe ser cacheado.
-
-    ASGI puro — no usa BaseHTTPMiddleware para no interferir con
-    WebSocket ni streaming (Socket.io long-polling).
-    """
-
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or scope.get("path") != "/project/settings":
-            await self.app(scope, receive, send)
-            return
-
-        async def _send_with_nocache(message: dict) -> None:
-            if message["type"] == "http.response.start":
-                headers = list(message.get("headers", []))
-                headers.append((b"cache-control", b"no-store, no-cache, must-revalidate"))
-                headers.append((b"pragma", b"no-cache"))
-                message = {**message, "headers": headers}
-            await send(message)
-
-        await self.app(scope, receive, _send_with_nocache)
-
-
-# El de readiness va DESPUES en la lista: Starlette aplica los middlewares en
-# orden inverso al de registro, asi que este acaba siendo el mas externo y
-# atiende /ready sin que nada mas lo toque.
-_chainlit_app.add_middleware(_NoCacheSettingsMiddleware)
-_chainlit_app.add_middleware(ReadinessMiddleware)
+# Las rutas propias (/ready) y el middleware de no-cache viven en
+# guia.channels.web, que es quien crea el FastAPI y monta esto con
+# mount_chainlit. Colgarselos aqui al app de chainlit.server no funcionaba: su
+# catch-all /{full_path:path} ya estaba registrado y se los comia.
 
 # URL asyncpg para el Data Layer nativo de Chainlit
 _PG_URL = os.environ.get(
@@ -127,69 +100,13 @@ def get_data_layer() -> SQLAlchemyDataLayer:
     return SQLAlchemyDataLayer(conninfo=_PG_URL, storage_provider=storage)
 
 
-@cl.on_app_startup
-async def on_app_startup() -> None:
-    """Pre-calienta routers y modelos NLP al arrancar.
-
-    Routers (warm_up): bloqueantes — deben completar antes de aceptar
-    requests para que el primer mensaje no sufra el cold-start de embeddings.
-
-    Gates NLP (lid.176.bin + detoxify): CPU-bound y potencialmente lentos en
-    la PRIMERA descarga (lid ~25s, detoxify ~1.1GB). Se lanzan como tarea
-    background (fire-and-forget) para no retrasar /healthz más allá del timeout
-    del healthcheck. Tras persistir en el volumen fastembed_cache/torch_cache,
-    los reinicios posteriores solo cargan de disco. Ver
-    incident_chainlit_coldstart_socket en memoria.
-    """
-    router = getattr(_container, "router", None)
-    if router is not None:
-        logger.info("model_router_warmup_start")
-        await router.warm_up()
-        logger.info("model_router_warmup_done")
-
-    cascade = getattr(_container, "cascade_router", None)
-    if cascade is not None:
-        logger.info("cascade_router_warmup_start")
-        await cascade.warm_up()
-        logger.info("cascade_router_warmup_done")
-
-    # Gates NLP: fire-and-forget en background (no bloquea startup ni /healthz).
-    asyncio.create_task(_warmup_nlp_gates())
-
-
-async def _warmup_nlp_gates() -> None:
-    """Carga lid.176.bin (LanguageGate) y Detoxify multilingual (ToxicityGate)
-    en threads separados, para que estén calientes antes del primer mensaje
-    del usuario en vez de cargarse de forma lazy en la primera query (~25s).
-
-    Errores de carga no tumban el proceso — los gates tienen fallback seguro
-    incorporado (lid → ("es", 1.0), toxicity → score 0.0).
-    """
-    # lid.176.bin — LanguageGate
-    try:
-        logger.info("nlp_warmup_lid_start")
-        from guia.nlp.language import detect_language
-        await asyncio.to_thread(detect_language, "warmup")
-        logger.info("nlp_warmup_lid_done")
-    except Exception:
-        logger.warning("nlp_warmup_lid_failed", exc_info=True)
-
-    # Detoxify multilingual — ToxicityGate.
-    # Se invoca sobre la instancia del container para respetar enabled/threshold
-    # de settings. Si toxicity está disabled, evaluate() retorna sin cargar pesos.
-    toxicity_gate = getattr(_container, "toxicity_gate", None)
-    if toxicity_gate is not None:
-        try:
-            logger.info("nlp_warmup_toxicity_start")
-            await asyncio.to_thread(toxicity_gate.evaluate, "warmup query")
-            logger.info("nlp_warmup_toxicity_done")
-        except Exception:
-            logger.warning("nlp_warmup_toxicity_failed", exc_info=True)
-
-    # A partir de aqui el proceso ya puede responder rapido: es lo que mira
-    # /ready, y con ello el healthcheck del contenedor.
-    ESTADO_WARMUP.marcar_listo()
-    logger.info("nlp_warmup_complete")
+# El warmup NO va aqui. Estaba en @cl.on_app_startup, que es el lifespan del
+# app de Chainlit; al montarse con mount_chainlit ese lifespan ya no se
+# ejecuta, porque Starlette no lo propaga a las sub-aplicaciones. Vive en
+# guia.channels.web, que es el app que uvicorn arranca de verdad, y usa el
+# mismo warmup_models que la API en vez de una segunda lista de componentes
+# —la de aqui se habia quedado sin spaCy ni SymSpell, que eran justamente los
+# dos que mas tardaban.
 
 
 @cl.on_logout
@@ -198,6 +115,7 @@ async def on_logout(request: Request, response: Response) -> JSONResponse:
     y devuelve la URL de logout de Microsoft para que el JS encadene el cierre.
     """
     import urllib.parse
+
     import httpx
 
     base   = os.environ.get("OAUTH_KEYCLOAK_BASE_URL", "").rstrip("/")

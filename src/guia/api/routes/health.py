@@ -50,8 +50,7 @@ def ready() -> JSONResponse:
     arranque y el fin del warmup el proceso acepta conexiones pero todavia no
     puede responder rapido.
     """
-    from guia.services.warmup import ESTADO
+    from guia.services.warmup import respuesta_de_readiness
 
-    if ESTADO.done:
-        return JSONResponse({"ready": True})
-    return JSONResponse({"ready": False, "reason": "cargando modelos"}, status_code=503)
+    codigo, cuerpo = respuesta_de_readiness()
+    return JSONResponse(cuerpo, status_code=codigo)
