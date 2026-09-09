@@ -98,7 +98,12 @@ bibliografia fuente fuentes documento documentos libro libros texto textos
 tesis tesina articulo articulos paper papers publicacion publicaciones
 trabajo trabajos investigacion investigaciones estudio estudios lectura
 academico academica academicos academicas cientifico cientifica
-algo alguna alguno algunos algunas cosa tema temas
+algo alguna alguno algunas algunos cosa tema temas
+hacer haciendo elaborar redactar escribir presentar preparar avanzar
+tarea tareas deber deberes practica practicas ejercicio ejercicios
+monografia monografias ensayo ensayos informe informes exposicion
+proyecto proyectos curso cursos clase clases examen examenes
+final finales grado titulacion sustentacion
 si claro ok vale bueno gracias por favor porfavor hola
 """.split())
 

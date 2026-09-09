@@ -30,6 +30,13 @@ from guia.services.chat import _pregunta_por_el_tema, _sin_tema
         "necesito bibliografía para mi trabajo",
         "recomiéndame algo",
         "dame documentos",
+        # Encontrados probando en el navegador el 09-sep-2026: la primera
+        # version de la lista no los cubria y GUIA se iba a buscar "tarea".
+        "necesito hacer mi tarea",
+        "tengo que hacer un ensayo",
+        "necesito preparar mi exposición",
+        "es para mi monografía",
+        "tengo un trabajo final",
     ],
 )
 def test_una_peticion_sin_tema_se_detecta(consulta: str) -> None:
@@ -48,6 +55,9 @@ def test_una_peticion_sin_tema_se_detecta(consulta: str) -> None:
         "busco tesis de machine learning",
         "¿qué tesis hay sobre IA?",
         "tesis de ADN",
+        # El andamiaje no puede comerse el tema cuando SI esta
+        "necesito hacer mi tarea de nutrición",
+        "un ensayo sobre la quinua",
     ],
 )
 def test_una_peticion_con_tema_pasa_a_buscar(consulta: str) -> None:
