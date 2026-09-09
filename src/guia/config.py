@@ -117,9 +117,14 @@ class GUIASettings(BaseSettings):
     # Fusión de las dos ramas de la búsqueda híbrida (BM25 + kNN).
     # "rrf"      — Reciprocal Rank Fusion: fusiona posiciones, inmune a que las
     #              escalas de BM25 y kNN no sean comparables. Default.
+    # "rrf_native" — la misma fusion, pero corrida por el score-ranker-processor
+    #              de OpenSearch. Fusiona a nivel de shard (un documento que no
+    #              entro en la ventana de ninguna rama todavia puede subir) y va
+    #              en un solo _search. Exige el pipeline creado en el cluster;
+    #              si falta, cae solo a "rrf".
     # "weighted" — suma ponderada de scores (comportamiento previo). Se conserva
     #              para poder comparar A/B y para revertir sin redeploy.
-    search_fusion: Literal["rrf", "weighted"] = "rrf"
+    search_fusion: Literal["rrf", "rrf_native", "weighted"] = "rrf"
     # Amortiguación de RRF; menor = más peso a las primeras posiciones.
     search_rrf_k: int = 60
     # Candidatos que pide cada rama antes de fusionar. Debe superar con holgura

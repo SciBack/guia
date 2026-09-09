@@ -124,7 +124,25 @@ class SearchAdapter:
         filters: SearchFilters | None,
     ) -> SearchResponse:
         """Ejecuta la búsqueda híbrida con la estrategia de fusión configurada."""
-        if self._fusion == "rrf":
+        if self._fusion == "rrf_native":
+            # Fusion dentro del cluster. Si el pipeline no existe o el
+            # OpenSearch no trae el procesador, no se deja al usuario sin
+            # respuesta: se cae a la fusion en cliente, que da el mismo
+            # ranking sin depender del servidor.
+            try:
+                return await self._os.rrf_hybrid_native(  # type: ignore[union-attr]
+                    text=text,
+                    vector=vector,
+                    filters=filters,
+                    candidates=self._candidates,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "rrf_nativo_no_disponible_se_usa_el_de_cliente",
+                    extra={"exc": str(exc)},
+                )
+
+        if self._fusion in ("rrf", "rrf_native"):
             return await self._os.rrf_hybrid(  # type: ignore[union-attr]
                 text=text,
                 vector=vector,
