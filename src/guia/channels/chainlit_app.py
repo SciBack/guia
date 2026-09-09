@@ -74,6 +74,33 @@ _PG_URL = os.environ.get(
 ).replace("postgresql+psycopg://", "postgresql+asyncpg://")
 
 
+def _build_storage_client() -> object | None:
+    """Almacén de los elementos (PDF, imágenes) que adjunta GUIA.
+
+    Sin esto el Data Layer guarda la conversación pero NO los adjuntos —
+    la propia librería lo avisa al arrancar ("elements will not be persisted!")
+    y el usuario que retoma un hilo del historial ve los mensajes sin sus PDF.
+
+    Se usa el S3StorageClient que trae Chainlit, no un cliente propio. Si no
+    hay bucket configurado devuelve None y el comportamiento es el de antes,
+    porque un despliegue sin S3 (local, laboratorio) debe seguir arrancando.
+    """
+    bucket = os.environ.get("GUIA_S3_ARTIFACTS_BUCKET", "").strip()
+    if not bucket:
+        logger.warning("chainlit_sin_storage_s3_los_adjuntos_no_persisten")
+        return None
+    try:
+        from chainlit.data.storage_clients.s3 import S3StorageClient
+
+        cliente = S3StorageClient(bucket=bucket)
+        logger.info("chainlit_storage_s3_listo", bucket=bucket)
+        return cliente
+    except Exception:
+        # Un fallo aquí no puede tumbar el chat: se degrada a sin-adjuntos.
+        logger.warning("chainlit_storage_s3_fallo", exc_info=True)
+        return None
+
+
 @cl.data_layer
 def get_data_layer() -> SQLAlchemyDataLayer:
     """Data Layer Chainlit + captura de 👍/👎 al dataset chat_feedback.
@@ -83,13 +110,15 @@ def get_data_layer() -> SQLAlchemyDataLayer:
     """
     fb_repo = getattr(_container, "feedback_repo", None)
     redis_client = getattr(_container, "redis_client", None)
+    storage = _build_storage_client()
     if fb_repo is not None and redis_client is not None:
         return FeedbackCapturingDataLayer(
             conninfo=_PG_URL,
             feedback_repo=fb_repo,
             redis_client=redis_client,
+            storage_provider=storage,
         )
-    return SQLAlchemyDataLayer(conninfo=_PG_URL)
+    return SQLAlchemyDataLayer(conninfo=_PG_URL, storage_provider=storage)
 
 
 @cl.on_app_startup
