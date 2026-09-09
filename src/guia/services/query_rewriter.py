@@ -13,11 +13,11 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from guia.logging import get_logger
-from guia.nlp.greetings import strip_greetings
 from guia.nlp.acronyms import expand_acronyms
 from guia.nlp.dater import extract_date_filters
-from guia.nlp.ner import extract_entities
+from guia.nlp.greetings import strip_greetings
 from guia.nlp.keywords import expand_keywords
+from guia.nlp.ner import extract_entities
 
 _log = get_logger(__name__)
 
@@ -58,14 +58,19 @@ class QueryRewriter:
 
     def __init__(
         self,
-        fast_llm: "LLMPort | None" = None,
+        fast_llm: LLMPort | None = None,
         *,
         enable_llm_fallback: bool = True,
         max_history_turns: int = 4,
+        analizador: object | None = None,
     ) -> None:
         self._fast_llm = fast_llm
         self._enable_llm_fallback = enable_llm_fallback
         self._max_history_turns = max_history_turns
+        # Con analizador, spaCy y SymSpell viven en el sidecar y este proceso
+        # no los carga (medido: 348 MB). Sin él se usan los locales, que es lo
+        # que necesitan la CLI y los tests.
+        self._analizador = analizador
 
     async def rewrite(
         self,
@@ -78,8 +83,12 @@ class QueryRewriter:
 
         # 1. Spell fix (sync, <1ms si hay diccionario)
         try:
-            from guia.nlp.speller import correct_typos
-            corrected = await asyncio.to_thread(correct_typos, query)
+            if self._analizador is not None:
+                corrected = await asyncio.to_thread(self._analizador.corregir, query)
+            else:
+                from guia.nlp.speller import correct_typos
+
+                corrected = await asyncio.to_thread(correct_typos, query)
         except Exception:
             _log.debug("speller_failed", exc_info=True)
             corrected = query
@@ -88,7 +97,10 @@ class QueryRewriter:
         date_filters = extract_date_filters(corrected)
 
         # 3. NER
-        entities = await asyncio.to_thread(extract_entities, corrected)
+        if self._analizador is not None:
+            entities = await asyncio.to_thread(self._analizador.entidades, corrected)
+        else:
+            entities = await asyncio.to_thread(extract_entities, corrected)
 
         # 4. Strip saludos y cortesías
         cleaned = strip_greetings(corrected)

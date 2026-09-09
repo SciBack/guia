@@ -91,50 +91,53 @@ async def warmup_models(container: GUIAContainer) -> None:
         except Exception:
             logger.warning("warmup_failed", component="embedder", exc_info=True)
 
-    # Gates NLP — lid.176.bin (idioma) y Detoxify (toxicidad). Los gates
-    # tienen fallback seguro incorporado, así que un fallo aquí solo significa
-    # que la primera query paga la carga.
-    try:
-        from guia.nlp.language import detect_language
-
-        await asyncio.to_thread(detect_language, "warmup")
-        logger.info("warmup_done", component="language_gate")
-    except Exception:
-        logger.warning("warmup_failed", component="language_gate", exc_info=True)
-
-    toxicity_gate = getattr(container, "toxicity_gate", None)
-    if toxicity_gate is not None:
+    # Modelos NLP. Si hay analizador compartido se empuja al SIDECAR a
+    # cargarlos, en vez de cargarlos aquí: es el sentido de haberlos movido —
+    # una copia para todos los canales, no una por proceso. Sin analizador
+    # (CLI, tests) se calientan los locales, que es el comportamiento previo.
+    analizador = getattr(container, "analizador_nlp", None)
+    if analizador is not None:
         try:
-            await asyncio.to_thread(toxicity_gate.evaluate, "warmup query")
-            logger.info("warmup_done", component="toxicity_gate")
+            estado = await asyncio.to_thread(analizador.calentar)
+            logger.info("warmup_done", component="nlp_sidecar", **estado)
         except Exception:
-            logger.warning("warmup_failed", component="toxicity_gate", exc_info=True)
-
-    # NLP del reescritor de consultas: spaCy es_core_news_lg (~10 s) y el
-    # diccionario de SymSpell (que en la primera carga puede DESCARGARSE).
-    # Estaban fuera del warmup, asi que los pagaba integros la primera
-    # consulta real — la mitad de los 65 s medidos el 09-sep-2026.
-    for componente, cargar in (
-        ("ner_spacy", _cargar_spacy),
-        ("speller_symspell", _cargar_symspell),
-    ):
-        try:
-            await asyncio.to_thread(cargar)
-            logger.info("warmup_done", component=componente)
-        except Exception:
-            logger.warning("warmup_failed", component=componente, exc_info=True)
+            logger.warning("warmup_failed", component="nlp_sidecar", exc_info=True)
+    else:
+        for componente, cargar in (
+            ("language_gate", _cargar_idioma),
+            ("toxicity_gate", _cargar_toxicidad_local),
+            ("ner_spacy", _cargar_spacy),
+            ("speller_symspell", _cargar_symspell),
+        ):
+            try:
+                await asyncio.to_thread(cargar, container)
+                logger.info("warmup_done", component=componente)
+            except Exception:
+                logger.warning("warmup_failed", component=componente, exc_info=True)
 
     ESTADO.marcar_listo()
     logger.info("warmup_complete")
 
 
-def _cargar_spacy() -> None:
+def _cargar_idioma(_container: GUIAContainer) -> None:
+    from guia.nlp.language import detect_language
+
+    detect_language("warmup")
+
+
+def _cargar_toxicidad_local(container: GUIAContainer) -> None:
+    gate = getattr(container, "toxicity_gate", None)
+    if gate is not None:
+        gate.evaluate("warmup query")
+
+
+def _cargar_spacy(_container: GUIAContainer) -> None:
     from guia.nlp.ner import extract_entities
 
     extract_entities("warmup en la Universidad Peruana Union")
 
 
-def _cargar_symspell() -> None:
+def _cargar_symspell(_container: GUIAContainer) -> None:
     from guia.nlp.speller import correct_typos
 
     correct_typos("warmup")

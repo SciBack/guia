@@ -9,7 +9,6 @@ import logging
 import threading
 from dataclasses import dataclass
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -29,16 +28,24 @@ class LanguageGate:
     detecta quechua u otro idioma no-español.
     """
 
-    def __init__(self, *, enabled: bool = True) -> None:
+    def __init__(self, *, enabled: bool = True, analizador: object | None = None) -> None:
         self._enabled = enabled
+        # Cuando hay analizador, el modelo vive en el sidecar y este proceso no
+        # carga nada. Sin él se usa el modelo local, que es lo que necesitan la
+        # CLI y los tests.
+        self._analizador = analizador
 
     def evaluate(self, query: str) -> GateResult:
         if not self._enabled:
             return GateResult(passed=True)
 
         try:
-            from guia.nlp.language import detect_language
-            lang, conf = detect_language(query)
+            if self._analizador is not None:
+                lang, conf = self._analizador.idioma(query)  # type: ignore[attr-defined]
+            else:
+                from guia.nlp.language import detect_language
+
+                lang, conf = detect_language(query)
         except Exception:
             return GateResult(passed=True)
 
@@ -78,9 +85,16 @@ class ToxicityGate:
         "Si necesitas ayuda académica, reformula tu pregunta."
     )
 
-    def __init__(self, *, enabled: bool = True, threshold: float = 0.85) -> None:
+    def __init__(
+        self,
+        *,
+        enabled: bool = True,
+        threshold: float = 0.85,
+        analizador: object | None = None,
+    ) -> None:
         self._enabled = enabled
         self._threshold = threshold
+        self._analizador = analizador
         self._model: object | None = None
         self._model_loaded = False
         # Detoxify tarda ~15 s en cargar y pesa ~1,1 GB. Sin este cerrojo, una
@@ -104,6 +118,11 @@ class ToxicityGate:
         )
 
     def _predict(self, query: str) -> float:
+        if self._analizador is not None:
+            # Una sola copia del modelo, en el sidecar. Medido: 712 MB que este
+            # proceso ya no carga.
+            return float(self._analizador.toxicidad(query))  # type: ignore[attr-defined]
+
         self._ensure_model()
 
         if self._model is None:

@@ -6,6 +6,8 @@ Los servicios reciben interfaces (ports) — nunca importan adapters directament
 
 from __future__ import annotations
 
+import os
+
 import redis
 from sciback_core.ports.llm import LLMPort
 from sciback_core.ports.vector_store import VectorStorePort
@@ -26,9 +28,9 @@ from guia.services.chat import ChatService
 from guia.services.harvester import HarvesterService
 from guia.services.history import ConversationRepository
 from guia.services.profile import UserProfileRepository
-from guia.services.telegram_link import TelegramLinkRepository, TelegramLinkService
 from guia.services.router import ModelRouter
 from guia.services.search import SearchService
+from guia.services.telegram_link import TelegramLinkRepository, TelegramLinkService
 
 
 class GUIAContainer:
@@ -198,6 +200,23 @@ class GUIAContainer:
         except Exception:
             return None
 
+    def _build_analizador_nlp(self) -> object | None:
+        """Cliente del analizador NLP del sidecar, o None para usar lo local.
+
+        Se apaga poniendo ``GUIA_NLP_REMOTE_URL`` vacío. Por defecto apunta al
+        mismo sidecar que ya sirve embeddings y reranking, que es donde viven
+        los modelos.
+        """
+        url = os.environ.get(
+            "GUIA_NLP_REMOTE_URL",
+            os.environ.get("E5_OLLAMA_BASE_URL", ""),
+        ).strip()
+        if not url:
+            return None
+        from guia.nlp.cliente import AnalizadorNLP
+
+        return AnalizadorNLP(url)
+
     def _try_build_agent_orchestrator(self) -> AgentOrchestrator | None:
         """Construye AgentOrchestrator si NVIDIA_NIM_API_KEY está disponible.
 
@@ -297,17 +316,29 @@ class GUIAContainer:
         self.redis_client = self._redis
 
         # P1.4: Pipeline NLP híbrido (ADR-044, ADR-045)
-        from guia.services.query_rewriter import QueryRewriter
         from guia.routing.gates import LanguageGate, ToxicityGate
+        from guia.services.query_rewriter import QueryRewriter
+
+        # Analizador NLP compartido. Con él, los cuatro modelos (Detoxify,
+        # spaCy, SymSpell, lid) viven una sola vez en el sidecar en vez de una
+        # copia por canal — medido: 1.061 MB por proceso. Sin URL configurada
+        # se usan los modelos locales, que es lo que necesitan la CLI y los
+        # tests.
+        self.analizador_nlp = self._build_analizador_nlp()
 
         self.query_rewriter = QueryRewriter(
             fast_llm=self.fast_llm,
             enable_llm_fallback=self.fast_llm is not None,
+            analizador=self.analizador_nlp,
         )
-        self.language_gate = LanguageGate(enabled=self.settings.router_lid_enabled)
+        self.language_gate = LanguageGate(
+            enabled=self.settings.router_lid_enabled,
+            analizador=self.analizador_nlp,
+        )
         self.toxicity_gate = ToxicityGate(
             enabled=self.settings.router_toxicity_enabled,
             threshold=self.settings.router_toxicity_threshold,
+            analizador=self.analizador_nlp,
         )
 
         self.search_service = SearchService(

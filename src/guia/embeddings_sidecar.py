@@ -81,6 +81,8 @@ class _State:
     ready: bool = False
     reranker: object | None = None
     """Cross-encoder — cargado perezosamente en la primera petición de rerank."""
+    nlp: dict[str, object] = {}
+    """Modelos NLP compartidos. Ver la nota de ``/api/nlp``."""
 
 
 _state = _State()
@@ -88,6 +90,13 @@ _state = _State()
 # Carga del reranker: serializa a los concurrentes para no bajar dos veces el
 # modelo ni tener dos copias en RAM durante el arranque.
 _rerank_load_lock = asyncio.Lock()
+
+# Los modelos NLP tienen su propio cerrojo de carga y su propio semáforo de
+# inferencia: son mucho más baratos que el embedder y no deben quedarse en cola
+# detrás de él. Un gate de toxicidad esperando a que termine una cosecha de
+# 10.000 documentos convertiría cada consulta en una espera de minutos.
+_nlp_load_lock = asyncio.Lock()
+_nlp_sem = asyncio.Semaphore(2)
 
 
 def _build_adapter() -> object:
@@ -221,6 +230,118 @@ async def embeddings(req: EmbeddingsRequest) -> dict[str, list[float]]:
         raise HTTPException(status_code=500, detail=f"inference failed: {exc}") from exc
 
     return {"embedding": vector}
+
+
+class NLPRequest(BaseModel):
+    """Petición al analizador NLP compartido."""
+
+    op: str
+    """``toxicity`` | ``entities`` | ``spellcheck`` | ``language``."""
+    text: str
+
+
+async def _modelo_nlp(nombre: str) -> object | None:
+    """Devuelve un modelo NLP, cargándolo la primera vez.
+
+    Igual que el reranker: una sola copia en este proceso, servida a todos los
+    canales. Antes cada canal cargaba la suya — medido el 09-sep-2026, eran
+    1.061 MB por canal (Detoxify 712, spaCy 317, SymSpell 31) duplicados en
+    api y chainlit, sobre una VM de 9,7 GB con 500 MB libres.
+
+    Un modelo que no carga devuelve ``None`` para siempre: los llamantes tienen
+    degradación segura y no tiene sentido reintentar una carga de 15 s en cada
+    consulta. El fallo se registra, que es lo que faltó cuando Detoxify llevaba
+    meses sin cargarse sin que nadie se enterara.
+    """
+    if nombre in _state.nlp:
+        return _state.nlp[nombre]
+
+    async with _nlp_load_lock:
+        if nombre in _state.nlp:
+            return _state.nlp[nombre]
+
+        def _cargar() -> object | None:
+            if nombre == "toxicity":
+                from detoxify import Detoxify
+
+                return Detoxify("multilingual")
+            if nombre == "entities":
+                import spacy
+
+                return spacy.load(os.getenv("NLP_SPACY_MODEL", "es_core_news_lg"))
+            if nombre == "spellcheck":
+                from guia.nlp.speller import _get_symspell
+
+                return _get_symspell()
+            if nombre == "language":
+                from guia.nlp.language import _get_model
+
+                return _get_model()
+            return None
+
+        logger.info("nlp_modelo_cargando", modelo=nombre)
+        try:
+            _state.nlp[nombre] = await asyncio.to_thread(_cargar)
+            logger.info("nlp_modelo_listo", modelo=nombre,
+                        disponible=_state.nlp[nombre] is not None)
+        except Exception:
+            logger.warning("nlp_modelo_fallo", modelo=nombre, exc_info=True)
+            _state.nlp[nombre] = None
+
+    return _state.nlp[nombre]
+
+
+@app.post("/api/nlp")
+async def nlp(req: NLPRequest) -> dict[str, object]:
+    """Analizador NLP compartido: toxicidad, entidades, ortografía e idioma.
+
+    Existe por lo mismo que ``/api/embeddings``: los modelos pesan y no tiene
+    sentido una copia por canal. Un solo endpoint con ``op`` en vez de cuatro
+    rutas, para que el semáforo y la carga vivan en un único sitio.
+
+    Nunca lanza por un modelo ausente: devuelve el valor neutro y marca
+    ``disponible: false``, para que el llamante pueda registrarlo en vez de
+    creerse un resultado que nadie calculó.
+    """
+    texto = req.text or ""
+    modelo = await _modelo_nlp(req.op)
+
+    if modelo is None:
+        neutro: dict[str, object] = {
+            "toxicity": {"score": 0.0},
+            "entities": {"entities": {}},
+            "spellcheck": {"text": texto},
+            "language": {"lang": "es", "confidence": 1.0},
+        }.get(req.op, {})
+        return {**neutro, "disponible": False}
+
+    async with _nlp_sem:
+        if req.op == "toxicity":
+            r = await asyncio.to_thread(modelo.predict, texto)  # type: ignore[attr-defined]
+            return {"score": float(max(r.values())), "disponible": True}
+
+        if req.op == "entities":
+            doc = await asyncio.to_thread(modelo, texto)  # type: ignore[operator]
+            ents: dict[str, list[str]] = {}
+            for e in doc.ents:
+                ents.setdefault(e.label_, []).append(e.text)
+            return {"entities": ents, "disponible": True}
+
+        if req.op == "spellcheck":
+            from guia.nlp.speller import correct_typos
+
+            return {
+                "text": await asyncio.to_thread(correct_typos, texto),
+                "disponible": True,
+            }
+
+        if req.op == "language":
+            from guia.nlp.language import detect_language
+
+            lang, conf = await asyncio.to_thread(detect_language, texto)
+            return {"lang": lang, "confidence": conf, "disponible": True}
+
+    raise HTTPException(status_code=400, detail=f"op desconocida: {req.op}")
 
 
 @app.post("/api/rerank")
