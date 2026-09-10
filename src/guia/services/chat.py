@@ -111,7 +111,32 @@ monografia monografias ensayo ensayos informe informes exposicion
 proyecto proyectos curso cursos clase clases examen examenes
 final finales grado titulacion sustentacion
 si claro ok vale bueno gracias por favor porfavor hola
+sabes sabe saber
 """.split())
+
+#: Familias de la misma petición, por prefijo.
+#:
+#: La lista de arriba es de palabras exactas y por eso se le escapan variantes:
+#: tenía "ayuda", "ayudame" y "ayudarme", pero no "ayudar", y ningún modal. El
+#: 10-sep-2026, en producción, "me puedes ayudar en mi investigacion?" dejó
+#: "puedes" y "ayudar" como si fueran el tema, y GUIA contestó cinco libros
+#: sobre *cómo* investigar — el mismo fallo que ya se había arreglado para
+#: "algo para mi tesis", reaparecido por otra conjugación.
+#:
+#: Enumerar conjugaciones es perder siempre: quedan "podrías ayudarme",
+#: "sabrías recomendarme", "me ayudarías". Los prefijos cubren la familia
+#: entera de una vez.
+#:
+#: Van deliberadamente largos. "dar" comería "Darwin"; "est" se comería medio
+#: diccionario. Ante la duda, prefijo largo: dejar pasar una petición y buscar
+#: de más es recuperable —el usuario reformula—, comerse un tema real no.
+_FAMILIAS_DE_PETICION = (
+    "ayud", "busc", "necesit", "recomend", "suger", "sugier", "investig",
+    "pued", "podr", "quier", "quisier", "muestr", "mostrar", "ensen",
+    "indic", "orient", "asesor", "apoy", "consegu", "consig", "encontr",
+    "encuentr", "facilit", "proporcion", "brind", "explic", "coment",
+    "prest", "sirv", "servir", "utiliz", "elabor", "realiz", "avanz", "sabr",
+)
 
 #: Palabras sin carga semántica propia.
 _VACIAS = frozenset("""
@@ -144,11 +169,14 @@ def _sin_tema(query: str) -> bool:
     # Sin filtro por longitud: descartar palabras cortas se comía las siglas
     # ("¿qué tesis hay sobre IA?" quedaba sin tema, y con ella ADN, TI o 5G).
     # Las palabras cortas sin carga ya están en _VACIAS.
-    return not [
-        p
-        for p in palabras
-        if p and p not in _ANDAMIAJE_DE_PETICION and p not in _VACIAS
-    ]
+    def es_andamiaje(palabra: str) -> bool:
+        return (
+            palabra in _ANDAMIAJE_DE_PETICION
+            or palabra in _VACIAS
+            or palabra.startswith(_FAMILIAS_DE_PETICION)
+        )
+
+    return not [p for p in palabras if p and not es_andamiaje(p)]
 
 
 def _pregunta_por_el_tema() -> str:
