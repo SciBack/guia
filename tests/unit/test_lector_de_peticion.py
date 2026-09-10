@@ -198,3 +198,75 @@ class TestElFlujoCompleto:
 
         assert respuesta.answer == escrito
         assert respuesta.sources == []
+
+
+class TestQueDeVerdadVanEnParalelo:
+    """El lector y la búsqueda son independientes; esperarlos en fila costaba.
+
+    Medido el 10-sep-2026: preguntar al modelo si la consulta trae tema costaba
+    0,9 s, y se pagaba en TODA búsqueda normal — "libros sobre nutrición
+    infantil" pasaba por el modelo solo para que confirmase que sí. Uno mira el
+    texto y la otra el índice: no hay razón para que se esperen.
+    """
+
+    class BuscadorLento:
+        """Search adapter que tarda un tiempo conocido."""
+
+        def __init__(self, tarda: float) -> None:
+            self.tarda = tarda
+            self.llamadas = 0
+
+        async def hybrid_dicts(self, **kwargs: object) -> list[dict]:
+            self.llamadas += 1
+            await asyncio.sleep(self.tarda)
+            return [
+                {"id": f"koha:{i}", "title": f"Documento {i}", "score": 1.0, "source": "koha"}
+                for i in range(5)
+            ]
+
+    class LectorLento:
+        """Lector que tarda un tiempo conocido y responde lo que se le diga."""
+
+        def __init__(self, tarda: float, respuesta: str | None) -> None:
+            self.tarda = tarda
+            self.respuesta = respuesta
+
+        async def que_le_falta(self, query: str) -> str | None:
+            await asyncio.sleep(self.tarda)
+            return self.respuesta
+
+    def _servicio(self, lector: object, buscador: object) -> ChatService:
+        return ChatService(
+            synthesis_llm=InMemoryLLMAdapter(canned_response="texto", embedding_dim=8),
+            store=InMemoryVectorStoreAdapter(dim=8),
+            embedder=FakeEmbedder(),
+            classifier_llm=InMemoryLLMAdapter(canned_response="research", embedding_dim=8),
+            lector_de_peticion=lector,  # type: ignore[arg-type]
+            search_adapter=buscador,  # type: ignore[arg-type]
+        )
+
+    async def test_el_tiempo_total_no_es_la_suma(self) -> None:
+        lector = self.LectorLento(0.30, None)
+        buscador = self.BuscadorLento(0.30)
+        servicio = self._servicio(lector, buscador)
+
+        inicio = asyncio.get_event_loop().time()
+        await servicio.answer(ChatRequest(query="libros sobre nutricion infantil"))
+        transcurrido = asyncio.get_event_loop().time() - inicio
+
+        assert buscador.llamadas == 1
+        assert transcurrido < 0.55, (
+            f"tardó {transcurrido:.2f}s; en fila serían 0,60 s, así que no van en paralelo"
+        )
+
+    async def test_si_faltaba_el_tema_la_busqueda_hecha_se_descarta(self) -> None:
+        """Se busca por si acaso, pero si no había tema esos hits no valen."""
+        lector = self.LectorLento(0.05, "¿Sobre qué tema?")
+        buscador = self.BuscadorLento(0.05)
+        servicio = self._servicio(lector, buscador)
+
+        respuesta = await servicio.answer(ChatRequest(query="libros sobre nutricion infantil"))
+
+        assert buscador.llamadas == 1, "la búsqueda salió, porque no se sabía todavía"
+        assert respuesta.answer == "¿Sobre qué tema?"
+        assert respuesta.sources == [], "sus resultados no se le enseñan a nadie"

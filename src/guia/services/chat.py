@@ -903,22 +903,25 @@ class ChatService:
         # redactar una tesis. Ninguno servía, porque el usuario nunca dijo de
         # qué trata la suya. Buscar sin tema no es dar un resultado imperfecto:
         # es dar uno que no responde a nada.
+        # Se LANZA aquí y se recoge en 5c, después de buscar. Las dos cosas son
+        # independientes —una mira el texto, la otra el índice— y esperarlas en
+        # fila costaba los 0,9 s de la llamada al modelo en toda búsqueda
+        # normal: medido el 10-sep-2026, "libros sobre nutrición infantil"
+        # pasaba por el modelo solo para que confirmara que sí, que hay tema.
+        #
+        # Si resulta que faltaba el tema, la búsqueda hecha se descarta. Sale a
+        # cuenta: descartar una búsqueda es barato y ocurre pocas veces;
+        # esperar a preguntar era caro y ocurría siempre.
+        tarea_falta: asyncio.Task[str | None] | None = None
         if intent in (Intent.RESEARCH, Intent.GENERAL):
-            falta = await self._que_le_falta_a_la_consulta(query)
-        else:
-            falta = None
-        if falta is not None:
-            response = ChatResponse(
-                answer=falta,
-                intent=intent,
-                sources=[],
-                model_used="pregunta_por_el_tema",
-                cached=False,
+            tarea_falta = asyncio.create_task(self._que_le_falta_a_la_consulta(query))
+            # Si la búsqueda revienta antes de que lleguemos a recogerla, nadie
+            # miraría su excepción y asyncio lo avisaría por consola. Esto la
+            # consume: la tarea es prescindible, no debe ensuciar el log de un
+            # fallo que viene de otro sitio.
+            tarea_falta.add_done_callback(
+                lambda t: t.cancelled() or t.exception()
             )
-            await self._emit_audit(
-                request, response, route_decision, sources_used_names, t_start
-            )
-            return response
 
         # 5. RAG: reescribir query con pipeline NLP (ADR-044) antes del retrieval
         search_text = query
@@ -950,6 +953,27 @@ class ChatService:
             context_text, sources = _records_to_context(records)
             if records:
                 sources_used_names.append("pgvector")
+
+        # 5c. Ahora sí: ¿la consulta decía sobre qué buscar?
+        #
+        # Caso real del 09-sep-2026: "estoy buscando algo para mi tesis" fue al
+        # catálogo con la palabra "tesis" y devolvió cinco libros sobre cómo
+        # redactar una tesis. Ninguno servía, porque el usuario nunca dijo de
+        # qué trata la suya. Buscar sin tema no es dar un resultado imperfecto:
+        # es dar uno que no responde a nada, y por eso los hits se tiran.
+        falta = await tarea_falta if tarea_falta is not None else None
+        if falta is not None:
+            response = ChatResponse(
+                answer=falta,
+                intent=intent,
+                sources=[],
+                model_used="pregunta_por_el_tema",
+                cached=False,
+            )
+            await self._emit_audit(
+                request, response, route_decision, sources_used_names, t_start
+            )
+            return response
 
         # 5a. Discovery layer (serendipia controlada) — solo en RESEARCH/GENERAL
         # con settings disponible. CAMPUS/OUT_OF_SCOPE/GREETING ya retornaron antes.
