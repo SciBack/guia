@@ -68,6 +68,14 @@ services:
       # después al cargar, con un "file doesn't exist" que no señala la causa.
       # Apuntar HF_HOME al volumen que ya es escribible lo resuelve.
       HF_HOME: /tmp/fastembed_cache/hf
+      # Y lo mismo para Torch, que NO mira HF_HOME: usa TORCH_HOME y, sin él,
+      # cae en ~/.cache/torch. Ese directorio es de root y el proceso corre
+      # como uid 1000, así que Detoxify moría con PermissionError y el sidecar
+      # respondía {"disponible": false} a toda consulta de toxicidad —medido
+      # el 10-sep-2026 en producción—. El guardarraíl llevaba caído desde que
+      # se movió aquí, en silencio, que es exactamente lo que ADR-051 quería
+      # evitar cuando lo sacó de api y chainlit por este mismo motivo.
+      TORCH_HOME: /tmp/fastembed_cache/torch
     expose: ["11434"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/health"]
