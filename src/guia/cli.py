@@ -64,7 +64,9 @@ def serve(
 
 @app.command()
 def harvest(
-    source: str = typer.Option("all", help="Fuente: dspace | ojs | alicia | all"),
+    source: str = typer.Option(
+        "all", help="Fuente: dspace | ojs | alicia | koha | indico | all"
+    ),
     from_date: str | None = typer.Option(None, help="Fecha inicio ISO 8601 (ej: 2024-01-01)"),
 ) -> None:
     """Cosecha publicaciones desde las fuentes configuradas."""
@@ -95,6 +97,12 @@ def harvest(
 
     if source in ("koha", "all"):
         results["koha"] = harvester.harvest_koha()
+
+    # Indico existía en el servicio desde siempre, pero no estaba cableado aquí:
+    # no había forma de recosecharlo desde la CLI. Se notó el 10-sep-2026, al ir
+    # a recuperar las descripciones de los 549 eventos.
+    if source in ("indico", "all"):
+        results["indico"] = harvester.harvest_indico()
 
     for src, stats in results.items():
         typer.echo(f"  {src}: {stats}")

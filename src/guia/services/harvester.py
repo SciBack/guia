@@ -308,11 +308,21 @@ def _publication_to_metadata(pub: Publication) -> dict[str, object]:
 
 
 def _event_to_embedding_text(event: object) -> str:
-    """Texto para embedding de un Event (título + venue + kind)."""
+    """Texto para embedding de un Event: título, descripción, sede y tipo.
+
+    La descripción va la primera después del título, y es la razón de ser de
+    esta función: un evento sin ella solo se puede encontrar por su nombre, y
+    los títulos de congresos y jornadas rara vez dicen de qué tratan. Medido el
+    10-sep-2026, antes de incluirla: los 549 eventos del índice tenían el
+    título por todo contenido, así que su vector no representaba nada más.
+    """
     parts: list[str] = []
     title = getattr(event, "title", None)
     if title:
         parts.append(_localized_str(title))
+    descripcion = getattr(event, "description", None)
+    if descripcion:
+        parts.append(_localized_str(descripcion))
     venue = getattr(event, "venue", None)
     if venue:
         parts.append(str(venue))
@@ -324,8 +334,16 @@ def _event_to_embedding_text(event: object) -> str:
 
 
 def _event_to_metadata(event: object) -> dict[str, object]:
-    """Metadatos lossless de un Event para el document store."""
+    """Metadatos lossless de un Event para el document store.
+
+    La descripción se guarda bajo la clave ``abstract`` y no ``description``
+    porque es el nombre que leen el índice de OpenSearch, el render de fuentes
+    y el reranker. Llamarla de otro modo aquí obligaría a tocar los tres.
+    """
     meta: dict[str, object] = {}
+    descripcion = getattr(event, "description", None)
+    if descripcion:
+        meta["abstract"] = _localized_str(descripcion)
     title = getattr(event, "title", None)
     if title:
         meta["title"] = _localized_str(title)
