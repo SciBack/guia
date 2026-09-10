@@ -666,6 +666,26 @@ class ChatService:
                 )
                 return response
 
+        # 2b. Sus propios datos, antes de clasificar la intención.
+        #
+        # Estaba dentro de la rama CAMPUS y ahí no servía: medido en producción
+        # el 10-sep-2026, "¿qué sabes de mí?" lo clasifica como RESEARCH y se
+        # iba a buscar al catálogo, y "que sabes de mi" con identidad en el
+        # cuerpo salía OUT_OF_SCOPE. Hacer depender de una llamada al modelo el
+        # camino por el que se entregan datos personales es frágil por partida
+        # doble: falla como aquí, y cambia si cambia el modelo.
+        #
+        # La detección de arriba es determinista, así que decide ella.
+        if personal:
+            respuesta_personal = await self._responder_sobre_uno_mismo(request)
+            if respuesta_personal is not None:
+                # Sin caché, ni de lectura ni de escritura: ver el paso 1c.
+                await self._emit_audit(
+                    request, respuesta_personal, route_decision,
+                    [*sources_used_names, "indico"], t_start,
+                )
+                return respuesta_personal
+
         # 3. Clasificar intent + tier
         # Si el CascadeRouter está disponible (P1.2), preferirlo: ahorra
         # ~150-300ms en queries triviales que resuelve en Gate 1 o Gate 2.
@@ -704,19 +724,6 @@ class ChatService:
             return response
 
         if intent == Intent.CAMPUS:
-            # 4a-bis. Sus propios datos. Va ANTES de Koha porque "mis clases"
-            # no es una consulta de catálogo, y antes del mensaje de "campus no
-            # disponible" porque esta parte sí lo está.
-            if personal:
-                respuesta_personal = await self._responder_sobre_uno_mismo(request)
-                if respuesta_personal is not None:
-                    # Sin caché, ni de lectura ni de escritura: ver el paso 1c.
-                    await self._emit_audit(
-                        request, respuesta_personal, route_decision,
-                        sources_used_names + ["indico"], t_start,
-                    )
-                    return respuesta_personal
-
             # Si hay Koha conectado, buscar en el catálogo y enriquecer con disponibilidad
             if self._koha is not None:
                 koha_results = await asyncio.to_thread(self._koha.search, query, per_page=5)

@@ -204,3 +204,37 @@ async def test_sin_agenda_configurada_no_se_rompe_nada() -> None:
 
     assert respuesta.intent == Intent.CAMPUS
     assert "aún no están disponibles" in respuesta.answer
+
+
+async def test_no_depende_de_como_clasifique_el_modelo() -> None:
+    """El fallo real, medido en producción el 10-sep-2026.
+
+    La rama personal vivía dentro de ``Intent.CAMPUS`` y el clasificador manda:
+    "¿qué sabes de mí?" salía RESEARCH y se iba a buscar al catálogo —"Encontré
+    5 resultados"— en vez de contestar quién es. Los tests no lo vieron porque
+    el clasificador falso decía "campus", que es justo lo que producción no
+    hacía.
+
+    Aquí el clasificador dice "research" a propósito. Si alguien vuelve a
+    colgar esta rama del intent, este test se pone rojo.
+    """
+    agenda = AgendaFalsa(_agenda_con_clase())
+    servicio = ChatService(
+        synthesis_llm=InMemoryLLMAdapter(canned_response="no deberia usarse", embedding_dim=8),
+        store=InMemoryVectorStoreAdapter(dim=8),
+        embedder=FakeEmbedder(),
+        classifier_llm=InMemoryLLMAdapter(canned_response="research", embedding_dim=8),
+        agenda=agenda,  # type: ignore[arg-type]
+    )
+
+    respuesta = await servicio.answer(
+        ChatRequest(
+            query="¿qué sabes de mí?",
+            identidad_verificada="jperez@upeu.edu.pe",
+            nombre_verificado="Juan Pérez",
+        )
+    )
+
+    assert agenda.consultas == ["jperez@upeu.edu.pe"]
+    assert "jperez@upeu.edu.pe" in respuesta.answer
+    assert "resultados" not in respuesta.answer
