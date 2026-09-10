@@ -48,7 +48,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, ClassVar
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
 from guia.logging import configure_logging, get_logger
@@ -69,9 +69,88 @@ _DEFAULT_RERANK_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 _RERANK_MODEL = os.getenv("RERANK_MODEL", _DEFAULT_RERANK_MODEL)
 _RERANK_ONNX_FILE = os.getenv("RERANK_ONNX_FILE", "onnx/model.onnx")
 
-# Una inferencia a la vez: la InferenceSession ONNX y los buffers de fastembed
-# se comparten; además el pico de RAM por forward no debe multiplicarse.
-_infer_sem = asyncio.Semaphore(1)
+
+# ── Dos colas: interactiva y por lotes ─────────────────────────────────────
+#
+# El problema que resuelve, medido el 09-sep-2026: con una sola cola FIFO, una
+# consulta de usuario esperaba detrás de todo lo que la cosecha hubiera
+# encolado. Una búsqueda que en reposo tarda 0,8 s tardó 11,4 s mientras se
+# recosechaban 10.000 documentos.
+#
+# La idea es simple: los lotes ceden el paso. Antes de pedir turno comprueban
+# que no haya nadie interactivo esperando, y si lo hay, aguardan.
+#
+# Lo que esto NO puede hacer, y conviene tenerlo claro: interrumpir una
+# inferencia ya en marcha. ONNX no se puede desalojar a media pasada. Así que
+# el peor caso de una consulta interactiva pasa de "toda la cola de la cosecha"
+# a "un forward de lote", que son ~50 ms porque el harvester embebe de uno en
+# uno. Es la diferencia entre esperar segundos y esperar una milésima parte.
+#
+# Alternativa descartada: dos instancias del sidecar en máquinas distintas, que
+# es lo que recomienda ONNX Runtime. No cabe — la red de UPeU solo deja pasar
+# los puertos 8000 y 9200 entre el .167 y el .210, así que la imagen no se
+# puede llevar al otro servidor. Cuando se abra un puerto, esa sigue siendo la
+# solución mejor.
+class ColaDeInferencia:
+    """Reparte el turno de inferencia dando preferencia a lo interactivo.
+
+    Es una clase y no un puñado de variables de módulo por una razón práctica:
+    los primitivos de asyncio se atan al bucle de eventos donde se usan por
+    primera vez. Como variables globales creadas al importar, quedaban atados
+    al primer bucle y cualquier prueba con su propio bucle reventaba con
+    "bound to a different event loop". En producción no se notaba —hay un solo
+    bucle— pero volvía el reparto de turnos imposible de probar, que es
+    justamente lo que más falta hace comprobar aquí.
+
+    Lo que NO hace, y conviene tenerlo claro: interrumpir una inferencia en
+    marcha. ONNX no se desaloja a media pasada. Lo que se consigue es que los
+    lotes no se encolen por delante, así que el peor caso de una consulta pasa
+    de "toda la cola de la cosecha" a "un forward de lote" — unos 50 ms, porque
+    el harvester embebe de uno en uno.
+    """
+
+    def __init__(self) -> None:
+        # Una inferencia a la vez: la sesión ONNX y los buffers de fastembed se
+        # comparten, y dos forwards simultáneos duplicarían el pico de RAM.
+        self._turno = asyncio.Semaphore(1)
+        # Antesala de los lotes: solo uno compite por el turno a la vez. Sin
+        # esto, ceder el paso no servía de nada — los lotes comprobaban que no
+        # había nadie interactivo UNA vez y luego se encolaban todos en el
+        # semáforo, así que una consulta que llegara después quedaba la última.
+        # Lo destapó una prueba: el usuario acababa en la posición 6 de 6.
+        self._antesala_lotes = asyncio.Semaphore(1)
+        self._interactivas_en_espera = 0
+        self._sin_interactivas = asyncio.Event()
+        self._sin_interactivas.set()
+
+    @asynccontextmanager
+    async def turno(self, prioritaria: bool = True) -> AsyncGenerator[None]:
+        """Pide turno. Los lotes (``prioritaria=False``) ceden el paso."""
+        if not prioritaria:
+            async with self._antesala_lotes:
+                # Ya en la antesala, esperar a que no quede nadie interactivo.
+                # Se comprueba AQUÍ, justo antes de tomar el turno, no antes de
+                # hacer cola: es lo que garantiza que como mucho haya un lote
+                # por delante de una consulta.
+                while self._interactivas_en_espera > 0:
+                    await self._sin_interactivas.wait()
+                async with self._turno:
+                    yield
+            return
+
+        self._interactivas_en_espera += 1
+        self._sin_interactivas.clear()
+        try:
+            async with self._turno:
+                yield
+        finally:
+            self._interactivas_en_espera -= 1
+            if self._interactivas_en_espera == 0:
+                self._sin_interactivas.set()
+
+
+#: La cola del proceso. Ver la nota de arriba sobre por qué es un objeto.
+COLA = ColaDeInferencia()
 
 
 class _State:
@@ -198,7 +277,8 @@ async def health() -> dict[str, bool]:
 
 
 @app.post("/api/embeddings")
-async def embeddings(req: EmbeddingsRequest) -> dict[str, list[float]]:
+@app.post("/lote/api/embeddings")
+async def embeddings(req: EmbeddingsRequest, request: Request) -> dict[str, list[float]]:
     """Emula Ollama: un texto por request, retorna {"embedding": [...]}.
 
     El texto llega CON prefijo del cliente E5. Se enruta al mismo método
@@ -210,8 +290,13 @@ async def embeddings(req: EmbeddingsRequest) -> dict[str, list[float]]:
         raise HTTPException(status_code=400, detail="empty prompt")
 
     adapter = _state.adapter
+    # La ruta decide la cola: /lote/... es trabajo por lotes y cede el paso.
+    # Se distingue por URL y no por un campo del cuerpo porque el cliente es
+    # OllamaLLMAdapter, en sciback-core, y así no hay que tocarlo: basta con
+    # apuntar el harvester a una base_url distinta.
+    prioritaria = not request.url.path.startswith("/lote/")
     try:
-        async with _infer_sem:
+        async with COLA.turno(prioritaria):
             if req.prompt.startswith(_QUERY_PREFIX):
                 # embed_query con prefijo vacío → model.query_embed(texto recibido)
                 vector: list[float] = await asyncio.to_thread(
@@ -363,7 +448,7 @@ async def rerank(req: RerankRequest) -> dict[str, object]:
 
     try:
         encoder = await _get_reranker()
-        async with _infer_sem:
+        async with COLA.turno(prioritaria=True):
             scores: list[float] = await asyncio.to_thread(
                 lambda: list(encoder.rerank(req.query, req.documents))  # type: ignore[attr-defined]
             )

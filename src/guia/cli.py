@@ -17,6 +17,26 @@ app = typer.Typer(
 )
 
 
+def _usar_cola_de_lotes() -> None:
+    """Manda los embeddings de este proceso a la cola de lotes del sidecar.
+
+    La cosecha y el reindexado son trabajo por lotes: pueden esperar, las
+    consultas de los usuarios no. El sidecar distingue las dos colas por la
+    ruta —``/lote/api/embeddings`` cede el paso—, así que basta con añadir el
+    prefijo a la URL base. Se hace por URL y no por un campo del cuerpo porque
+    el cliente es ``OllamaLLMAdapter``, en sciback-core, y así no hay que
+    tocarlo.
+
+    Medido el 09-sep-2026: sin esto, una búsqueda que en reposo tarda 0,8 s
+    tardaba 11,4 s mientras se recosechaban 10.000 documentos.
+    """
+    import os
+
+    base = os.environ.get("E5_OLLAMA_BASE_URL", "").strip().rstrip("/")
+    if base and not base.endswith("/lote"):
+        os.environ["E5_OLLAMA_BASE_URL"] = base + "/lote"
+
+
 @app.command()
 def serve(
     host: str = typer.Option("0.0.0.0", help="Host de escucha"),
@@ -48,6 +68,8 @@ def harvest(
     from_date: str | None = typer.Option(None, help="Fecha inicio ISO 8601 (ej: 2024-01-01)"),
 ) -> None:
     """Cosecha publicaciones desde las fuentes configuradas."""
+    _usar_cola_de_lotes()
+
     from guia.config import GUIASettings
     from guia.container import GUIAContainer
     from guia.logging import configure_logging
@@ -135,6 +157,8 @@ def reindex(
     """Reindex pgvector → OpenSearch (M3 hotfix mientras llega outbox+celery)."""
     import asyncio
 
+    _usar_cola_de_lotes()
+
     from guia.config import GUIASettings
     from guia.container import GUIAContainer
     from guia.logging import configure_logging
@@ -187,7 +211,7 @@ def reindex(
         scope = f" (source={source})" if source else ""
         typer.echo(f"Documentos en pgvector{scope}: {total}")
 
-        async def _run() -> "ReindexStats":
+        async def _run() -> ReindexStats:
             if rebuild_index and not dry_run:
                 typer.echo(
                     "Recreando index OpenSearch (mapping knn_vector + index.knn=true)..."
@@ -198,7 +222,7 @@ def reindex(
                 batch_size=batch_size, dry_run=dry_run
             )
 
-        from guia.services.reindex import ReindexStats  # noqa: F401
+        from guia.services.reindex import ReindexStats
 
         stats = asyncio.run(_run())
 
