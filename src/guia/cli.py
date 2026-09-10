@@ -8,6 +8,8 @@ Uso:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import typer
 
 app = typer.Typer(
@@ -68,6 +70,10 @@ def harvest(
         "all", help="Fuente: dspace | ojs | alicia | koha | indico | all"
     ),
     from_date: str | None = typer.Option(None, help="Fecha inicio ISO 8601 (ej: 2024-01-01)"),
+    indico_anio: int | None = typer.Option(
+        None,
+        help="Año a conservar de Indico. Por defecto, el vigente. 0 = todos.",
+    ),
 ) -> None:
     """Cosecha publicaciones desde las fuentes configuradas."""
     _usar_cola_de_lotes()
@@ -102,7 +108,17 @@ def harvest(
     # no había forma de recosecharlo desde la CLI. Se notó el 10-sep-2026, al ir
     # a recuperar las descripciones de los 549 eventos.
     if source in ("indico", "all"):
-        results["indico"] = harvester.harvest_indico()
+        # Indico se queda solo con el año vigente. Mezcla contenidos de vidas
+        # muy distintas —clases del ciclo, jornadas científicas, promociones
+        # del cafetín— y los de ciclos pasados dejan de servir en cuanto
+        # termina el periodo. Para el histórico, GUIA remite a
+        # indico.upeu.edu.pe: el enlace de cada registro viaja en sus metadatos.
+        anio = (
+            None
+            if indico_anio == 0
+            else (indico_anio or datetime.now(UTC).year)
+        )
+        results["indico"] = harvester.harvest_indico(solo_anio=anio)
 
     for src, stats in results.items():
         typer.echo(f"  {src}: {stats}")

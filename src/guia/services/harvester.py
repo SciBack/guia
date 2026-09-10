@@ -307,6 +307,19 @@ def _publication_to_metadata(pub: Publication) -> dict[str, object]:
     return meta
 
 
+def _anio_del_item(item: object) -> int | None:
+    """Año de un Event o una Publication, o None si no lo declara."""
+    fecha = getattr(item, "starts_at", None) or getattr(item, "date", None)
+    for atributo in ("year_int", "year"):
+        valor = getattr(fecha, atributo, None)
+        if isinstance(valor, int):
+            return valor
+    texto = str(getattr(fecha, "raw", "") or fecha or "")
+    if len(texto) >= 4 and texto[:4].isdigit():
+        return int(texto[:4])
+    return None
+
+
 def _event_to_embedding_text(event: object) -> str:
     """Texto para embedding de un Event: título, descripción, sede y tipo.
 
@@ -489,21 +502,32 @@ class HarvesterService:
             batch_size=batch_size,
         )
 
-    def harvest_indico(self, *, batch_size: int = 50) -> dict[str, int]:
+    def harvest_indico(
+        self, *, batch_size: int = 50, solo_anio: int | None = None
+    ) -> dict[str, int]:
         """Cosecha eventos y contribuciones de Indico vía HTTP Export API.
 
         El IndicoHarvester produce un stream mixto de ``Event`` y ``Publication``
         (contribuciones). Los ``Event`` se indexan con helpers propios; las
         ``Publication`` usan el pipeline estándar de publicaciones.
+
+        Args:
+            batch_size: Documentos por lote de embedding.
+            solo_anio: Si se indica, descarta lo que no sea de ese año. Indico
+                mezcla contenidos con vidas muy distintas —clases del ciclo,
+                jornadas científicas, promociones del cafetín— y los de ciclos
+                pasados dejan de ser útiles en cuanto termina el periodo. Para
+                el detalle histórico, GUIA remite a indico.upeu.edu.pe, cuyo
+                enlace viaja en los metadatos de cada registro.
         """
         if self._indico is None:
             logger.warning("Indico adapter not configured — skipping")
             return {"total": 0, "ok": 0, "error": 0}
 
+        import time
+
         from sciback_core.entities.event import Event
         from sciback_core.entities.publication import Publication
-
-        import time
         total = 0
         ok = 0
         error = 0
@@ -532,7 +556,16 @@ class HarvesterService:
                 batch_ids.clear()
                 batch_metas.clear()
 
+        descartados_por_anio = 0
         for item in self._indico.harvest():
+            if solo_anio is not None:
+                anio = _anio_del_item(item)
+                # Sin año declarado se conserva: es preferible indexar algo
+                # dudoso a perderlo por un campo que la fuente no rellenó.
+                if anio is not None and anio != solo_anio:
+                    descartados_por_anio += 1
+                    continue
+
             total += 1
             if isinstance(item, Event):
                 embedding_text = _event_to_embedding_text(item)
