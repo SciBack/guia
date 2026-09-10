@@ -89,15 +89,47 @@ class TestDater:
 
 
 class TestLanguage:
-    def test_español_pass(self) -> None:
+    def test_espanol_pass(self) -> None:
         from guia.nlp.language import detect_language
         lang, _ = detect_language("¿Qué libros de matemáticas tienen?")
         assert lang == "es"
 
-    def test_texto_vacio_es_español(self) -> None:
+    def test_texto_vacio_es_espanol(self) -> None:
         from guia.nlp.language import detect_language
         lang, conf = detect_language("")
         assert lang == "es"
+
+    def test_distingue_de_verdad_y_no_solo_degrada_a_espanol(self) -> None:
+        """El test que faltaba, y por el que el fallo pasó desapercibido.
+
+        Los dos de arriba pasan igual con el detector roto: cuando no puede
+        cargar, este módulo devuelve ("es", 1.0), que es exactamente lo que
+        comprueban. Y roto estuvo — desde que se movió al sidecar hasta el
+        10-sep-2026 — porque NumPy 2 rompió fasttext.
+
+        Un idioma que NO sea español no lo puede fingir el fallback.
+        """
+        from guia.nlp.language import detect_language
+
+        lang, score = detect_language("I need books about child nutrition for my thesis")
+        assert lang == "en", "si sale 'es' aquí, el detector está degradado"
+        assert score > 0.5
+
+    def test_el_parche_de_numpy_no_se_escapa_del_modulo_de_fasttext(self) -> None:
+        """El parche es quirúrgico a propósito.
+
+        Los embeddings y el reranker también usan NumPy en este mismo proceso.
+        Aflojar np.array para todos habría cambiado su comportamiento en
+        silencio, que es peor que el problema que se venía a resolver.
+        """
+        import numpy as np
+
+        from guia.nlp.language import detect_language
+
+        detect_language("hola, necesito libros de nutrición")  # fuerza la carga
+
+        with pytest.raises(ValueError):
+            np.array([1, 2, 3], copy=False)
 
 
 class TestKeywords:
