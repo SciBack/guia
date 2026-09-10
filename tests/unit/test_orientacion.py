@@ -59,6 +59,21 @@ class TestQueSeLePide:
         assert "Hábitos de estudio y rendimiento académico" in mensajes[-1].content
         assert "2021" in mensajes[-1].content
 
+    def test_se_le_prohibe_referirse_por_numero(self) -> None:
+        """Visto en producción: "el resultado más directo es el número 5".
+
+        El listado va agrupado por fuente, así que su numeración no coincide
+        con la del prompt: ese "5" señalaba a otra cosa.
+        """
+        sistema = mensajes_de_orientacion("x", FUENTES)[0].content.lower()
+        assert "por su número" in sistema
+
+    def test_se_le_pide_español_de_peru(self) -> None:
+        """También de producción: "Tenés desde manuales prácticos...". """
+        sistema = mensajes_de_orientacion("x", FUENTES)[0].content.lower()
+        assert "perú" in sistema
+        assert "tenés" in sistema, "hay que nombrar el voseo para que lo evite"
+
     def test_se_le_pide_que_no_repita_los_titulos(self) -> None:
         """La razón por la que antes se descartaba la prosa: duplicaba el listado."""
         sistema = mensajes_de_orientacion("x", FUENTES)[0].content.lower()

@@ -45,8 +45,13 @@ NO repitas los títulos: ya los va a ver, y con enlace. Di qué clase de materia
 salió y para qué le sirve. Si algo no encaja con lo que pidió, dilo y sugiere
 cómo afinar la búsqueda — es más útil que fingir que todo vale.
 
-Español, tuteando, sin saludos ni preámbulos. Prosa corrida: nada de listas ni
-viñetas."""
+NO te refieras a los resultados por su número ("el número 5"): el usuario los
+verá agrupados por fuente y en otro orden. Para señalar uno, descríbelo en
+tres o cuatro palabras: "la tesis sobre estrés académico".
+
+Español de Perú, tuteando: "tienes", "puedes". Nunca vosees: ni "tenés" ni
+"podés". Sin saludos ni preámbulos. Prosa corrida: nada de listas ni viñetas.
+Dos o tres frases; no te alargues."""
 
 
 def _resumen_de_fuentes(sources: list[Source]) -> str:
@@ -110,7 +115,7 @@ async def orientar(
         else:
             import asyncio
 
-            respuesta = await asyncio.to_thread(llm.complete, mensajes, max_tokens=200)  # type: ignore[attr-defined]
+            respuesta = await asyncio.to_thread(llm.complete, mensajes, max_tokens=160)  # type: ignore[attr-defined]
             texto = respuesta.content or ""
     except Exception as exc:
         logger.warning("orientacion_no_disponible", error=str(exc))
