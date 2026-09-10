@@ -301,6 +301,14 @@ async def on_message(message: cl.Message) -> None:
         request = ChatRequest(
             query=message.content,
             user_id=str(_user.identifier) if _user else None,
+            # La identidad va aparte de user_id a propósito: user_id también
+            # llega por el cuerpo de POST /api/chat, que no autentica a nadie.
+            # Esto solo lo puede poner un canal que haya pasado por el
+            # oauth_callback, y es lo que habilita responder datos personales.
+            identidad_verificada=str(_user.identifier) if _user else None,
+            nombre_verificado=(
+                str(_user.metadata.get("name")) if _user and _user.metadata else None
+            ),
             session_id=cl.context.session.id,
             language="es",
             history=history,

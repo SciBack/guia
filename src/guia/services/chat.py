@@ -19,6 +19,12 @@ from guia.audit import AuditLogEntry, AuditLogRepository, hash_query
 from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
 from guia.routing import CascadeRouter, IntentCategory, RouteDecision, Tier, category_to_intent
 from guia.services._bucket import assign_bucket
+from guia.services.agenda_academica import (
+    AgendaAcademica,
+    es_consulta_sobre_uno_mismo,
+    redactar,
+    redactar_identidad,
+)
 from guia.services.intent import IntentClassifier
 from guia.services.router import ModelRouter, QueryTier
 
@@ -440,6 +446,7 @@ class ChatService:
         toxicity_gate: "ToxicityGate | None" = None,
         settings: "GUIASettings | None" = None,
         agent_orchestrator: "AgentOrchestrator | None" = None,
+        agenda: "AgendaAcademica | None" = None,
     ) -> None:
         self._synthesis_llm = synthesis_llm
         self._fast_llm = fast_llm
@@ -464,6 +471,10 @@ class ChatService:
         self._settings = settings  # opcional: habilita discovery layer si está
         # ADR-050: AgentOrchestrator — None = legacy siempre (flag ignorado)
         self._agent_orchestrator = agent_orchestrator
+        # Agenda personal de Indico. None = el despliegue no la tiene
+        # configurada y las consultas sobre uno mismo caen al mensaje de
+        # siempre, sin romperse.
+        self._agenda = agenda
 
     async def _synthesize_streaming(
         self,
@@ -500,6 +511,69 @@ class ChatService:
             model=getattr(getattr(synthesis_llm, "config", None), "default_model", "stream"),
             input_tokens=0,
             output_tokens=0,
+        )
+
+    async def _responder_sobre_uno_mismo(self, request: ChatRequest) -> ChatResponse | None:
+        """Contesta con los datos del que pregunta, si es que se sabe quién es.
+
+        Devuelve ``None`` cuando esto no le toca a esta rama —no hay agenda
+        configurada— para que el flujo siga por donde iba. Cuando sí le toca
+        pero no hay sesión, contesta pidiendo el login: es la respuesta útil,
+        y además dice en voz alta la regla, que de otro modo el usuario no
+        tiene forma de conocer.
+        """
+        if self._agenda is None:
+            return None
+
+        correo = request.identidad_verificada
+        if not correo:
+            # Anónimo. Aquí no se cae al ``user_id`` del cuerpo de la petición
+            # ni a nada que venga del cliente: si no hubo login, no hay
+            # titular que valga.
+            return ChatResponse(
+                answer=(
+                    "Para eso necesito saber quién eres. Inicia sesión con tu cuenta "
+                    "UPeU y te digo tus clases y tus datos.\n\n"
+                    "Solo puedo mostrarte lo tuyo: no consulto los datos de otras "
+                    "personas."
+                ),
+                intent=Intent.CAMPUS,
+                sources=[],
+                model_used="none",
+                cached=False,
+            )
+
+        # El correo de la sesión es el ÚNICO identificador que se manda. El
+        # texto de la consulta no interviene: si alguien escribe el correo de
+        # otra persona, se ignora, porque no llega hasta aquí.
+        agenda = await asyncio.to_thread(
+            self._agenda.de_quien_ha_iniciado_sesion, correo
+        )
+
+        nombre = request.nombre_verificado
+        pregunta_por_identidad = any(
+            marca in request.query.lower()
+            for marca in ("sabes de m", "quién soy", "quien soy", "mis datos",
+                          "mi perfil", "mi información", "mi informacion")
+        )
+
+        if pregunta_por_identidad:
+            texto = redactar_identidad(agenda, correo=correo, nombre=nombre)
+        elif agenda is None:
+            texto = (
+                f"{nombre + ', n' if nombre else 'N'}o encuentro clases tuyas en Indico. "
+                "Si deberías tener alguna, revisa tu inscripción en "
+                "https://indico.upeu.edu.pe/"
+            )
+        else:
+            texto = redactar(agenda, nombre=nombre)
+
+        return ChatResponse(
+            answer=texto,
+            intent=Intent.CAMPUS,
+            sources=[],
+            model_used="indico",
+            cached=False,
         )
 
     async def answer(
@@ -557,8 +631,20 @@ class ChatService:
             if lang_result.user_message:
                 language_hint = lang_result.user_message
 
+        # 1c. ¿Pregunta por sus propios datos? Se decide aquí arriba, antes de
+        # la caché, y no dentro de la rama CAMPUS, porque de esto depende que
+        # se salte la caché.
+        #
+        # La caché es global por consulta y además SEMÁNTICA: guarda la
+        # respuesta bajo el vector de la pregunta, no bajo el texto exacto ni
+        # bajo quién preguntó. Si el horario de alguien entrara ahí, la
+        # siguiente persona que escribiera algo parecido a "¿qué clases tengo
+        # hoy?" recibiría el horario del anterior — que es exactamente lo que
+        # no puede pasar. Así que estas consultas ni leen ni escriben caché.
+        personal = es_consulta_sobre_uno_mismo(query)
+
         # 2. Caché hit (sync Redis → thread)
-        if self._cache is not None:
+        if self._cache is not None and not personal:
             cached = await asyncio.to_thread(
                 self._cache.get, query, query_vector=query_vector
             )
@@ -618,6 +704,19 @@ class ChatService:
             return response
 
         if intent == Intent.CAMPUS:
+            # 4a-bis. Sus propios datos. Va ANTES de Koha porque "mis clases"
+            # no es una consulta de catálogo, y antes del mensaje de "campus no
+            # disponible" porque esta parte sí lo está.
+            if personal:
+                respuesta_personal = await self._responder_sobre_uno_mismo(request)
+                if respuesta_personal is not None:
+                    # Sin caché, ni de lectura ni de escritura: ver el paso 1c.
+                    await self._emit_audit(
+                        request, respuesta_personal, route_decision,
+                        sources_used_names + ["indico"], t_start,
+                    )
+                    return respuesta_personal
+
             # Si hay Koha conectado, buscar en el catálogo y enriquecer con disponibilidad
             if self._koha is not None:
                 koha_results = await asyncio.to_thread(self._koha.search, query, per_page=5)

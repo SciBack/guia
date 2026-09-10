@@ -86,6 +86,19 @@ class ChatRequest(BaseModel):
 
     query: str = Field(..., min_length=1, max_length=2000)
     user_id: str | None = None
+    #: Correo verificado por Keycloak/M365 del que está preguntando. Lo rellena
+    #: SOLO el canal que ha autenticado —hoy Chainlit, tras el ``oauth_callback``—
+    #: y con él GUIA responde datos personales del titular.
+    #:
+    #: No se reutiliza ``user_id`` para esto a propósito. ``user_id`` llega en el
+    #: cuerpo de ``POST /api/chat``, que no autentica a nadie: sirve para el
+    #: bucketing A/B y da igual que lo elija quien llama. Colgarle datos
+    #: personales lo convertiría en una credencial falsificable —bastaría poner
+    #: el correo de otra persona— así que la identidad viaja aparte y
+    #: ``ChatRequestSchema`` no la expone.
+    identidad_verificada: str | None = None
+    #: Nombre para mostrar, de la misma sesión autenticada. Solo estética.
+    nombre_verificado: str | None = None
     session_id: str | None = None
     language: str = "es"
     intent_hint: Intent | None = None

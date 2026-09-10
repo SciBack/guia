@@ -104,6 +104,11 @@ class GUIASettings(BaseSettings):
     dspace_base_url: str = ""  # ej. https://repositorio.upeu.edu.pe
     alicia_base_url: str = "https://alicia.concytec.gob.pe"
     indico_base_url: str = ""  # ej. https://indico.upeu.edu.pe
+    # Token de servicio de la ruta /academic-identity/ de Indico — el mismo
+    # valor que ACADEMIC_IDENTITY_SYNC_TOKEN tiene allí. Sin él GUIA no puede
+    # consultar la agenda de nadie, ni siquiera la del que ha iniciado sesión,
+    # y esas consultas caen al mensaje de "servicios de campus no disponibles".
+    academic_identity_token: str = ""
     # Si dspace/alicia están "pendientes" en este despliegue (no indexados aún),
     # los exponemos como links de exploración externa, no como fuente consultada.
     dspace_indexed: bool = False

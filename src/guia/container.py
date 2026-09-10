@@ -22,6 +22,7 @@ from guia.routing import (
     RuleBasedRouter,
 )
 from guia.search.backend import SearchAdapter, get_search_adapter
+from guia.services.agenda_academica import AgendaAcademica
 from guia.services.agent_orchestrator import AgentOrchestrator
 from guia.services.cache import SemanticCache
 from guia.services.chat import ChatService
@@ -352,6 +353,15 @@ class GUIAContainer:
         self.agent_orchestrator: AgentOrchestrator | None = self._try_build_agent_orchestrator()
 
         # M4 + P1.2 + P1.3 + P1.4 + ADR-050: ChatService async con cascada, audit, NLP gates y agente
+        # Agenda personal (Indico). Se construye solo si el despliegue tiene
+        # las dos cosas; sin token la ruta responde 401 y no serviría de nada.
+        self.agenda: AgendaAcademica | None = None
+        if self.settings.indico_base_url and self.settings.academic_identity_token:
+            self.agenda = AgendaAcademica(
+                self.settings.indico_base_url,
+                self.settings.academic_identity_token,
+            )
+
         self.chat_service = ChatService(
             synthesis_llm=self.synthesis_llm,
             store=self.store,
@@ -370,6 +380,7 @@ class GUIAContainer:
             toxicity_gate=self.toxicity_gate,
             settings=self.settings,
             agent_orchestrator=self.agent_orchestrator,
+            agenda=self.agenda,
         )
 
         self.harvester_service = HarvesterService(
