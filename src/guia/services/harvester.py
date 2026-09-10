@@ -308,13 +308,30 @@ def _publication_to_metadata(pub: Publication) -> dict[str, object]:
 
 
 def _anio_del_item(item: object) -> int | None:
-    """Año de un Event o una Publication, o None si no lo declara."""
+    """Año de un Event o una Publication, o None si no lo declara.
+
+    Los dos guardan la fecha de forma distinta y hay que cubrir ambas, cosa
+    que la primera versión no hacía: ``Event.starts_at`` es un
+    ``EventDatetime`` con un ``when`` de tipo datetime, mientras que
+    ``Publication.date`` es un ``AcademicDate`` con ``year_int``. Mirando solo
+    los campos de publicación, el filtro no descartaba ni un evento —cosecha
+    del 10-sep-2026: 533 registros, 0 descartados— y pasaba desapercibido
+    porque no fallaba, simplemente no filtraba.
+    """
     fecha = getattr(item, "starts_at", None) or getattr(item, "date", None)
-    for atributo in ("year_int", "year"):
-        valor = getattr(fecha, atributo, None)
-        if isinstance(valor, int):
-            return valor
-    texto = str(getattr(fecha, "raw", "") or fecha or "")
+    if fecha is None:
+        return None
+
+    cuando = getattr(fecha, "when", None)      # EventDatetime
+    anio = getattr(cuando, "year", None)
+    if isinstance(anio, int):
+        return anio
+
+    anio = getattr(fecha, "year_int", None)    # AcademicDate
+    if isinstance(anio, int):
+        return anio
+
+    texto = str(cuando or fecha)
     if len(texto) >= 4 and texto[:4].isdigit():
         return int(texto[:4])
     return None

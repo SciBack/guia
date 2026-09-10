@@ -18,15 +18,33 @@ def _con_fecha(**kwargs: object) -> SimpleNamespace:
     return SimpleNamespace(starts_at=SimpleNamespace(**kwargs), date=None)
 
 
+def _evento(anio: int) -> SimpleNamespace:
+    """Como lo guarda Event: un EventDatetime con un datetime dentro."""
+    from datetime import datetime
+
+    return SimpleNamespace(
+        starts_at=SimpleNamespace(when=datetime(anio, 9, 10, 7, 30)), date=None
+    )
+
+
 class TestExtraerElAnio:
-    def test_lo_saca_de_year_int(self) -> None:
+    def test_lo_saca_del_when_de_un_evento(self) -> None:
+        """Event.starts_at es un EventDatetime con un datetime en ``when``.
+        Mirar solo los campos de publicación dejaba el filtro sin efecto: la
+        cosecha del 10-sep-2026 descartó 0 de 533 sin dar ningún error."""
+        assert _anio_del_item(_evento(2026)) == 2026
+
+    def test_lo_saca_de_year_int_en_una_publicacion(self) -> None:
         assert _anio_del_item(_con_fecha(year_int=2026)) == 2026
 
-    def test_lo_saca_de_year(self) -> None:
-        assert _anio_del_item(_con_fecha(year=2025)) == 2025
+    def test_una_fecha_que_solo_sabe_imprimirse_tambien_vale(self) -> None:
+        """Reserva para fuentes que traigan la fecha como texto."""
 
-    def test_lo_saca_de_una_fecha_en_texto(self) -> None:
-        assert _anio_del_item(_con_fecha(raw="2026-09-10T07:30:00")) == 2026
+        class FechaTexto:
+            def __str__(self) -> str:
+                return "2026-09-10T07:30:00"
+
+        assert _anio_del_item(SimpleNamespace(starts_at=FechaTexto(), date=None)) == 2026
 
     def test_sin_fecha_devuelve_none(self) -> None:
         """Y el harvester conserva esos: mejor indexar algo dudoso que perderlo
