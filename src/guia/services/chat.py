@@ -20,6 +20,7 @@ from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
 from guia.routing import CascadeRouter, IntentCategory, RouteDecision, Tier, category_to_intent
 from guia.services._bucket import assign_bucket
 from guia.services.lector_de_peticion import LectorDePeticion, hay_peticion
+from guia.services.orientacion import orientar
 from guia.services.agenda_academica import (
     AgendaAcademica,
     es_consulta_sobre_uno_mismo,
@@ -1140,11 +1141,35 @@ class ChatService:
         # que se devuelve lleva un texto de reserva: el canal lo reemplaza, y
         # quien consuma la API sin ese render sigue recibiendo algo legible.
         if _classify_answer_type(intent, sources, query) == "list":
+            # El listado con enlaces lo pone el canal. Lo que se le pide al
+            # modelo es lo que ese listado no dice: qué clase de material es,
+            # cuál sirve para qué, y si algo no encaja con lo que se pidió.
+            #
+            # Antes aquí no se llamaba al modelo, y por dos razones buenas: el
+            # canal descartaba la prosa, y esa prosa repetía los títulos. Las
+            # dos se caen cuando lo que escribe es orientación en vez de
+            # repetición, y el canal la antepone en vez de sustituirla.
+            emisor = None
+            if on_token is not None and hasattr(synthesis_llm, "stream"):
+                async def emisor(  # type: ignore[misc]
+                    mensajes: list[LLMMessage],
+                    emitir: Callable[[str], Awaitable[None]],
+                ) -> LLMResponse:
+                    return await self._synthesize_streaming(synthesis_llm, mensajes, emitir)
+
+            texto = await orientar(
+                synthesis_llm,
+                query,
+                sources,
+                de_reserva=_encabezado_listado(sources),
+                stream=emisor,
+                on_token=on_token,
+            )
             return ChatResponse(
-                answer=_encabezado_listado(sources),
+                answer=texto,
                 intent=intent,
                 sources=sources,
-                model_used="sin_sintesis_listado",
+                model_used="listado_con_orientacion",
                 cached=False,
                 tokens_used=0,
                 source_buckets=source_buckets,

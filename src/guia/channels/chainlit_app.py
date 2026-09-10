@@ -361,11 +361,17 @@ async def on_message(message: cl.Message) -> None:
                 )
 
         # Render de citas según el tipo de respuesta (derivado en ChatService):
-        # - "list"      → cada resultado es un enlace inline; el listado SUSTITUYE
-        #                 la prosa del LLM (que repetía los títulos sin enlace).
+        # - "list"      → la orientación del modelo, y DEBAJO el listado con un
+        #                 enlace por resultado.
         # - "narrative" → prosa + sección "Fuente consultada" al final (como antes).
+        #
+        # El listado sustituía la prosa, porque la prosa repetía los títulos sin
+        # enlace. Desde el 10-sep-2026 el modelo no los repite: escribe qué clase
+        # de material salió y si encaja con lo que se pidió, que es lo que un
+        # listado no puede decir. Por eso ahora se antepone en vez de sustituir.
         if response.answer_type == "list" and response.sources:
-            answer_text = render_results_list(response)
+            listado = render_results_list(response)
+            answer_text = f"{answer_text}\n\n{listado}" if answer_text else listado
         elif response.source_buckets:
             # Índice de fuentes por source_type para cruzar con sources individuales
             sources_by_type: dict[str, list] = {}
