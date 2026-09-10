@@ -19,6 +19,7 @@ from guia.audit import AuditLogEntry, AuditLogRepository, hash_query
 from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
 from guia.routing import CascadeRouter, IntentCategory, RouteDecision, Tier, category_to_intent
 from guia.services._bucket import assign_bucket
+from guia.services.lector_de_peticion import LectorDePeticion, hay_peticion
 from guia.services.agenda_academica import (
     AgendaAcademica,
     es_consulta_sobre_uno_mismo,
@@ -475,6 +476,7 @@ class ChatService:
         settings: "GUIASettings | None" = None,
         agent_orchestrator: "AgentOrchestrator | None" = None,
         agenda: "AgendaAcademica | None" = None,
+        lector_de_peticion: "LectorDePeticion | None" = None,
     ) -> None:
         self._synthesis_llm = synthesis_llm
         self._fast_llm = fast_llm
@@ -503,6 +505,8 @@ class ChatService:
         # configurada y las consultas sobre uno mismo caen al mensaje de
         # siempre, sin romperse.
         self._agenda = agenda
+        # Gate 3 de "¿dice sobre qué buscar?". None = solo la lista, como antes.
+        self._lector = lector_de_peticion
 
     async def _synthesize_streaming(
         self,
@@ -540,6 +544,44 @@ class ChatService:
             input_tokens=0,
             output_tokens=0,
         )
+
+    async def _que_le_falta_a_la_consulta(self, query: str) -> str | None:
+        """``None`` si hay tema que buscar; si no, qué preguntarle al usuario.
+
+        Dos decisiones separadas, y conviene no mezclarlas:
+
+        **Si falta el tema** lo deciden, en cascada por coste —la misma idea
+        que el router de intención—: la lista despacha lo evidente en 0 ms
+        ("necesito hacer mi tarea" no deja ni una palabra de contenido al
+        vaciarla; "contaminación del lago Titicaca" no pide nada, nombra algo)
+        y lo dudoso lo decide el modelo. La zona gris —pide algo Y nombra
+        cosas— es donde la lista falló dos veces en producción, y es justo
+        donde un modelo lee bien.
+
+        **Cómo se pregunta** lo escribe siempre el modelo. Antes había un
+        texto fijo, igual para todos, y es lo que hacía que GUIA pareciera un
+        formulario en el momento en que más falta hace parecer alguien que
+        ayuda. El texto fijo queda de red de seguridad para cuando el modelo
+        no conteste, que es lo que debe ser una plantilla: el plan B.
+
+        Cuando la lista está segura de que no hay tema, su criterio manda
+        aunque el modelo diga lo contrario: si tras vaciar la frase no queda
+        nada, no hay nada que buscar, y eso no es opinable.
+        """
+        seguro_que_falta = _sin_tema(query)
+
+        if not seguro_que_falta and not hay_peticion(query):
+            return None
+
+        if self._lector is None:
+            return _pregunta_por_el_tema() if seguro_que_falta else None
+
+        escrito = await self._lector.que_le_falta(query)
+        if escrito is not None:
+            return escrito
+
+        # El modelo dice que sí hay tema, o no contestó a tiempo.
+        return _pregunta_por_el_tema() if seguro_que_falta else None
 
     async def _responder_sobre_uno_mismo(self, request: ChatRequest) -> ChatResponse | None:
         """Contesta con los datos del que pregunta, si es que se sabe quién es.
@@ -860,9 +902,13 @@ class ChatService:
         # redactar una tesis. Ninguno servía, porque el usuario nunca dijo de
         # qué trata la suya. Buscar sin tema no es dar un resultado imperfecto:
         # es dar uno que no responde a nada.
-        if intent in (Intent.RESEARCH, Intent.GENERAL) and _sin_tema(query):
+        if intent in (Intent.RESEARCH, Intent.GENERAL):
+            falta = await self._que_le_falta_a_la_consulta(query)
+        else:
+            falta = None
+        if falta is not None:
             response = ChatResponse(
-                answer=_pregunta_por_el_tema(),
+                answer=falta,
                 intent=intent,
                 sources=[],
                 model_used="pregunta_por_el_tema",

@@ -23,6 +23,7 @@ from guia.routing import (
 )
 from guia.search.backend import SearchAdapter, get_search_adapter
 from guia.services.agenda_academica import AgendaAcademica
+from guia.services.lector_de_peticion import LectorDePeticion
 from guia.services.agent_orchestrator import AgentOrchestrator
 from guia.services.cache import SemanticCache
 from guia.services.chat import ChatService
@@ -362,6 +363,12 @@ class GUIAContainer:
                 self.settings.academic_identity_token,
             )
 
+        # Quien decide si la consulta dice sobre qué buscar, cuando la lista de
+        # palabras no basta. Va con el modelo de síntesis y no con el rápido:
+        # medido el 10-sep-2026, el rápido decía "no dice el tema" a consultas
+        # que sí lo decían, que es el error caro.
+        self.lector_de_peticion = LectorDePeticion(self.synthesis_llm)
+
         self.chat_service = ChatService(
             synthesis_llm=self.synthesis_llm,
             store=self.store,
@@ -381,6 +388,7 @@ class GUIAContainer:
             settings=self.settings,
             agent_orchestrator=self.agent_orchestrator,
             agenda=self.agenda,
+            lector_de_peticion=self.lector_de_peticion,
         )
 
         self.harvester_service = HarvesterService(
