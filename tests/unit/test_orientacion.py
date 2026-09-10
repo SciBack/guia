@@ -68,7 +68,7 @@ class TestQueSeLePide:
         sistema = mensajes_de_orientacion("x", FUENTES)[0].content.lower()
         assert "por su número" in sistema
 
-    def test_se_le_pide_español_de_peru(self) -> None:
+    def test_se_le_pide_espanol_de_peru(self) -> None:
         """También de producción: "Tenés desde manuales prácticos...". """
         sistema = mensajes_de_orientacion("x", FUENTES)[0].content.lower()
         assert "perú" in sistema
