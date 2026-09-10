@@ -319,18 +319,30 @@ async def on_message(message: cl.Message) -> None:
         async def escribir(trozo: str) -> None:
             await thinking_msg.stream_token(trozo)
 
+        # El paso se ENVÍA ANTES de buscar, no después. Medido el 09-sep-2026:
+        # el primer trozo de texto tarda 4,8 s en aparecer —2,4 s de búsqueda y
+        # reranking, más lo que Claude tarda en soltar su primer token—, y hasta
+        # entonces el usuario miraba un mensaje vacío. Enviándolo antes ve
+        # actividad a los ~200 ms. No acelera nada; cambia "parece colgado" por
+        # "está buscando", que es la diferencia que hacía que GUIA pareciera rota.
+        paso = cl.Step(name="Búsqueda académica", type="retrieval")
+        paso.input = message.content
+        await paso.send()
+
         response = await _container.chat_service.answer(request, on_token=escribir)
 
-        # Solo mostrar el step de retrieval cuando hubo búsqueda académica real
-        if response.sources or response.cached:
-            rag_step = cl.Step(name="Búsqueda académica", type="retrieval")
-            rag_step.input = message.content
-            rag_step.output = (
-                "Caché semántico"
-                if response.cached
-                else f"{len(response.sources)} fuente(s) académica(s) encontrada(s)"
-            )
-            await rag_step.send()
+        # Y se actualiza con lo que salió. Se usa send()+update() en vez del
+        # gestor de contexto que documenta Chainlit porque este mensaje ya está
+        # emitiendo tokens: abrir un Step alrededor lo anidaría dentro del paso
+        # y cambiaría dónde aparece la respuesta.
+        paso.output = (
+            "Caché semántico"
+            if response.cached
+            else f"{len(response.sources)} fuente(s) académica(s) encontrada(s)"
+            if response.sources
+            else "Sin búsqueda: la consulta no pedía material"
+        )
+        await paso.update()
 
         answer_text = response.answer
         elements: list[cl.Element] = []
