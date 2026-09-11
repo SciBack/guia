@@ -267,13 +267,23 @@ class TestCuandoQuienPreguntaTrabajaAqui:
         assert "vacaciones" in texto
 
 
-class TestElPersonalRecibeLoMismoPreguenteLoQuePregunte:
-    """Ni "¿qué sabes de mí?" ni "¿qué clases tengo?" deben hablarle de nivel
-    de estudios ni de código universitario a quien trabaja aquí.
+class TestAQuienTrabajaAquiNoSeLeHablaComoAEstudiante:
+    """A quien trabaja aquí no se le contesta con "Nivel: Pregrado".
 
     La primera versión solo arregló la pregunta por las clases; "¿qué sabes de
     mí?" seguía yendo por la rama de estudiante y contestaba "Código
     universitario: 9610165 · Nivel: Pregrado" a un Analista Programador.
+
+    **Corregido el 11-sep-2026, y conviene entender el matiz.** El arreglo se
+    pasó de largo: de "no le des el mensaje de estudiante" se convirtió en "no
+    le des nada más que su ficha, pregunte lo que pregunte". Un practicante
+    que además estaba matriculado pidió sus cursos y recibió su código de
+    trabajador y su área. Ahora el criterio es más simple: se contesta a lo
+    que se pregunta, y la condición de estudiante se comprueba contra el
+    portal de horarios en vez de deducirla de la afiliación.
+
+    Este directorio devuelve a alguien que NO tiene horario, así que la
+    pregunta por las clases sigue sin llevarle a la rama de estudiante.
     """
 
     class DirectorioDePersonal:
@@ -287,10 +297,8 @@ class TestElPersonalRecibeLoMismoPreguenteLoQuePregunte:
                 campus="LIMA",
             )
 
-    @pytest.mark.parametrize(
-        "consulta", ["¿qué sabes de mí?", "¿qué clases tengo hoy?", "mis datos"]
-    )
-    async def test_siempre_responde_lo_laboral(self, consulta: str) -> None:
+    @pytest.mark.parametrize("consulta", ["¿qué sabes de mí?", "mis datos"])
+    async def test_la_ficha_es_la_laboral(self, consulta: str) -> None:
         from sciback_core.ports.llm import InMemoryLLMAdapter
         from sciback_core.ports.vector_store import InMemoryVectorStoreAdapter
 
@@ -314,6 +322,35 @@ class TestElPersonalRecibeLoMismoPreguenteLoQuePregunte:
         assert "Analista Programador" in r.answer
         assert "Pregrado" not in r.answer
         assert "Código universitario" not in r.answer
+
+    async def test_por_las_clases_no_se_le_suelta_la_ficha(self) -> None:
+        """Lo que le pasó al practicante: preguntó por cursos y recibió su
+        código de trabajador y su área, que no había pedido."""
+        from sciback_core.ports.llm import InMemoryLLMAdapter
+        from sciback_core.ports.vector_store import InMemoryVectorStoreAdapter
+
+        from guia.domain.chat import ChatRequest
+        from guia.services.chat import ChatService
+
+        from .test_chat_service import FakeEmbedder
+
+        servicio = ChatService(
+            synthesis_llm=InMemoryLLMAdapter(canned_response="x", embedding_dim=8),
+            store=InMemoryVectorStoreAdapter(dim=8),
+            embedder=FakeEmbedder(),
+            classifier_llm=InMemoryLLMAdapter(canned_response="campus", embedding_dim=8),
+            directorio=self.DirectorioDePersonal(),  # type: ignore[arg-type]
+        )
+
+        r = await servicio.answer(
+            ChatRequest(
+                query="¿qué clases tengo hoy?",
+                identidad_verificada="jsanchez@upeu.edu.pe",
+            )
+        )
+
+        assert "Código de trabajador" not in r.answer
+        assert "matrícula" in r.answer.lower()
 
 
 class TestElAreaDeTrabajo:

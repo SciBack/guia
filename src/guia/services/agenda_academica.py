@@ -350,12 +350,24 @@ def es_consulta_sobre_uno_mismo(texto: str) -> bool:
     return habla_de_si_mismo and asunto_personal
 
 
-def lo_que_hay_del_personal(identidad: object, correo: str) -> str:
-    """Respuesta para quien trabaja aquí, no estudia.
+def lo_que_hay_del_personal(
+    identidad: object, correo: str, *, tambien_estudia: bool | None = None
+) -> str:
+    """Respuesta para quien trabaja aquí. Puede que además estudie.
 
     Se separa de la de estudiante porque lo que interesa es distinto —puesto y
     condición, no clases— y porque el mensaje genérico invitaba a "revisar tu
     matrícula", que para un trabajador no significa nada.
+
+    Args:
+        tambien_estudia: Si consta matrícula suya. **Se comprueba contra el
+            portal de horarios, no se deduce de la afiliación.** Esa deducción
+            era el fallo: MidPoint declara una sola ``primaryAffiliation``, y
+            de que diga ``staff`` no se sigue que la persona no estudie. Un
+            practicante matriculado recibía "Condición: personal de la
+            universidad, no estudiante" y "no te muestro horario porque no
+            estás matriculado" — las dos cosas falsas, y sobre él mismo.
+            ``None`` cuando no se pudo comprobar: entonces no se afirma nada.
 
     Lo que **no** está y se dice en voz alta: MidPoint no guarda fechas de
     contrato, vacaciones ni nada de planilla —comprobado el 11-sep-2026 sobre
@@ -382,13 +394,28 @@ def lo_que_hay_del_personal(identidad: object, correo: str) -> str:
         etiqueta = "Área" if len(unidades) == 1 else "Áreas"
         lineas.append(f"- **{etiqueta}:** {', '.join(unidades)}")
 
-    lineas.append("- **Condición:** personal de la universidad, no estudiante")
+    if tambien_estudia:
+        lineas.append(
+            "- **Condición:** trabajas en la universidad y además estás "
+            "matriculado como estudiante"
+        )
+    elif tambien_estudia is False:
+        lineas.append("- **Condición:** personal de la universidad")
+
+    sobre_las_clases = ""
+    if tambien_estudia:
+        sobre_las_clases = (
+            "\n\nComo también estás matriculado, puedo decirte qué clases "
+            "tienes: pregúntame por tu horario."
+        )
+    elif tambien_estudia is False:
+        sobre_las_clases = "\n\nNo me consta ninguna matrícula tuya como estudiante."
 
     return (
         "Esto es lo que sé de ti:\n\n"
         + "\n".join(lineas)
-        + "\n\nNo te muestro horario de clases porque no estás matriculado.\n\n"
-        "Lo que **no** puedo ver: las fechas de tu contrato ni tus vacaciones. "
-        "Eso no está en el directorio institucional —vive en el sistema de "
-        "personal— y GUIA aún no lo consulta."
+        + sobre_las_clases
+        + "\n\nLo que **no** puedo ver: las fechas de tu contrato ni tus "
+        "vacaciones. Eso no está en el directorio institucional —vive en el "
+        "sistema de personal— y GUIA aún no lo consulta."
     )

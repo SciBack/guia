@@ -738,30 +738,56 @@ class ChatService:
                           "mi perfil", "mi información", "mi informacion")
         )
 
-        # El personal recibe su ficha laboral, pregunte lo que pregunte: ni
-        # "¿qué sabes de mí?" ni "¿qué clases tengo?" deben contestarse con
-        # "Código universitario" y "Nivel: Pregrado" a quien trabaja aquí.
-        if identidad is not None and identidad.es_personal:
-            return self._respuesta_personal(
-                _lo_que_hay_del_personal(identidad, correo), "midpoint"
+        # ¿Consta matrícula suya? Se PREGUNTA al portal de horarios; no se
+        # deduce de la afiliación. MidPoint declara una sola
+        # ``primaryAffiliation`` y de que diga "staff" no se sigue que la
+        # persona no estudie: un practicante matriculado recibía "no
+        # estudiante" y "no estás matriculado", ambas falsas y sobre él mismo.
+        horario = None
+        if self._horario is not None and identidad is not None and identidad.codigo:
+            horario = await asyncio.to_thread(
+                self._horario.del_dia, identidad.codigo, datetime.now().date()
             )
+        matriculado = horario.tiene_horario if horario is not None else None
 
         if pregunta_por_identidad:
+            if identidad is not None and identidad.es_personal:
+                return self._respuesta_personal(
+                    _lo_que_hay_del_personal(
+                        identidad, correo, tambien_estudia=matriculado
+                    ),
+                    "midpoint",
+                )
             agenda = await self._agenda_de(correo)
             texto = redactar_identidad(
                 agenda, correo=correo, nombre=nombre, identidad=identidad
             )
             return self._respuesta_personal(texto, "midpoint")
 
-        # "¿Qué clases tengo hoy?" — el horario del día, si se puede.
-        if self._horario is not None and identidad is not None and identidad.codigo:
-            horario = await asyncio.to_thread(
-                self._horario.del_dia, identidad.codigo, datetime.now().date()
+        # A partir de aquí preguntó por sus CLASES, así que se le contesta de
+        # sus clases. Devolverle la ficha laboral entera —puesto, código de
+        # trabajador, área— a quien preguntó "¿qué cursos tengo hoy?" es
+        # contestar otra cosa, y de paso enseñarle datos que no pidió.
+        # El horario se da a quien consta matriculado, trabaje o no aquí. A un
+        # trabajador SIN matrícula no se le manda el mensaje de estudiante
+        # —"revísalo en /student/"—, que no le dice nada.
+        es_personal = identidad is not None and identidad.es_personal
+        if horario is not None and (matriculado or not es_personal):
+            return self._respuesta_personal(
+                redactar_horario(horario, nombre=nombre), "horarios"
             )
-            if horario is not None:
-                return self._respuesta_personal(
-                    redactar_horario(horario, nombre=nombre), "horarios"
-                )
+
+        # Sin matrícula y trabajando aquí. Se le dice eso, no su ficha.
+        if es_personal:
+            saludo = f"{nombre.split()[0]}, n" if nombre else "N"
+            return self._respuesta_personal(
+                f"{saludo}o me consta ninguna matrícula tuya como estudiante, "
+                "así que no tengo clases que mostrarte. Si acabas de "
+                "matricularte, puede que aún no esté publicado.\n\n"
+                "Si lo que querías era tu ficha institucional, pregúntame "
+                "qué sé de ti.",
+                "midpoint",
+            )
 
         # Sin horario del día, los cursos del semestre siguen sirviendo.
         agenda = await self._agenda_de(correo)
