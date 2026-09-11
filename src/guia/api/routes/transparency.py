@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 
 from guia.config import GUIASettings
+from guia.services.acceso_iga import LIMITE_INFRANQUEABLE, QUE_ABRE_CADA_NIVEL
 
 router = APIRouter(prefix="/api/transparency", tags=["transparency"])
 
@@ -50,6 +51,17 @@ async def transparency(request: Request) -> dict:
             "regulation": "Ley 29733 + DS 016-2024-JUS",
             "pii_redaction": "DataLevel L2/L3 procesado solo en local",
             "audit_log_retention_days": 1095,
+        },
+        # Qué se le enseña a quién, según el IGA (MidPoint). Se publica
+        # porque un nivel de acceso que solo existe dentro del código no es
+        # gobernanza: nadie de fuera puede comprobarlo.
+        "access_levels": {
+            "governed_by": "MidPoint (IGA institucional), vía la sesión de Keycloak",
+            "levels": {
+                nivel.value: descripcion
+                for nivel, descripcion in QUE_ABRE_CADA_NIVEL.items()
+            },
+            "invariant": LIMITE_INFRANQUEABLE,
         },
         "human_oversight": {
             "channel": "https://gob.pe/iaperu",

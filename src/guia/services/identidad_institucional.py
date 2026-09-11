@@ -29,6 +29,7 @@ interna: desde el contenedor de GUIA la interna no responde y la pública sí
 from __future__ import annotations
 
 import re
+import time
 from dataclasses import dataclass
 
 import httpx
@@ -133,10 +134,19 @@ class DirectorioInstitucional:
         clave: str,
         *,
         timeout: float = 5.0,
+        ttl_cache: float = 900.0,
     ) -> None:
         self._url = base_url.rstrip("/") + "/ws/rest/users/search"
         self._auth = (usuario, clave)
         self._http = httpx.Client(timeout=timeout)
+        # Caché por correo. Antes la identidad solo se pedía en el camino
+        # personal —una consulta de cada muchas—; desde que el acceso se
+        # deriva del IGA se pide en todas, y una ficha de MidPoint tarda
+        # cientos de milisegundos. Lo que cambia de una persona (cargo,
+        # unidad, campus) cambia en semanas, no entre dos preguntas
+        # seguidas, así que 15 minutos no envejecen nada.
+        self._ttl = ttl_cache
+        self._cache: dict[str, tuple[float, IdentidadInstitucional | None]] = {}
 
     @property
     def configurado(self) -> bool:
@@ -180,6 +190,9 @@ class DirectorioInstitucional:
             return None
 
         correo = (correo_verificado or "").strip()
+        guardado = self._cache.get(correo)
+        if guardado is not None and (time.monotonic() - guardado[0]) < self._ttl:
+            return guardado[1]
         # El correo se interpola en un XML: un valor con "<" rompería la
         # consulta, y aunque la cuenta es de solo lectura, no se construye
         # markup con datos sin comprobar.
@@ -206,7 +219,10 @@ class DirectorioInstitucional:
 
         texto = r.text
         if '"emailAddress"' not in texto:
-            # Búsqueda sin resultados: MidPoint devuelve 200 con la lista vacía.
+            # Búsqueda sin resultados: MidPoint devuelve 200 con la lista
+            # vacía. Se cachea igual — quien no tiene ficha sigue sin tenerla
+            # en el mensaje siguiente, y es el caso más común.
+            self._cache[correo] = (time.monotonic(), None)
             return None
 
         unidades = tuple(
@@ -218,7 +234,7 @@ class DirectorioInstitucional:
             if n
         )
 
-        return IdentidadInstitucional(
+        identidad = IdentidadInstitucional(
             codigo=_campo(texto, "name"),
             nombre_completo=_campo(texto, "fullName"),
             rol=_campo(texto, "title"),
@@ -227,6 +243,8 @@ class DirectorioInstitucional:
             campus=_campo(texto, "campusWorker"),
             unidades=unidades,
         )
+        self._cache[correo] = (time.monotonic(), identidad)
+        return identidad
 
     def cerrar(self) -> None:
         self._http.close()

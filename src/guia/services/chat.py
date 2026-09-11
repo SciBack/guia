@@ -17,6 +17,12 @@ from sciback_core.ports.llm import LLMMessage, LLMPort, LLMResponse
 from sciback_privacy import PrivacyRouter, PrivacyVerdict, redact, restore
 
 from guia.audit import AuditLogEntry, AuditLogRepository, hash_query
+from guia.services.acceso_iga import (
+    NivelDeAcceso,
+    QuienPregunta,
+    aporta_contexto,
+    derivar_acceso,
+)
 from guia.domain.chat import ChatRequest, ChatResponse, Intent, Source
 from guia.routing import CascadeRouter, IntentCategory, RouteDecision, Tier, category_to_intent
 from guia.services._bucket import assign_bucket
@@ -556,6 +562,34 @@ class ChatService:
         # Gate 3 de "¿dice sobre qué buscar?". None = solo la lista, como antes.
         self._lector = lector_de_peticion
 
+    async def _quien_pregunta(self, request: ChatRequest) -> QuienPregunta:
+        """Quién está al otro lado y qué se le puede enseñar, según el IGA.
+
+        El correo sale de ``identidad_verificada`` —lo que devolvió Keycloak—
+        y nunca del cuerpo de la petición: ``user_id`` lo pone el cliente y
+        no prueba nada.
+        """
+        correo = request.identidad_verificada
+        if not correo:
+            return QuienPregunta(nivel=NivelDeAcceso.PUBLICO)
+
+        identidad = None
+        if self._directorio is not None:
+            try:
+                identidad = await asyncio.to_thread(
+                    self._directorio.de_quien_ha_iniciado_sesion, correo
+                )
+            except Exception:
+                # Que el IGA no responda no puede dejar sin respuesta a nadie:
+                # se sigue con sesión pero sin ficha.
+                logger.warning("iga_no_disponible")
+
+        return derivar_acceso(
+            identidad,
+            correo_verificado=correo,
+            nombre_verificado=request.nombre_verificado,
+        )
+
     def refrescar_inventario(self, analitica: object | None) -> None:
         """Cambia el inventario que ve el modelo por el contado del índice.
 
@@ -640,7 +674,12 @@ class ChatService:
         # El modelo dice que sí hay tema, o no contestó a tiempo.
         return _pregunta_por_el_tema() if seguro_que_falta else None
 
-    async def _responder_sobre_uno_mismo(self, request: ChatRequest) -> ChatResponse | None:
+    async def _responder_sobre_uno_mismo(
+        self,
+        request: ChatRequest,
+        *,
+        identidad_ya_resuelta: object | None = None,
+    ) -> ChatResponse | None:
         """Contesta con los datos del que pregunta, si es que se sabe quién es.
 
         Tres fuentes, cada una para lo suyo, y en este orden:
@@ -683,8 +722,11 @@ class ChatService:
         # El correo de la sesión es el ÚNICO identificador que entra. El texto
         # de la consulta no interviene: si alguien escribe el correo o el
         # código de otra persona, se ignora, porque no llega hasta aquí.
-        identidad = None
-        if self._directorio is not None:
+        # La ficha ya se pidió al derivar el nivel de acceso de esta misma
+        # petición; volver a pedirla sería consultar MidPoint dos veces por
+        # mensaje.
+        identidad = identidad_ya_resuelta
+        if identidad is None and self._directorio is not None:
             identidad = await asyncio.to_thread(
                 self._directorio.de_quien_ha_iniciado_sesion, correo
             )
@@ -817,8 +859,17 @@ class ChatService:
         # no puede pasar. Así que estas consultas ni leen ni escriben caché.
         personal = es_consulta_sobre_uno_mismo(query)
 
+        # Quién pregunta, según el IGA. Se resuelve aquí —antes de la caché—
+        # porque de ello depende si la respuesta puede cachearse: una que
+        # menciona "tu área, la DTI" servida a la siguiente persona que
+        # preguntara algo parecido sería una fuga, y la caché es semántica y
+        # global. La ficha va cacheada por correo, así que esto no añade una
+        # llamada a MidPoint por mensaje.
+        quien = await self._quien_pregunta(request)
+        contextual = aporta_contexto(query, quien)
+
         # 2. Caché hit (sync Redis → thread)
-        if self._cache is not None and not personal:
+        if self._cache is not None and not personal and not contextual:
             cached = await asyncio.to_thread(
                 self._cache.get, query, query_vector=query_vector
             )
@@ -851,7 +902,9 @@ class ChatService:
         #
         # La detección de arriba es determinista, así que decide ella.
         if personal:
-            respuesta_personal = await self._responder_sobre_uno_mismo(request)
+            respuesta_personal = await self._responder_sobre_uno_mismo(
+                request, identidad_ya_resuelta=quien.ficha
+            )
             if respuesta_personal is not None:
                 # Sin caché, ni de lectura ni de escritura: ver el paso 1c.
                 await self._emit_audit(
@@ -946,7 +999,7 @@ class ChatService:
                         model_used="koha",
                         cached=False,
                     )
-                    if self._cache is not None:
+                    if self._cache is not None and not contextual:
                         await asyncio.to_thread(
                             self._cache.set, query, response, query_vector=query_vector
                         )
@@ -1192,7 +1245,7 @@ class ChatService:
                 related_terms=related_terms,
                 answer_type=_classify_answer_type(intent, sources, query),
             )
-            if self._cache is not None:
+            if self._cache is not None and not contextual:
                 await asyncio.to_thread(
                     self._cache.set, query, response, query_vector=query_vector
                 )
@@ -1315,6 +1368,16 @@ class ChatService:
         context_block_final = context_block
         if language_hint:
             context_block_final = f"[Nota: {language_hint}]\n\n{context_block}"
+
+        # Quién pregunta, cuando la consulta lo pide ("mi área", "a quién le
+        # pido"). Solo entonces: si fuera siempre, ninguna respuesta de nadie
+        # con sesión podría cachearse, y la mayoría no gana nada con saberlo.
+        if contextual:
+            contexto_de_quien_pregunta = quien.para_el_prompt()
+            if contexto_de_quien_pregunta:
+                context_block_final = (
+                    f"{contexto_de_quien_pregunta}\n\n{context_block_final}"
+                )
         system = _SYSTEM_PROMPT.format(
             institution=self._institution,
             sources_inventory=self._sources_inventory,
@@ -1400,8 +1463,9 @@ class ChatService:
             answer_type=_classify_answer_type(intent, sources, query),
         )
 
-        # 8. Guardar en caché (sync Redis → thread)
-        if self._cache is not None:
+        # 8. Guardar en caché (sync Redis → thread). Nunca si la respuesta
+        # lleva contexto de quien pregunta: la caché es semántica y global.
+        if self._cache is not None and not contextual:
             await asyncio.to_thread(
                 self._cache.set, query, response, query_vector=query_vector
             )
