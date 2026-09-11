@@ -96,7 +96,11 @@ def _resumen_de_fuentes(sources: list[Source]) -> str:
 
 
 def mensajes_de_orientacion(
-    query: str, sources: list[Source], *, quien_pregunta: str | None = None
+    query: str,
+    sources: list[Source],
+    *,
+    quien_pregunta: str | None = None,
+    historial: list[object] | None = None,
 ) -> list[LLMMessage]:
     """El prompt para orientar sobre estos resultados.
 
@@ -107,15 +111,32 @@ def mensajes_de_orientacion(
             lo necesita — "de qué responde mi área" no se puede contestar sin
             saber cuál es. Viene de ``acceso_iga``; ``None`` cuando no hay
             sesión o la pregunta no lo pide.
+        historial: Los turnos anteriores. Este camino se armaba sin ellos, y
+            por eso a "El mismo tema" GUIA contestaba "No tengo registro de tu
+            consulta anterior" — cuando la conversación entera estaba a un
+            parámetro de distancia. La síntesis larga sí los pasaba; es la
+            orientación, por la que sale la mayoría de respuestas con
+            resultados, la que se quedó sin memoria.
     """
     sistema = _SYSTEM if quien_pregunta is None else f"{_SYSTEM}\n\n{quien_pregunta}"
-    return [
-        LLMMessage(role="system", content=sistema),
+    mensajes = [LLMMessage(role="system", content=sistema)]
+
+    # Los últimos turnos, para que "el mismo tema" signifique algo. Se limitan
+    # a cuatro: lo que hace falta para resolver una referencia, sin arrastrar
+    # la conversación entera a cada orientación.
+    for turno in (historial or [])[-4:]:
+        rol = str(getattr(turno, "role", "") or "")
+        contenido = str(getattr(turno, "content", "") or "")
+        if rol in ("user", "assistant") and contenido:
+            mensajes.append(LLMMessage(role=rol, content=contenido[:600]))
+
+    mensajes.append(
         LLMMessage(
             role="user",
             content=f"Consulta: {query}\n\nResultados:\n{_resumen_de_fuentes(sources)}",
-        ),
-    ]
+        )
+    )
+    return mensajes
 
 
 async def orientar(
@@ -125,6 +146,7 @@ async def orientar(
     *,
     de_reserva: str,
     quien_pregunta: str | None = None,
+    historial: list[object] | None = None,
     stream: Callable[[list[LLMMessage], Callable[[str], Awaitable[None]]], Awaitable[object]]
     | None = None,
     on_token: Callable[[str], Awaitable[None]] | None = None,
@@ -142,7 +164,9 @@ async def orientar(
             emitir.
         on_token: Dónde emitirlos.
     """
-    mensajes = mensajes_de_orientacion(query, sources, quien_pregunta=quien_pregunta)
+    mensajes = mensajes_de_orientacion(
+        query, sources, quien_pregunta=quien_pregunta, historial=historial
+    )
 
     try:
         if stream is not None and on_token is not None:

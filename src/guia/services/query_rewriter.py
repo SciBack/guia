@@ -9,6 +9,7 @@ referencias al historial que requieren razonamiento.
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -34,6 +35,43 @@ _REFERENCE_MARKERS = frozenset({
     "mencionado", "mencionada", "mencionados", "mencionadas",
     "dicho", "dicha", "dichos", "dichas",
 })
+
+
+#: Muletillas con las que el modelo envuelve el tema pese a pedirle que no.
+#: Se quitan aquí y no solo en el prompt porque la consecuencia es cara: con
+#: la rama léxica pesando 0,5, un "busca" al principio devuelve "La Busca" y
+#: "En busca de la prosperidad" — comprobado en producción el 11-sep-2026.
+_MULETILLAS_INICIALES = re.compile(
+    r"^\s*(?:por\s+favor[,\s]+)?"
+    r"(?:busca(?:r|me)?|encuentra|dame|quiero|necesito|muestrame|muéstrame|"
+    r"buscar|información|informacion|documentos?|material(?:es)?|libros?|"
+    r"art[ií]culos?|tesis)\b"
+    r"(?:\s+(?:de|sobre|acerca\s+de|en|para|con|el|la|los|las|un|una|"
+    r"texto\s+completo)\b)*\s*",
+    re.IGNORECASE,
+)
+
+
+def _solo_los_terminos(texto: str) -> str:
+    """Quita la envoltura de petición que el modelo añade al reescribir.
+
+    El prompt pedía "una búsqueda completa y autocontenida" y el modelo
+    entendía *una frase que pide una búsqueda*: a "El mismo tema" respondía
+    "busca documentos en texto completo sobre el mismo tema matemáticas
+    aplicadas". Esas palabras entran en la consulta léxica y arrastran la
+    búsqueda hacia los títulos que las contienen.
+
+    Se aplica en bucle porque las muletillas se encadenan ("busca documentos
+    sobre..."), y nunca devuelve vacío: si al quitarlas no queda nada, se
+    prefiere el texto original a no buscar.
+    """
+    limpio = texto
+    for _ in range(4):
+        recortado = _MULETILLAS_INICIALES.sub("", limpio, count=1).strip()
+        if recortado == limpio or not recortado:
+            break
+        limpio = recortado
+    return limpio or texto
 
 
 @dataclass(frozen=True)
@@ -165,18 +203,29 @@ class QueryRewriter:
             for turn in recent
         )
 
-        prompt = f"""Eres un asistente de reformulación de queries. Tu tarea es SOLO reescribir la query del usuario para que sea independiente del historial de conversación, expandiendo las referencias implícitas.
+        prompt = f"""Resuelve a qué se refiere el usuario y devuelve los TÉRMINOS DE BÚSQUEDA.
 
 Historial reciente:
 {history_text}
 
-Query con referencia implícita: "{cleaned}"
+Mensaje del usuario: "{cleaned}"
 
-Reescribe la query como una búsqueda completa y autocontenida en español. Responde SOLO con la query reescrita, sin explicaciones ni comillas."""
+Devuelve solo las palabras del tema, como se escribirían en el cuadro de un
+buscador. NADA de verbos de petición ni muletillas: ni "busca", ni "quiero",
+ni "necesito", ni "documentos sobre", ni "información de".
+
+Ejemplos:
+  Usuario: "el mismo tema"  (venía hablando de matemática aplicada)
+  Respuesta: matemática aplicada
+
+  Usuario: "y sobre eso pero más reciente"  (venía hablando de estrés académico)
+  Respuesta: estrés académico
+
+Responde SOLO con los términos, sin explicaciones ni comillas."""
 
         messages = [LLMMessage(role="user", content=prompt)]
         result = await asyncio.to_thread(
             self._fast_llm.complete, messages, max_tokens=128, temperature=0.0
         )
-        rewritten = result.content.strip().strip('"\'')
+        rewritten = _solo_los_terminos(result.content.strip().strip('"\''))
         return rewritten if rewritten else cleaned

@@ -1373,6 +1373,7 @@ class ChatService:
                 # contexto aquí, GUIA contestaba "no has iniciado sesión" a
                 # quien la tenía.
                 quien_pregunta=quien.para_el_prompt() if contextual else None,
+                historial=list(request.history or []),
                 stream=emisor,
                 on_token=on_token,
             )
