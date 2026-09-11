@@ -276,6 +276,10 @@ def redactar_identidad(
             if valor:
                 lineas.append(f"- **{etiqueta}:** {valor}")
 
+        unidades = getattr(identidad, "unidades", ()) or ()
+        if unidades:
+            lineas.append(f"- **Unidad:** {', '.join(unidades)}")
+
     if agenda is not None:
         if agenda.id_persona:
             lineas.append(f"- **Código de persona (Oracle):** {agenda.id_persona}")
@@ -372,13 +376,19 @@ def lo_que_hay_del_personal(identidad: object, correo: str) -> str:
         valor = getattr(identidad, atributo, None)
         if valor:
             lineas.append(f"- **{etiqueta}:** {valor}")
+
+    unidades = getattr(identidad, "unidades", ()) or ()
+    if unidades:
+        etiqueta = "Área" if len(unidades) == 1 else "Áreas"
+        lineas.append(f"- **{etiqueta}:** {', '.join(unidades)}")
+
     lineas.append("- **Condición:** personal de la universidad, no estudiante")
 
     return (
         "Esto es lo que sé de ti:\n\n"
         + "\n".join(lineas)
         + "\n\nNo te muestro horario de clases porque no estás matriculado.\n\n"
-        "Lo que **no** puedo ver todavía: tu área concreta, las fechas de tu "
-        "contrato y tus vacaciones. Eso no está en el directorio institucional "
-        "—vive en el sistema de personal— y GUIA aún no lo consulta."
+        "Lo que **no** puedo ver: las fechas de tu contrato ni tus vacaciones. "
+        "Eso no está en el directorio institucional —vive en el sistema de "
+        "personal— y GUIA aún no lo consulta."
     )

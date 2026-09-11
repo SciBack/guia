@@ -314,3 +314,72 @@ class TestElPersonalRecibeLoMismoPreguenteLoQuePregunte:
         assert "Analista Programador" in r.answer
         assert "Pregrado" not in r.answer
         assert "Código universitario" not in r.answer
+
+
+class TestElAreaDeTrabajo:
+    """El área no está en ``organizationalUnit``, y esa confusión costó tiempo.
+
+    Ese campo lleva el vínculo académico —lo pueblan dos mappings desde los
+    recursos de alumnos— y el área laboral viaja en ``parentOrgRef``, que
+    apunta a la OrgType del área. Comprobado el 11-sep-2026: un Analista
+    Programador de la DTI tiene ``organizationalUnit`` vacío y un
+    ``parentOrgRef`` a la org "DTI".
+    """
+
+    FICHA_CON_ORG = """{
+      "object": {"object": [{"name": "9610165", "fullName": "Juan Alberto Sanchez Condor",
+      "emailAddress": "jsanchez@upeu.edu.pe", "title": "Analista Programador",
+      "primaryAffiliation": "staff", "campusWorker": "LIMA",
+      "parentOrgRef": {"oid": "00000000-0000-0000-0000-953119566392", "type": "OrgType"}}]}
+    }"""
+
+    ORG = '{"org": {"name": "DTI", "displayName": "Dirección de Tecnologías de Información", "identifier": "18"}}'
+
+    def _directorio_con_org(self) -> DirectorioInstitucional:
+        def responder(request: httpx.Request) -> httpx.Response:
+            if "/orgs/" in str(request.url):
+                return httpx.Response(200, text=self.ORG)
+            return httpx.Response(200, text=self.FICHA_CON_ORG)
+
+        d = DirectorioInstitucional("https://identity.upeu.edu.pe/midpoint", "svc", "clave")
+        d._http = httpx.Client(transport=httpx.MockTransport(responder))
+        return d
+
+    def test_resuelve_el_area_desde_parentOrgRef(self) -> None:
+        ficha = self._directorio_con_org().de_quien_ha_iniciado_sesion("jsanchez@upeu.edu.pe")
+
+        assert ficha is not None
+        assert ficha.unidades == ("Dirección de Tecnologías de Información",)
+
+    def test_prefiere_el_nombre_largo_al_tecnico(self) -> None:
+        """"DTI" es el nombre técnico; a una persona se le dice el completo."""
+        ficha = self._directorio_con_org().de_quien_ha_iniciado_sesion("jsanchez@upeu.edu.pe")
+
+        assert ficha is not None
+        assert ficha.unidades[0] != "DTI"
+
+    def test_el_area_aparece_en_la_respuesta(self) -> None:
+        from guia.services.agenda_academica import lo_que_hay_del_personal
+
+        ficha = self._directorio_con_org().de_quien_ha_iniciado_sesion("jsanchez@upeu.edu.pe")
+        assert ficha is not None
+        texto = lo_que_hay_del_personal(ficha, "jsanchez@upeu.edu.pe")
+
+        assert "Área" in texto
+        assert "Dirección de Tecnologías de Información" in texto
+
+    def test_si_la_org_no_se_puede_resolver_no_se_rompe_la_ficha(self) -> None:
+        """Perder el nombre del área no puede costar el resto de la identidad."""
+
+        def responder(request: httpx.Request) -> httpx.Response:
+            if "/orgs/" in str(request.url):
+                return httpx.Response(403)
+            return httpx.Response(200, text=self.FICHA_CON_ORG)
+
+        d = DirectorioInstitucional("https://identity.upeu.edu.pe/midpoint", "svc", "clave")
+        d._http = httpx.Client(transport=httpx.MockTransport(responder))
+        ficha = d.de_quien_ha_iniciado_sesion("jsanchez@upeu.edu.pe")
+
+        assert ficha is not None
+        assert ficha.unidades == ()
+        assert ficha.rol == "Analista Programador"

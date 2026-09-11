@@ -66,6 +66,19 @@ class IdentidadInstitucional:
     campus: str | None
     """"LIMA", "JULIACA", "TARAPOTO" — de ``campusWorker``."""
 
+    unidades: tuple[str, ...] = ()
+    """Las organizaciones a las que pertenece: el área de trabajo, la facultad.
+
+    **No sale de ``organizationalUnit``.** Ese campo lleva el vínculo
+    académico —la facultad del estudiante, poblada por dos mappings desde los
+    recursos de alumnos— y el área laboral viaja por otro sitio:
+    ``parentOrgRef``, que apunta a la ``OrgType`` del área. Comprobado el
+    11-sep-2026: un Analista Programador de la DTI tiene
+    ``organizationalUnit`` vacío y un ``parentOrgRef`` a la org "DTI".
+
+    Por eso aquí se resuelven las referencias en vez de leer el campo. Puede
+    haber más de una en quien es a la vez trabajador y egresado."""
+
     @property
     def es_estudiante(self) -> bool:
         return (self.afiliacion or "").lower() == "student"
@@ -89,6 +102,17 @@ def _campo(texto: str, nombre: str) -> str | None:
     """
     m = re.search(rf'"{nombre}"\s*:\s*"([^"]*)"', texto)
     return m.group(1) if m and m.group(1).strip() else None
+
+
+def _oids_de_orgs(texto: str) -> list[str]:
+    """Los OID de las organizaciones a las que pertenece la persona.
+
+    Se leen de ``parentOrgRef``, que es donde MidPoint materializa la
+    pertenencia y respeta la vigencia de la asignación.
+    """
+    return re.findall(
+        r'"parentOrgRef"[^}]*?"oid"\s*:\s*"([0-9a-f-]{36})"', texto, re.S
+    )
 
 
 class DirectorioInstitucional:
@@ -117,6 +141,28 @@ class DirectorioInstitucional:
     @property
     def configurado(self) -> bool:
         return bool(self._auth[0] and self._auth[1] and self._url.startswith("http"))
+
+    def _nombre_de_la_org(self, oid: str) -> str | None:
+        """Resuelve una referencia a organización a su nombre legible.
+
+        La cuenta de servicio solo alcanza ``name``, ``displayName`` e
+        ``identifier`` de las orgs — ni managers, ni inducements, ni
+        políticas. Lo justo para poder nombrarla.
+        """
+        try:
+            r = self._http.get(
+                self._url.replace("/users/search", f"/orgs/{oid}"),
+                auth=self._auth,
+                headers={"Accept": "application/json"},
+            )
+        except Exception as exc:
+            logger.warning("midpoint_org_no_responde", error=str(exc))
+            return None
+        if r.status_code != 200:
+            return None
+        # displayName es el nombre para personas ("Dirección de Tecnologías
+        # de Información"); name es el técnico ("DTI"). Se prefiere el largo.
+        return _campo(r.text, "displayName") or _campo(r.text, "name")
 
     def de_quien_ha_iniciado_sesion(  # noqa: PLR0911 — ídem: cada salida es un caso distinto en el log
         self, correo_verificado: str
@@ -163,6 +209,15 @@ class DirectorioInstitucional:
             # Búsqueda sin resultados: MidPoint devuelve 200 con la lista vacía.
             return None
 
+        unidades = tuple(
+            n
+            for n in (
+                self._nombre_de_la_org(oid)
+                for oid in dict.fromkeys(_oids_de_orgs(texto))
+            )
+            if n
+        )
+
         return IdentidadInstitucional(
             codigo=_campo(texto, "name"),
             nombre_completo=_campo(texto, "fullName"),
@@ -170,6 +225,7 @@ class DirectorioInstitucional:
             afiliacion=_campo(texto, "primaryAffiliation"),
             nivel=_campo(texto, "studyLevel"),
             campus=_campo(texto, "campusWorker"),
+            unidades=unidades,
         )
 
     def cerrar(self) -> None:
