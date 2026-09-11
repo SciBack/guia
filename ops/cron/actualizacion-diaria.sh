@@ -61,7 +61,11 @@ else
 fi
 
 decir "3/3 recontando el índice"
-respuesta=$(curl -s -m 120 -X POST "$API/api/transparency/recalcular" 2>&1)
+# El curl va DENTRO del contenedor a propósito: el endpoint solo atiende a
+# 127.0.0.1, y desde el host la petición llega con la IP de la gateway de
+# Docker, así que responde 404. Comprobado el 11-sep-2026.
+respuesta=$(docker exec "$CONTENEDOR" sh -c \
+    "curl -s -m 120 -X POST http://localhost:8000/api/transparency/recalcular" 2>&1)
 if printf '%s' "$respuesta" | grep -q '"recalculado":true'; then
     decir "    ok — $respuesta"
 else

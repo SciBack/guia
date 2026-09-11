@@ -109,6 +109,21 @@ class AnaliticaDelIndice:
         )
 
 
+def _dsn_para_psycopg(dsn: str) -> str:
+    """Quita el dialecto de SQLAlchemy de la cadena de conexión.
+
+    ``pgvector_database_url`` está escrita para SQLAlchemy
+    (``postgresql+psycopg://…``) y psycopg no entiende ese ``+psycopg``: lo
+    rechaza con «missing "=" after …», un error que no se parece en nada a su
+    causa y que además **escupe el DSN entero, contraseña incluida**, al log.
+    """
+    for prefijo in ("postgresql+psycopg://", "postgresql+psycopg2://",
+                    "postgresql+asyncpg://"):
+        if dsn.startswith(prefijo):
+            return "postgresql://" + dsn[len(prefijo):]
+    return dsn
+
+
 class CalculadoraDeAnalitica:
     """Cuenta lo que hay en el índice, agrupado por fuente.
 
@@ -122,7 +137,7 @@ class CalculadoraDeAnalitica:
     """
 
     def __init__(self, dsn: str) -> None:
-        self._dsn = dsn
+        self._dsn = _dsn_para_psycopg(dsn)
 
     def calcular(self) -> AnaliticaDelIndice:
         import psycopg
@@ -145,7 +160,9 @@ class CalculadoraDeAnalitica:
                 cur.execute(consulta)
                 filas = cur.fetchall()
         except Exception as exc:
-            logger.warning("analitica_no_disponible", error=str(exc))
+            # Sin str(exc): psycopg mete el DSN completo —con la contraseña—
+            # en el texto del error, y esto acaba en el log de producción.
+            logger.warning("analitica_no_disponible", tipo=type(exc).__name__)
             return AnaliticaDelIndice(calculada_en=datetime.now(UTC))
 
         fuentes = []

@@ -224,3 +224,26 @@ class TestInventarioDeFuentes:
         f = FuenteIndexada(clave="koha", documentos=10, nombre="Catálogo", anio_min=None)
 
         assert f.cobertura is None
+
+
+class TestDsnDeLaAnalitica:
+    """El DSN del proyecto está escrito para SQLAlchemy; psycopg no lo acepta.
+
+    El error que devuelve —«missing "=" after …»— no se parece a su causa, y
+    además escupe el DSN entero con la contraseña dentro al log de producción.
+    """
+
+    def test_quita_el_dialecto_de_sqlalchemy(self) -> None:
+        from guia.services.analitica_del_indice import _dsn_para_psycopg
+
+        limpio = _dsn_para_psycopg("postgresql+psycopg://u:p@host:5432/db")
+
+        assert limpio == "postgresql://u:p@host:5432/db"
+
+    def test_un_dsn_ya_limpio_no_se_toca(self) -> None:
+        from guia.services.analitica_del_indice import _dsn_para_psycopg
+
+        assert (
+            _dsn_para_psycopg("postgresql://u:p@host/db")
+            == "postgresql://u:p@host/db"
+        )
