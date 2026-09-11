@@ -217,3 +217,32 @@ petición llega con la IP de la gateway de Docker y responde 404.
 > **descarte el archivo entero**, en silencio y sin dejar nada en syslog. Eso
 > tuvo al CRIS dos meses y medio sin ejecutar ni el mantenimiento ni los
 > backups. Si una variable va vacía, entrecomíllala: `VAR=""`.
+
+## Koha: el título se indexa con su subtítulo
+
+En MARC 245 el título (`$a`) y el subtítulo (`$b`) son campos distintos, y
+Koha los devuelve separados con su puntuación ISBD:
+
+```
+title:    "Contabilidad de costos :"
+subtitle: "un enfoque gerencial /"
+```
+
+Se indexaba solo el primero. Consecuencia: buscar el libro **por el nombre
+con el que aparece en el OPAC** no lo encontraba. Medido el 11-sep-2026 sobre
+una muestra de 1.200 registros, **el 30% tiene subtítulo** — unos 14.000 de
+los 46.778 del catálogo.
+
+Guardarlo aparte no bastaba, y conviene entender por qué antes de proponerlo
+otra vez: ya viajaba en `extra["subtitle"]`, se perdía antes de llegar al
+índice de búsqueda, y aunque hubiera llegado, la consulta BM25 solo mira
+`title^2` y `abstract`. Componerlo lo pone donde de verdad se busca, entra en
+el embedding y deja el título igual que en el OPAC.
+
+La vía de base de datos tenía además su propio fallo: anteponía el subtítulo
+al resumen «para mejorar la búsqueda semántica», lo que solo funcionaba si el
+registro traía TOC o abstract — sin ellos el subtítulo se perdía igual.
+
+> Los identificadores son estables (`koha:<biblionumber>`), así que la
+> recosecha **actualiza** los registros existentes. No hay que borrar nada
+> después, a diferencia de la recosecha del 11-sep que arregló los ids.
