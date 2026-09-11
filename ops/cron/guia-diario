@@ -1,0 +1,15 @@
+# GUIA — actualización diaria. Instalar en /etc/cron.d/guia-diario (root:root, 644).
+#
+# OJO con las asignaciones vacías: en /etc/cron.d una línea "VAR=" sin valor
+# hace que cron DESCARTE EL ARCHIVO ENTERO, sin avisar y sin dejar nada en
+# syslog. Le pasó al cron del CRIS, que estuvo dos meses y medio sin ejecutar
+# ni el mantenimiento ni los backups. Si una variable va vacía: VAR=""
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+GUIA_CONTENEDOR=guia-api-1
+GUIA_LOG_DIR=/opt/guia/logs
+GUIA_API=http://localhost:8000
+
+# 03:40: después de la ventana de backups y antes de que empiece el día.
+40 3 * * *  root /opt/guia/ops/cron/actualizacion-diaria.sh

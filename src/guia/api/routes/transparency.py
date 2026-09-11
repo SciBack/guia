@@ -1,7 +1,7 @@
 """Endpoint de transparencia algorítmica (ADR-047, DS 115-2025-PCM)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from guia.config import GUIASettings
 
@@ -61,4 +61,40 @@ async def transparency(request: Request) -> dict:
             "No emite juicios de valor académico ni decisiones vinculantes.",
         ],
         "model_card": "https://docs.sciback.com/transparency/model-card-guia",
+    }
+
+
+@router.post("/recalcular")
+async def recalcular(request: Request) -> dict:
+    """Recuenta el índice. Lo llama la cosecha nocturna cuando termina.
+
+    Sin esto, el inventario sería el del último arranque: la cosecha diaria
+    añadiría documentos y la cifra publicada seguiría siendo la de ayer — el
+    mismo defecto que tenía la lista escrita a mano, solo que más lento.
+
+    Cerrado a la red local. Es un endpoint de escritura —dispara una
+    agregación sobre toda la tabla de vectores— y no hay ninguna razón para
+    que se pueda invocar desde fuera del servidor.
+    """
+    cliente = request.client.host if request.client else ""
+    if cliente not in ("127.0.0.1", "::1", "localhost"):
+        raise HTTPException(status_code=404)
+
+    import asyncio
+
+    from guia.services.analitica_del_indice import CalculadoraDeAnalitica
+
+    settings: GUIASettings = request.app.state.settings
+    calculadora = CalculadoraDeAnalitica(settings.pgvector_database_url)
+    analitica = await asyncio.to_thread(calculadora.calcular)
+    request.app.state.analitica_del_indice = analitica
+
+    chat = getattr(request.app.state.container, "chat_service", None)
+    if chat is not None and hasattr(chat, "refrescar_inventario"):
+        chat.refrescar_inventario(analitica)
+
+    return {
+        "recalculado": True,
+        "fuentes": len(analitica.fuentes),
+        "documentos": analitica.total,
     }

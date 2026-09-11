@@ -34,7 +34,13 @@ async def _calcular_analitica(app: FastAPI, settings: GUIASettings) -> None:
 
     try:
         calculadora = CalculadoraDeAnalitica(settings.pgvector_database_url)
-        app.state.analitica_del_indice = await asyncio.to_thread(calculadora.calcular)
+        analitica = await asyncio.to_thread(calculadora.calcular)
+        app.state.analitica_del_indice = analitica
+
+        # Y que el modelo deje de trabajar con el inventario de reserva.
+        chat = getattr(app.state.container, "chat_service", None)
+        if chat is not None and hasattr(chat, "refrescar_inventario"):
+            chat.refrescar_inventario(analitica)
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # el inventario no puede tumbar la API

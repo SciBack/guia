@@ -191,8 +191,9 @@ def _pregunta_por_el_tema() -> str:
     return (
         "Con mucho gusto — pero necesito saber **sobre qué tema**. "
         "Puedo buscar en el catálogo de la biblioteca, en las tesis del "
-        "repositorio, en los artículos de las revistas de la UPeU y en los "
-        "eventos académicos.\n\n"
+        "repositorio, en la producción científica, en los artículos de las "
+        "revistas de la UPeU y en los eventos académicos; y también sé qué "
+        "áreas tiene la universidad y de qué responde cada una.\n\n"
         "¿De qué trata lo que buscas? Por ejemplo: *nutrición infantil*, "
         "*contaminación del lago Titicaca* o *hábitos de estudio*."
     )
@@ -227,17 +228,50 @@ def _classify_answer_type(
     return "narrative"
 
 
+#: Inventario de reserva. Deliberadamente SIN cifras: las que había aquí
+#: estaban escritas a mano y el 11-sep-2026 eran falsas (12.500 artículos de
+#: OJS cuando hay 744, 550 eventos cuando hay 102). Las cifras de verdad las
+#: pone ``inventario_de_fuentes`` contando el índice; si ese cálculo no está
+#: listo, es mejor no dar ninguna que dar una inventada.
 _DEFAULT_SOURCES_INVENTORY = """\
 FUENTES ACTUALMENTE DISPONIBLES (las únicas que puedes consultar):
-- Koha UPeU — catálogo de la biblioteca, ~34,900 libros físicos indexados
-  (puedes buscar libros, autores, materias y disponibilidad de ejemplares).
-- DSpace repositorio.upeu.edu.pe — ~10,000 tesis y trabajos de investigación
-  del repositorio institucional (tesis de pregrado, maestría y doctorado).
-- OJS revistas.upeu.edu.pe — ~12,500 artículos científicos publicados por la UPeU.
-- Indico UPeU — ~550 eventos académicos y sus contribuciones.
+- Koha UPeU — catálogo de la biblioteca: libros, autores, materias y
+  disponibilidad de ejemplares.
+- DSpace repositorio.upeu.edu.pe — tesis y trabajos de investigación.
+- DSpace-CRIS cris.upeu.edu.pe — producción científica de los investigadores.
+- OJS revistas.upeu.edu.pe — artículos de las revistas de la UPeU.
+- Indico UPeU — eventos académicos y sus contribuciones.
+- SGC calidad.upeu.edu.pe — las áreas de la universidad y los procesos de los
+  que responde cada una. Su ficha detallada aún no está aprobada: al citar un
+  proceso, di el área EXACTA que aparece en el resultado y no inventes
+  oficinas, trámites ni requisitos.
 
 FUENTES NO DISPONIBLES AÚN (NO las menciones como si las tuvieras):
 - ALICIA / RENATI — pendiente de integración."""
+
+
+def inventario_de_fuentes(analitica: object | None) -> str:
+    """El inventario que ve el modelo, con las cifras del índice si las hay.
+
+    Args:
+        analitica: ``AnaliticaDelIndice`` recién calculada, o ``None`` si el
+            cálculo aún no terminó o falló.
+    """
+    if analitica is None or not getattr(analitica, "fuentes", ()):
+        return _DEFAULT_SOURCES_INVENTORY
+    lineas = [
+        "FUENTES ACTUALMENTE DISPONIBLES (las únicas que puedes consultar),",
+        "con lo que hay indexado de cada una a día de hoy:",
+    ]
+    for f in analitica.fuentes:  # type: ignore[attr-defined]
+        cobertura = f" · {f.cobertura}" if f.cobertura else ""
+        detalle = f" — {f.descripcion}" if f.descripcion else ""
+        lineas.append(f"- {f.nombre}: {f.documentos} registros{cobertura}{detalle}")
+    lineas.append(
+        "\nAl citar un área o un proceso, di el área EXACTA que aparece en el "
+        "resultado. No inventes oficinas, trámites, requisitos ni contactos."
+    )
+    return "\n".join(lineas)
 
 
 _SYSTEM_PROMPT = """\
@@ -328,15 +362,17 @@ Si no sabes, dilo directamente: "No encontré eso en el índice disponible."
 
 _CAMPUS_UNAVAILABLE = (
     "Los servicios de campus (notas, matrícula, horarios) aún no están disponibles. "
-    "Por ahora puedo ayudarte con el catálogo de la biblioteca Koha (~34,900 libros), "
-    "las tesis del repositorio institucional DSpace (~10,000) y los artículos de las "
-    "revistas académicas OJS de UPeU (~12,500 artículos)."
+    "Por ahora puedo ayudarte con el catálogo de la biblioteca, las tesis del "
+    "repositorio institucional, la producción científica del CRIS, los artículos "
+    "de las revistas de la UPeU, los eventos académicos, y con qué áreas tiene la "
+    "universidad y de qué responde cada una."
 )
 
 _OUT_OF_SCOPE = (
     "Esa consulta está fuera de mi alcance como asistente universitario. "
-    "Puedo ayudarte con información académica, investigación y servicios "
-    "institucionales de la universidad."
+    "Puedo ayudarte a buscar en el catálogo, las tesis, la producción "
+    "científica, las revistas y los eventos de la UPeU, y a saber qué áreas "
+    "tiene la universidad y de qué responde cada una."
 )
 
 
@@ -519,6 +555,15 @@ class ChatService:
         self._horario = horario
         # Gate 3 de "¿dice sobre qué buscar?". None = solo la lista, como antes.
         self._lector = lector_de_peticion
+
+    def refrescar_inventario(self, analitica: object | None) -> None:
+        """Cambia el inventario que ve el modelo por el contado del índice.
+
+        Lo llama el arranque cuando termina de contar, y el cron diario tras
+        cosechar. Mientras no se llame, el modelo trabaja con el inventario de
+        reserva, que no lleva cifras — es preferible a que las dé viejas.
+        """
+        self._sources_inventory = inventario_de_fuentes(analitica)
 
     async def _synthesize_streaming(
         self,

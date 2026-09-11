@@ -300,3 +300,22 @@ def shell() -> None:
 
 if __name__ == "__main__":
     app()
+
+
+@app.command()
+def analitica() -> None:
+    """Qué hay indexado, contado del índice. Útil para verificar una cosecha."""
+    from guia.config import GUIASettings
+    from guia.services.analitica_del_indice import CalculadoraDeAnalitica
+
+    settings = GUIASettings()
+    foto = CalculadoraDeAnalitica(settings.pgvector_database_url).calcular()
+    if not foto.fuentes:
+        typer.echo("No hay nada indexado (o no se pudo consultar el índice).")
+        raise typer.Exit(code=1)
+
+    typer.echo(f"Índice a {foto.calculada_en:%Y-%m-%d %H:%M} UTC\n")
+    for f in foto.fuentes:
+        cobertura = f"  {f.cobertura}" if f.cobertura else ""
+        typer.echo(f"  {f.nombre:38} {f.documentos:>7}{cobertura}")
+    typer.echo(f"  {'TOTAL':38} {foto.total:>7}")

@@ -176,3 +176,51 @@ class TestProcesoSuelto:
 
         assert "área responsable" not in texto
         assert "C07" in texto
+
+
+class TestInventarioDeFuentes:
+    """Las cifras que ve el modelo salen del índice, no de una constante.
+
+    Las que había escritas a mano decían 12.500 artículos de OJS cuando hay
+    744 y 550 eventos cuando hay 102. El modelo las repetía a quien preguntara
+    qué fuentes tenía.
+    """
+
+    def test_sin_analitica_no_se_inventan_cifras(self) -> None:
+        from guia.services.chat import inventario_de_fuentes
+
+        texto = inventario_de_fuentes(None)
+
+        assert "12,500" not in texto
+        assert "34,900" not in texto
+        assert "Koha" in texto  # sigue diciendo QUÉ hay, solo que sin números
+
+    def test_con_analitica_salen_las_cifras_reales(self) -> None:
+        from guia.services.analitica_del_indice import (
+            AnaliticaDelIndice,
+            FuenteIndexada,
+        )
+        from guia.services.chat import inventario_de_fuentes
+        from datetime import UTC, datetime
+
+        analitica = AnaliticaDelIndice(
+            calculada_en=datetime.now(UTC),
+            fuentes=(
+                FuenteIndexada(clave="ojs", documentos=744, nombre="Revistas"),
+                FuenteIndexada(clave="sgc", documentos=147, nombre="Mapa institucional"),
+            ),
+        )
+
+        texto = inventario_de_fuentes(analitica)
+
+        assert "744" in texto
+        assert "147" in texto
+
+    def test_el_ano_de_relleno_no_se_publica_como_cobertura(self) -> None:
+        """El adaptador pone 1000 cuando el registro no trae fecha; decir que
+        la cobertura empieza en el año 1000 es mentir con precisión."""
+        from guia.services.analitica_del_indice import FuenteIndexada
+
+        f = FuenteIndexada(clave="koha", documentos=10, nombre="Catálogo", anio_min=None)
+
+        assert f.cobertura is None
