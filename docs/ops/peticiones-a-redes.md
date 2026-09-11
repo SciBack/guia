@@ -29,49 +29,52 @@ es una Elastic IP y no baila, pero es un dato duplicado que envejece solo.
 
 ---
 
-## 2. Puerto 3306 hacia la base de Koha — EN ESPERA, el host estaba mal
+## 2. Puerto 3306/TCP hacia la base de Koha
 
-**No pedir todavía.** La petición decía `192.168.12.130:3306`, y ese host
-**no es la base del Koha que GUIA cosecha**. Comprobado el 11-sep-2026:
+**Qué pedir:** permitir `192.168.15.167` → `192.168.12.136` : `3306/TCP`.
 
-| evidencia | `koha_bul` en 192.168.12.130 | lo que sirve la REST / el OPAC |
+Es **una sola máquina**: `koha-plus-prod.upeu`, con Koha y su MariaDB 10.11.14
+en el mismo host (Ubuntu 24.04, base `koha_upeu`, 2,9 GB). Hoy el 3306 está
+cerrado desde el servidor de GUIA; el 22 también.
+
+> El primer borrador de esta petición decía `192.168.12.130`, que es **otro
+> Koha** — allí el biblionumber 12987 es un libro distinto y el 28277 no
+> existe. Dato confirmado: `koha_upeu` tiene **46.678 registros**, que es
+> exactamente lo que GUIA tiene indexado. El secreto `koha-prod.env` llevaba
+> el host equivocado y ya está corregido.
+
+### Qué se gana, medido sobre el catálogo COMPLETO (46.678 registros)
+
+GUIA cosecha hoy por la REST API, que no expone estos campos:
+
+| campo | REST (hoy) | base de datos |
 |---|---|---|
-| registros | 34.944, ids dispersos hasta 63.370 | ~46.681, ids densos desde 1 |
-| biblionumber 12987 | «Diagnóstico normativo de los derechos sexuales» | «Introducción a la seguridad y salud en el trabajo» |
-| biblionumber 28277 | no existe | «Contabilidad de costos : un enfoque gerencial» |
+| tabla de contenidos (MARC 505) | **0%** | **43.419 · 93%** |
+| materias (MARC 650) | **0%** | **38.020 · 81%** |
+| subtítulo | ya resuelto por REST | 18.620 · 40% |
+| resumen | 3% | 1.511 · 3% *(igual)* |
 
-Son **catálogos distintos**. El secreto `koha-prod.env` tiene
-`KOHA_PROD_DB_HOST=192.168.12.130` junto a
-`KOHA_PROD_URL=https://biblioteca-staff.upeu.edu.pe`, y esas dos líneas no
-apuntan al mismo sistema.
+Lo que de verdad justifica la petición es el **TOC**: es la tabla de
+contenidos del libro, capítulo a capítulo. Para *Redacción en relaciones
+públicas*, hoy se indexa solo el título; por base de datos vendría con «Las
+relaciones públicas. Conceptos y funciones — La redacción — … — La
+comunicación interna — Las relaciones públicas financieras — …». Son 43.419
+libros que pasarían de tener una línea de texto buscable a tener un párrafo.
 
-**Dónde está el Koha de producción:** `biblioteca-staff.upeu.edu.pe` y
-`biblioteca.upeu.edu.pe` resuelven a **190.239.28.82** desde fuera y a
-**192.168.12.199** por la VPN — el balanceador. Ahí están abiertos 22, 80 y
-443, pero **no el 3306**, así que su base vive en otra máquina, detrás. Las
-credenciales SSH del secreto (las del `.135`) no sirven en el `.199`.
+### El adaptador ya está listo — no hace falta trabajo previo
 
-### Antes de pedir nada hay que aclarar
+Comprobado el 11-sep-2026 contra la base real:
 
-1. **Qué es el Koha del `.130`**, con sus cuatro bases por campus
-   (`koha_bul` 34.944, `koha_buj` 9.512, `koha_but` 3.117, `koha_cia` 2.417).
-   ¿El sistema anterior a unificar el catálogo? ¿Otra unidad?
-2. **Dónde está la base del Koha que sirve `biblioteca-staff`**, que es el que
-   GUIA cosecha y el que ve el usuario en el OPAC.
+- La consulta de cosecha del adaptador (`_HARVEST_SQL`) **funciona tal cual**:
+  devuelve `toc`, `subjects`, `dewey`, `coauthors`, `place`, `publisher` y
+  `copyrightdate`.
+- **Los identificadores no cambian.** Las dos vías producen `koha:28277`, el
+  mismo título compuesto y el mismo año. Cambiar de vía **actualiza** los
+  documentos existentes; no duplica el catálogo ni obliga a reindexar de cero.
+- Es **una sola base**, así que no hacen falta ni cosecha multi-base ni
+  cambiar el formato del id.
 
-Solo entonces tiene sentido pedir un puerto — y saber hacia dónde.
-
-### Lo que ya sabemos que hará falta de nuestro lado
-
-Si la base de producción resulta tener **varias bases por campus**, el
-adaptador necesita dos cosas, no una:
-
-- **Cosechar varias bases**, que hoy no sabe: `KohaSettings.db_name` es una.
-- **Identificadores con la biblioteca dentro.** Los `biblionumber` se repiten
-  entre campus: medido, **5.204 existen a la vez en Lima y Juliaca**, y son
-  libros distintos. Con el id actual (`koha:28277`) se pisarían miles de
-  registros y se mezclarían catálogos. Tendría que ser `koha:bul:28277`, lo
-  que además cambia el enlace al OPAC de cada campus.
-
-Ese cambio de identificador no es menor: reindexa el catálogo entero y rompe
-los ids ya guardados.
+Con el puerto abierto, lo único pendiente es poner `KOHA_DB_HOST`,
+`KOHA_DB_NAME`, `KOHA_DB_USER` y `KOHA_DB_PASSWORD` en el `.env` de GUIA
+(credenciales ya guardadas en `~/.secrets/koha-prod.env`) y lanzar una
+cosecha.
