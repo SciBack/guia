@@ -96,6 +96,17 @@ services:
     image: guia-api
     command: python -m guia serve
     env_file: .env
+    # PARCHE de DNS, 11-sep-2026. El .167 resuelve contra los DNS internos
+    # 192.168.13.96/.97, que son autoritativos para upeu.edu.pe y NO tienen
+    # el registro "calidad" — el publico si lo tiene (3.18.90.66), y el
+    # servidor alcanza esa IP sin problema (comprobado: HTTP 200 con
+    # --resolve). Es decir: no es red, es un registro que falta dentro.
+    #
+    # Lo correcto es que Redes publique calidad.upeu.edu.pe en el DNS
+    # interno; mientras tanto esto deja a GUIA leer el mapa institucional.
+    # Es una Elastic IP, asi que no baila. Quitar cuando el registro exista.
+    extra_hosts:
+      - "calidad.upeu.edu.pe:3.18.90.66"
     environment:
       # Detoxify escribe la cache de HuggingFace. Sin esto apuntaba a
       # /home/guia/.cache/huggingface, que es de root en la imagen: fallaba con

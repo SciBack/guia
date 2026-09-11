@@ -606,7 +606,7 @@ class HarvesterService:
 
         mapa = self._sgc.mapa()
         for aviso in getattr(mapa, "avisos", ()):
-            logger.info("sgc_aviso", detalle=aviso)
+            logger.info("sgc_aviso: %s", aviso)
 
         items: list[tuple[str, dict[str, object]]] = [
             (f"sgc:area:{a.codigo}", _area_a_metadata(a)) for a in mapa.areas
@@ -632,7 +632,11 @@ class HarvesterService:
                 logger.exception("batch_error", extra={"source": "sgc"})
                 error += len(lote)
 
-        logger.info("harvest_sgc_fin", total=total, ok=ok, error=error)
+        # Este logger es el de la stdlib, no structlog: los kwargs no son
+        # campos, son un TypeError.
+        logger.info(
+            "harvest_sgc_fin total=%d ok=%d error=%d", total, ok, error
+        )
         return {"total": total, "ok": ok, "error": error}
 
     def harvest_indico(
