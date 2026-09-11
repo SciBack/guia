@@ -265,3 +265,52 @@ class TestCuandoQuienPreguntaTrabajaAqui:
 
         assert "contrato" in texto
         assert "vacaciones" in texto
+
+
+class TestElPersonalRecibeLoMismoPreguenteLoQuePregunte:
+    """Ni "¿qué sabes de mí?" ni "¿qué clases tengo?" deben hablarle de nivel
+    de estudios ni de código universitario a quien trabaja aquí.
+
+    La primera versión solo arregló la pregunta por las clases; "¿qué sabes de
+    mí?" seguía yendo por la rama de estudiante y contestaba "Código
+    universitario: 9610165 · Nivel: Pregrado" a un Analista Programador.
+    """
+
+    class DirectorioDePersonal:
+        def de_quien_ha_iniciado_sesion(self, correo_verificado: str) -> object:
+            return IdentidadInstitucional(
+                codigo="9610165",
+                nombre_completo="Juan Alberto Sanchez Condor",
+                rol="Analista Programador",
+                afiliacion="staff",
+                nivel="Pregrado",
+                campus="LIMA",
+            )
+
+    @pytest.mark.parametrize(
+        "consulta", ["¿qué sabes de mí?", "¿qué clases tengo hoy?", "mis datos"]
+    )
+    async def test_siempre_responde_lo_laboral(self, consulta: str) -> None:
+        from sciback_core.ports.llm import InMemoryLLMAdapter
+        from sciback_core.ports.vector_store import InMemoryVectorStoreAdapter
+
+        from guia.domain.chat import ChatRequest
+        from guia.services.chat import ChatService
+
+        from .test_chat_service import FakeEmbedder
+
+        servicio = ChatService(
+            synthesis_llm=InMemoryLLMAdapter(canned_response="x", embedding_dim=8),
+            store=InMemoryVectorStoreAdapter(dim=8),
+            embedder=FakeEmbedder(),
+            classifier_llm=InMemoryLLMAdapter(canned_response="campus", embedding_dim=8),
+            directorio=self.DirectorioDePersonal(),  # type: ignore[arg-type]
+        )
+
+        r = await servicio.answer(
+            ChatRequest(query=consulta, identidad_verificada="jsanchez@upeu.edu.pe")
+        )
+
+        assert "Analista Programador" in r.answer
+        assert "Pregrado" not in r.answer
+        assert "Código universitario" not in r.answer

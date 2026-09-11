@@ -651,21 +651,20 @@ class ChatService:
                           "mi perfil", "mi información", "mi informacion")
         )
 
+        # El personal recibe su ficha laboral, pregunte lo que pregunte: ni
+        # "¿qué sabes de mí?" ni "¿qué clases tengo?" deben contestarse con
+        # "Código universitario" y "Nivel: Pregrado" a quien trabaja aquí.
+        if identidad is not None and identidad.es_personal:
+            return self._respuesta_personal(
+                _lo_que_hay_del_personal(identidad, correo), "midpoint"
+            )
+
         if pregunta_por_identidad:
             agenda = await self._agenda_de(correo)
             texto = redactar_identidad(
                 agenda, correo=correo, nombre=nombre, identidad=identidad
             )
             return self._respuesta_personal(texto, "midpoint")
-
-        # Al personal no se le habla de matrícula. Antes caía en el mensaje
-        # de abajo —"no encuentro clases tuyas, revisa tu matrícula"—, que a
-        # un Analista Programador de la DTI no le dice nada: no es que no
-        # encontremos sus clases, es que no tiene.
-        if identidad is not None and identidad.es_personal:
-            return self._respuesta_personal(
-                _lo_que_hay_del_personal(identidad, correo), "midpoint"
-            )
 
         # "¿Qué clases tengo hoy?" — el horario del día, si se puede.
         if self._horario is not None and identidad is not None and identidad.codigo:
