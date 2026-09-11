@@ -179,7 +179,7 @@ def reindex(
     source: str | None = typer.Option(
         None,
         "--source",
-        help="Reindexar solo una fuente (dspace, ojs, koha, indico). "
+        help="Reindexar solo una fuente (dspace, cris, ojs, koha, indico). "
         "Default: todas. Útil tras harvestear una fuente nueva.",
     ),
 ) -> None:
