@@ -73,3 +73,39 @@ aquí**: con 14 casos, cada uno pesa 0,07, y los tres agregados hacen saltar su
 columna entre 0,33 y 0,78 según qué posición cambie. La conclusión firme es la
 que se repite en las dos medidas: 0,5/0,5 gana, y las dos columnas de la
 izquierda siguen sin predecir la de la derecha.
+
+## Tercera medición, 11-sep-2026 — con el TOC y las materias del MARC
+
+Tras recosechar el catálogo trayendo la tabla de contenidos (MARC 505) y las
+materias (650) por la REST. El índice pasó de **1.512 registros con resumen
+(3%)** a **46.678 (100%)**, y de **0 materias** a **36.398 (78%)**.
+
+| pesos (bm25/knn) | MRR fusión | MRR final | R@5 | léxico | semántico | agregado |
+|---|---|---|---|---|---|---|
+| 0,3 / 0,7 | 0,659 | 0,738 | 93% | 0,81 | 0,58 | 0,78 |
+| 0,4 / 0,6 | 0,659 | 0,738 | 93% | 0,81 | 0,58 | 0,78 |
+| **0,5 / 0,5** *(configurado)* | 0,639 | 0,757 | 93% | 0,81 | 0,83 | 0,53 |
+| 0,6 / 0,4 | 0,635 | **0,798** | 93% | 0,83 | 0,83 | 0,67 |
+| 0,7 / 0,3 | 0,641 | **0,798** | 93% | 0,83 | 0,83 | 0,67 |
+
+**Lo que de verdad cambió es la primera columna.** El MRR de la fusión sube de
+~0,48-0,52 a ~0,64: los documentos correctos llegan mucho mejor situados a la
+fase de reranking, que es lo que se esperaba de darle a cada libro un párrafo
+de texto descriptivo en vez de solo un título.
+
+**Y el recall deja de discriminar**: 93% en las cinco configuraciones. El
+banco ya no distingue entre pesos por esa métrica — señal de que se quedó
+corto, no de que todos los pesos sean iguales.
+
+### Sobre cambiar a 0,6/0,4
+
+Mide mejor (0,798 frente a 0,757) y ya no hunde las preguntas agregadas, que
+era lo que lo descartaba en la primera medición. Pero **con 14 casos, un solo
+documento que pase del puesto 3 al 1 mueve el MRR 0,048**: la diferencia
+observada cabe entera dentro de un caso. No es motivo suficiente para cambiar
+un peso en producción.
+
+Lo honesto es anotar la tendencia —en las tres medidas del día, más peso
+léxico ha ido saliendo mejor a medida que el índice ganaba texto— y **ampliar
+el banco antes de decidir**. Treinta o cuarenta casos darían una señal que
+14 no dan.
