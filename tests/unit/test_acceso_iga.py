@@ -241,3 +241,29 @@ class TestEnrutadoDeLoMioInstitucional:
 
         assert d is not None
         assert d.intent is IntentCategory.CAMPUS_PERSONAL
+
+
+class TestElContextoLlegaAlPromptDeOrientacion:
+    """Es el camino por el que sale la mayoría de respuestas con resultados.
+
+    Inyectar el contexto solo en la síntesis legacy dejaba fuera justo el
+    camino que se usa: en producción GUIA respondía "no has iniciado sesión"
+    a quien acababa de iniciarla.
+    """
+
+    def test_el_contexto_entra_en_el_mensaje_de_sistema(self) -> None:
+        from guia.services.orientacion import mensajes_de_orientacion
+
+        quien = derivar_acceso(_PERSONAL, correo_verificado="jsanchez@upeu.edu.pe")
+        mensajes = mensajes_de_orientacion(
+            "de qué responde mi área", [], quien_pregunta=quien.para_el_prompt()
+        )
+
+        assert "Dirección de Tecnologías de Información" in mensajes[0].content
+
+    def test_sin_contexto_el_prompt_no_cambia(self) -> None:
+        from guia.services.orientacion import _SYSTEM, mensajes_de_orientacion
+
+        mensajes = mensajes_de_orientacion("tesis sobre quinua", [])
+
+        assert mensajes[0].content == _SYSTEM

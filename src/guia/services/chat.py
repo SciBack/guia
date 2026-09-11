@@ -1342,6 +1342,11 @@ class ChatService:
                 query,
                 sources,
                 de_reserva=_encabezado_listado(sources),
+                # Este es el camino por el que sale la mayoría de respuestas
+                # con resultados, y tiene su propio prompt: sin pasarle el
+                # contexto aquí, GUIA contestaba "no has iniciado sesión" a
+                # quien la tenía.
+                quien_pregunta=quien.para_el_prompt() if contextual else None,
                 stream=emisor,
                 on_token=on_token,
             )

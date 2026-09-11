@@ -95,10 +95,22 @@ def _resumen_de_fuentes(sources: list[Source]) -> str:
     return "\n".join(lineas)
 
 
-def mensajes_de_orientacion(query: str, sources: list[Source]) -> list[LLMMessage]:
-    """El prompt para orientar sobre estos resultados."""
+def mensajes_de_orientacion(
+    query: str, sources: list[Source], *, quien_pregunta: str | None = None
+) -> list[LLMMessage]:
+    """El prompt para orientar sobre estos resultados.
+
+    Args:
+        query: Lo que se preguntó.
+        sources: Lo que salió.
+        quien_pregunta: Contexto del titular de la sesión, cuando la consulta
+            lo necesita — "de qué responde mi área" no se puede contestar sin
+            saber cuál es. Viene de ``acceso_iga``; ``None`` cuando no hay
+            sesión o la pregunta no lo pide.
+    """
+    sistema = _SYSTEM if quien_pregunta is None else f"{_SYSTEM}\n\n{quien_pregunta}"
     return [
-        LLMMessage(role="system", content=_SYSTEM),
+        LLMMessage(role="system", content=sistema),
         LLMMessage(
             role="user",
             content=f"Consulta: {query}\n\nResultados:\n{_resumen_de_fuentes(sources)}",
@@ -112,6 +124,7 @@ async def orientar(
     sources: list[Source],
     *,
     de_reserva: str,
+    quien_pregunta: str | None = None,
     stream: Callable[[list[LLMMessage], Callable[[str], Awaitable[None]]], Awaitable[object]]
     | None = None,
     on_token: Callable[[str], Awaitable[None]] | None = None,
@@ -129,7 +142,7 @@ async def orientar(
             emitir.
         on_token: Dónde emitirlos.
     """
-    mensajes = mensajes_de_orientacion(query, sources)
+    mensajes = mensajes_de_orientacion(query, sources, quien_pregunta=quien_pregunta)
 
     try:
         if stream is not None and on_token is not None:
