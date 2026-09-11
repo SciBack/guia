@@ -344,3 +344,41 @@ def es_consulta_sobre_uno_mismo(texto: str) -> bool:
     habla_de_si_mismo = any(marca in minusculas for marca in _PRIMERA_PERSONA)
     asunto_personal = any(marca in minusculas for marca in _ASUNTO_PERSONAL)
     return habla_de_si_mismo and asunto_personal
+
+
+def lo_que_hay_del_personal(identidad: object, correo: str) -> str:
+    """Respuesta para quien trabaja aquí, no estudia.
+
+    Se separa de la de estudiante porque lo que interesa es distinto —puesto y
+    condición, no clases— y porque el mensaje genérico invitaba a "revisar tu
+    matrícula", que para un trabajador no significa nada.
+
+    Lo que **no** está y se dice en voz alta: MidPoint no guarda fechas de
+    contrato, vacaciones ni nada de planilla —comprobado el 11-sep-2026 sobre
+    la ficha completa—, y la cuenta de servicio que usa GUIA solo alcanza 12
+    campos. Decir qué falta es más útil que callarlo, porque si no el usuario
+    no sabe si el dato no existe o si GUIA no supo buscarlo.
+    """
+    nombre = getattr(identidad, "nombre_completo", None)
+    lineas = []
+    if nombre:
+        lineas.append(f"- **Nombre:** {nombre}")
+    lineas.append(f"- **Correo institucional:** {correo}")
+    for etiqueta, atributo in (
+        ("Puesto", "rol"),
+        ("Código de trabajador", "codigo"),
+        ("Campus", "campus"),
+    ):
+        valor = getattr(identidad, atributo, None)
+        if valor:
+            lineas.append(f"- **{etiqueta}:** {valor}")
+    lineas.append("- **Condición:** personal de la universidad, no estudiante")
+
+    return (
+        "Esto es lo que sé de ti:\n\n"
+        + "\n".join(lineas)
+        + "\n\nNo te muestro horario de clases porque no estás matriculado.\n\n"
+        "Lo que **no** puedo ver todavía: tu área concreta, las fechas de tu "
+        "contrato y tus vacaciones. Eso no está en el directorio institucional "
+        "—vive en el sistema de personal— y GUIA aún no lo consulta."
+    )

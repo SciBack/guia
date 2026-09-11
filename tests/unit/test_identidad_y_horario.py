@@ -196,6 +196,7 @@ class TestLaIdentidadQueSeMuestra:
                 rol="Estudiante",
                 afiliacion="student",
                 nivel="Pregrado",
+                campus="LIMA",
             ),
         )
 
@@ -203,3 +204,64 @@ class TestLaIdentidadQueSeMuestra:
         assert "Estudiante" in texto
         assert "Pregrado" in texto
         assert "no consulto los de otras personas" in texto
+
+
+class TestCuandoQuienPreguntaTrabajaAqui:
+    """El caso que reportó Alberto el 11-sep-2026: "yo no soy estudiante".
+
+    GUIA le respondía "no encuentro clases tuyas — revisa tu matrícula", que a
+    un Analista Programador de la DTI no le dice nada: no es que no se
+    encuentren sus clases, es que no tiene. Y mientras tanto se callaba lo que
+    sí sabe de él.
+    """
+
+    @staticmethod
+    def _personal() -> IdentidadInstitucional:
+        return IdentidadInstitucional(
+            codigo="9610165",
+            nombre_completo="Juan Alberto Sanchez Condor",
+            rol="Analista Programador",
+            afiliacion="staff",
+            nivel="Pregrado",
+            campus="LIMA",
+        )
+
+    def test_se_distingue_del_estudiante(self) -> None:
+        assert self._personal().es_personal
+        assert not self._personal().es_estudiante
+
+    def test_le_dice_su_puesto_y_no_le_habla_de_matricula(self) -> None:
+        from guia.services.agenda_academica import lo_que_hay_del_personal
+
+        texto = lo_que_hay_del_personal(self._personal(), "jsanchez@upeu.edu.pe")
+
+        assert "Analista Programador" in texto
+        assert "9610165" in texto
+        assert "LIMA" in texto
+        assert "matrícula" not in texto.lower() or "no estás matriculado" in texto.lower()
+
+    def test_no_le_ensena_el_nivel_de_estudios(self) -> None:
+        """``studyLevel`` viene poblado en el personal con lo que estudió aquí.
+
+        Enseñarle "Nivel: Pregrado" a un trabajador da a entender que está
+        matriculado, que es justo lo contrario de lo que se quiere decir.
+        """
+        from guia.services.agenda_academica import lo_que_hay_del_personal
+
+        texto = lo_que_hay_del_personal(self._personal(), "jsanchez@upeu.edu.pe")
+
+        assert "Pregrado" not in texto
+
+    def test_dice_en_voz_alta_lo_que_no_sabe(self) -> None:
+        """Contrato, vacaciones y área no están en el directorio.
+
+        Comprobado sobre la ficha completa de MidPoint: no hay ningún campo de
+        planilla, y la cuenta de servicio solo alcanza 12. Callarlo dejaría al
+        usuario sin saber si el dato no existe o si GUIA no supo buscarlo.
+        """
+        from guia.services.agenda_academica import lo_que_hay_del_personal
+
+        texto = lo_que_hay_del_personal(self._personal(), "jsanchez@upeu.edu.pe").lower()
+
+        assert "contrato" in texto
+        assert "vacaciones" in texto

@@ -59,11 +59,25 @@ class IdentidadInstitucional:
     """``student`` / ``faculty`` / ``staff`` — el valor eduPerson."""
 
     nivel: str | None
-    """"Pregrado", "Posgrado"…"""
+    """"Pregrado", "Posgrado"… Ojo: en el personal suele venir poblado con
+    los estudios que hizo en la propia universidad, así que **no significa
+    que esté matriculado**. Solo se enseña a quien es estudiante."""
+
+    campus: str | None
+    """"LIMA", "JULIACA", "TARAPOTO" — de ``campusWorker``."""
 
     @property
     def es_estudiante(self) -> bool:
         return (self.afiliacion or "").lower() == "student"
+
+    @property
+    def es_personal(self) -> bool:
+        """Personal administrativo o docente.
+
+        Importa porque el horario de clases no aplica: a un trabajador no se
+        le pregunta por su matrícula, y GUIA se lo estaba diciendo.
+        """
+        return (self.afiliacion or "").lower() in ("staff", "faculty", "employee")
 
 
 def _campo(texto: str, nombre: str) -> str | None:
@@ -155,6 +169,7 @@ class DirectorioInstitucional:
             rol=_campo(texto, "title"),
             afiliacion=_campo(texto, "primaryAffiliation"),
             nivel=_campo(texto, "studyLevel"),
+            campus=_campo(texto, "campusWorker"),
         )
 
     def cerrar(self) -> None:

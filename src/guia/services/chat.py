@@ -28,6 +28,7 @@ from guia.services.agenda_academica import (
     Agenda,
     AgendaAcademica,
     es_consulta_sobre_uno_mismo,
+    lo_que_hay_del_personal as _lo_que_hay_del_personal,
     redactar,
     redactar_identidad,
 )
@@ -656,6 +657,15 @@ class ChatService:
                 agenda, correo=correo, nombre=nombre, identidad=identidad
             )
             return self._respuesta_personal(texto, "midpoint")
+
+        # Al personal no se le habla de matrícula. Antes caía en el mensaje
+        # de abajo —"no encuentro clases tuyas, revisa tu matrícula"—, que a
+        # un Analista Programador de la DTI no le dice nada: no es que no
+        # encontremos sus clases, es que no tiene.
+        if identidad is not None and identidad.es_personal:
+            return self._respuesta_personal(
+                _lo_que_hay_del_personal(identidad, correo), "midpoint"
+            )
 
         # "¿Qué clases tengo hoy?" — el horario del día, si se puede.
         if self._horario is not None and identidad is not None and identidad.codigo:

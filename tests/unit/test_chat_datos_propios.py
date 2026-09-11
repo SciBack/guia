@@ -277,6 +277,7 @@ class TestLaCadenaCompleta:
             rol="Estudiante",
             afiliacion="student",
             nivel="Pregrado",
+            campus="LIMA",
         )
 
     @staticmethod
