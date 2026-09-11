@@ -1,8 +1,9 @@
 # Lo que GUIA necesita de Redes
 
-Dos cosas, las dos comprobadas en vivo el **11-sep-2026** desde el servidor de
-GUIA (`192.168.15.167`). Ninguna es urgente: GUIA funciona hoy sin ellas, con
-parches que conviene retirar.
+**Queda una sola petición viva: el registro DNS.** La segunda se redactó y se
+retiró el mismo día, al descubrir que lo que pedía ya estaba disponible por
+otra vía; se deja escrita porque el razonamiento que llevó a ella es útil de
+recordar.
 
 ---
 
@@ -29,52 +30,35 @@ es una Elastic IP y no baila, pero es un dato duplicado que envejece solo.
 
 ---
 
-## 2. Puerto 3306/TCP hacia la base de Koha
+## 2. Puerto 3306 hacia Koha — RETIRADA, no hacía falta
 
-**Qué pedir:** permitir `192.168.15.167` → `192.168.12.136` : `3306/TCP`.
+**No pedir.** Se llegó a redactar y era innecesaria.
 
-Es **una sola máquina**: `koha-plus-prod.upeu`, con Koha y su MariaDB 10.11.14
-en el mismo host (Ubuntu 24.04, base `koha_upeu`, 2,9 GB). Hoy el 3306 está
-cerrado desde el servidor de GUIA; el 22 también.
+El razonamiento que la motivó tenía un agujero: se comprobó que el JSON de
+`/api/v1/biblios` no trae la tabla de contenidos (MARC 505) ni las materias
+(650), y de ahí se saltó a "hace falta la base de datos". No se probó **el
+mismo endpoint pidiendo MARC**, que sí los trae:
 
-> El primer borrador de esta petición decía `192.168.12.130`, que es **otro
-> Koha** — allí el biblionumber 12987 es un libro distinto y el 28277 no
-> existe. Dato confirmado: `koha_upeu` tiene **46.678 registros**, que es
-> exactamente lo que GUIA tiene indexado. El secreto `koha-prod.env` llevaba
-> el host equivocado y ya está corregido.
+```
+GET /api/v1/biblios?_page=0&_per_page=100
+Accept: application/marc-in-json          → 200 en 0,33 s
+```
 
-### Qué se gana, medido sobre el catálogo COMPLETO (46.678 registros)
+Es el listado paginado, no registro a registro: **dos peticiones por página**
+en vez de una, 936 en total sobre el catálogo. Ya está implementado y
+cosechado.
 
-GUIA cosecha hoy por la REST API, que no expone estos campos:
+Medido contra el Koha real, sobre 300 registros: **98% con tabla de
+contenidos y 82% con materias**, donde antes se indexaba el 0% de ambas.
 
-| campo | REST (hoy) | base de datos |
-|---|---|---|
-| tabla de contenidos (MARC 505) | **0%** | **43.419 · 93%** |
-| materias (MARC 650) | **0%** | **38.020 · 81%** |
-| subtítulo | ya resuelto por REST | 18.620 · 40% |
-| resumen | 3% | 1.511 · 3% *(igual)* |
+### Lo que queda por saber, aunque ya no bloquea nada
 
-Lo que de verdad justifica la petición es el **TOC**: es la tabla de
-contenidos del libro, capítulo a capítulo. Para *Redacción en relaciones
-públicas*, hoy se indexa solo el título; por base de datos vendría con «Las
-relaciones públicas. Conceptos y funciones — La redacción — … — La
-comunicación interna — Las relaciones públicas financieras — …». Son 43.419
-libros que pasarían de tener una línea de texto buscable a tener un párrafo.
+`KOHA_PROD_DB_HOST` apuntaba a `192.168.12.130` / `koha_bul`, que es **otro
+Koha** — allí el biblionumber 12987 es un libro distinto y el 28277 no existe.
+Tiene cuatro bases por campus (Lima 34.944, Juliaca 9.512, Tarapoto 3.117,
+CIA 2.417). El de producción es `192.168.12.136` / `koha_upeu`, con 46.678
+registros, que es lo que GUIA indexa. El secreto ya está corregido.
 
-### El adaptador ya está listo — no hace falta trabajo previo
-
-Comprobado el 11-sep-2026 contra la base real:
-
-- La consulta de cosecha del adaptador (`_HARVEST_SQL`) **funciona tal cual**:
-  devuelve `toc`, `subjects`, `dewey`, `coauthors`, `place`, `publisher` y
-  `copyrightdate`.
-- **Los identificadores no cambian.** Las dos vías producen `koha:28277`, el
-  mismo título compuesto y el mismo año. Cambiar de vía **actualiza** los
-  documentos existentes; no duplica el catálogo ni obliga a reindexar de cero.
-- Es **una sola base**, así que no hacen falta ni cosecha multi-base ni
-  cambiar el formato del id.
-
-Con el puerto abierto, lo único pendiente es poner `KOHA_DB_HOST`,
-`KOHA_DB_NAME`, `KOHA_DB_USER` y `KOHA_DB_PASSWORD` en el `.env` de GUIA
-(credenciales ya guardadas en `~/.secrets/koha-prod.env`) y lanzar una
-cosecha.
+Queda la duda de **qué es el Koha del `.130`**: si guarda material que no está
+en el catálogo unificado, sería una fuente adicional a cosechar. Si es el
+sistema anterior, no hay nada que hacer.
