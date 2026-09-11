@@ -238,3 +238,130 @@ async def test_no_depende_de_como_clasifique_el_modelo() -> None:
     assert agenda.consultas == ["jperez@upeu.edu.pe"]
     assert "jperez@upeu.edu.pe" in respuesta.answer
     assert "resultados" not in respuesta.answer
+
+
+class TestLaCadenaCompleta:
+    """correo (sesión) → MidPoint → código → horario del día.
+
+    El orden importa y las tres piezas tienen dueño distinto, así que lo que
+    se prueba aquí es el ensamblaje: que el código salga de MidPoint y no del
+    chat, y que el horario del día gane a los cursos del semestre cuando hay
+    ambos.
+    """
+
+    class DirectorioFalso:
+        def __init__(self, ficha: object | None) -> None:
+            self.consultas: list[str] = []
+            self._ficha = ficha
+
+        def de_quien_ha_iniciado_sesion(self, correo_verificado: str) -> object | None:
+            self.consultas.append(correo_verificado)
+            return self._ficha
+
+    class HorarioFalso:
+        def __init__(self, dia: object | None) -> None:
+            self.consultas: list[str] = []
+            self._dia = dia
+
+        def del_dia(self, codigo_universitario: str, dia: object) -> object | None:
+            self.consultas.append(codigo_universitario)
+            return self._dia
+
+    @staticmethod
+    def _ficha():
+        from guia.services.identidad_institucional import IdentidadInstitucional
+
+        return IdentidadInstitucional(
+            codigo="201811220",
+            nombre_completo="Billy Santos",
+            rol="Estudiante",
+            afiliacion="student",
+            nivel="Pregrado",
+        )
+
+    @staticmethod
+    def _horario_con_clase():
+        from datetime import date, datetime
+
+        from guia.services.horario_de_clases import HorarioDelDia, Sesion
+
+        return HorarioDelDia(
+            fecha=date(2026, 9, 9),
+            sesiones=[
+                Sesion(
+                    curso="Nutrición Pública II",
+                    aula="A-103",
+                    edificio="Pabellón A",
+                    inicio=datetime(2026, 9, 9, 7, 30),
+                    fin=datetime(2026, 9, 9, 9, 10),
+                )
+            ],
+        )
+
+    def _servicio(self, directorio: object, horario: object, agenda: object = None) -> ChatService:
+        return ChatService(
+            synthesis_llm=InMemoryLLMAdapter(canned_response="x", embedding_dim=8),
+            store=InMemoryVectorStoreAdapter(dim=8),
+            embedder=FakeEmbedder(),
+            classifier_llm=InMemoryLLMAdapter(canned_response="campus", embedding_dim=8),
+            directorio=directorio,  # type: ignore[arg-type]
+            horario=horario,  # type: ignore[arg-type]
+            agenda=agenda,  # type: ignore[arg-type]
+        )
+
+    async def test_el_codigo_del_horario_sale_de_midpoint(self) -> None:
+        directorio = self.DirectorioFalso(self._ficha())
+        horario = self.HorarioFalso(self._horario_con_clase())
+        servicio = self._servicio(directorio, horario)
+
+        respuesta = await servicio.answer(
+            ChatRequest(query="¿qué clases tengo hoy?", identidad_verificada="alguien@upeu.edu.pe")
+        )
+
+        assert directorio.consultas == ["alguien@upeu.edu.pe"]
+        assert horario.consultas == ["201811220"], "el código lo pone MidPoint, no el chat"
+        assert "Nutrición Pública II" in respuesta.answer
+        assert "A-103" in respuesta.answer
+        assert respuesta.model_used == "horarios"
+
+    async def test_el_horario_del_dia_gana_a_los_cursos_del_semestre(self) -> None:
+        """Un curso que dura 103 días no contesta "¿qué tengo hoy?"."""
+        agenda = AgendaFalsa(_agenda_con_clase())
+        servicio = self._servicio(
+            self.DirectorioFalso(self._ficha()),
+            self.HorarioFalso(self._horario_con_clase()),
+            agenda,
+        )
+
+        respuesta = await servicio.answer(
+            ChatRequest(query="¿qué clases tengo hoy?", identidad_verificada="alguien@upeu.edu.pe")
+        )
+
+        assert respuesta.model_used == "horarios"
+        assert agenda.consultas == [], "ni se consulta Indico si hay horario del día"
+
+    async def test_sin_horario_se_cae_a_los_cursos_del_semestre(self) -> None:
+        """Si el portal no responde, los cursos siguen siendo mejor que nada."""
+        agenda = AgendaFalsa(_agenda_con_clase())
+        servicio = self._servicio(
+            self.DirectorioFalso(self._ficha()), self.HorarioFalso(None), agenda
+        )
+
+        respuesta = await servicio.answer(
+            ChatRequest(query="¿qué clases tengo hoy?", identidad_verificada="alguien@upeu.edu.pe")
+        )
+
+        assert respuesta.model_used == "indico"
+        assert "Cálculo I" in respuesta.answer
+
+    async def test_si_midpoint_no_conoce_a_la_persona_no_se_pide_horario(self) -> None:
+        """Sin código no hay consulta posible: no se inventa un identificador."""
+        horario = self.HorarioFalso(self._horario_con_clase())
+        servicio = self._servicio(self.DirectorioFalso(None), horario)
+
+        respuesta = await servicio.answer(
+            ChatRequest(query="¿qué clases tengo hoy?", identidad_verificada="alguien@upeu.edu.pe")
+        )
+
+        assert horario.consultas == []
+        assert "no encuentro clases tuyas" in respuesta.answer.lower()

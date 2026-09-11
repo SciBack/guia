@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sciback_core.ports.llm import LLMMessage, LLMPort, LLMResponse
@@ -21,7 +22,10 @@ from guia.routing import CascadeRouter, IntentCategory, RouteDecision, Tier, cat
 from guia.services._bucket import assign_bucket
 from guia.services.lector_de_peticion import LectorDePeticion, hay_peticion
 from guia.services.orientacion import orientar
+from guia.services.horario_de_clases import HorarioDeClases, redactar_horario
+from guia.services.identidad_institucional import DirectorioInstitucional
 from guia.services.agenda_academica import (
+    Agenda,
     AgendaAcademica,
     es_consulta_sobre_uno_mismo,
     redactar,
@@ -477,6 +481,8 @@ class ChatService:
         settings: "GUIASettings | None" = None,
         agent_orchestrator: "AgentOrchestrator | None" = None,
         agenda: "AgendaAcademica | None" = None,
+        directorio: "DirectorioInstitucional | None" = None,
+        horario: "HorarioDeClases | None" = None,
         lector_de_peticion: "LectorDePeticion | None" = None,
     ) -> None:
         self._synthesis_llm = synthesis_llm
@@ -506,6 +512,10 @@ class ChatService:
         # configurada y las consultas sobre uno mismo caen al mensaje de
         # siempre, sin romperse.
         self._agenda = agenda
+        # MidPoint (quién es) y el portal de horarios (qué clase tiene hoy).
+        # None = este despliegue no los tiene configurados.
+        self._directorio = directorio
+        self._horario = horario
         # Gate 3 de "¿dice sobre qué buscar?". None = solo la lista, como antes.
         self._lector = lector_de_peticion
 
@@ -587,13 +597,23 @@ class ChatService:
     async def _responder_sobre_uno_mismo(self, request: ChatRequest) -> ChatResponse | None:
         """Contesta con los datos del que pregunta, si es que se sabe quién es.
 
-        Devuelve ``None`` cuando esto no le toca a esta rama —no hay agenda
-        configurada— para que el flujo siga por donde iba. Cuando sí le toca
-        pero no hay sesión, contesta pidiendo el login: es la respuesta útil,
-        y además dice en voz alta la regla, que de otro modo el usuario no
-        tiene forma de conocer.
+        Tres fuentes, cada una para lo suyo, y en este orden:
+
+        1. **MidPoint** resuelve el correo de la sesión a la persona: código
+           universitario, nombre, rol y nivel. Es la fuente canónica y tiene a
+           todo el mundo — frente a las 298 de 8.364 que tenía el plugin de
+           Indico, que es lo que hacía que GUIA no supiera nada del 96% de la
+           gente.
+        2. **El portal de horarios** convierte ese código en las clases de
+           hoy, con aula y hora. Es lo único que responde de verdad a "¿qué
+           clases tengo hoy?": los eventos de Indico son cursos de 103 días.
+        3. **Indico** queda para los cursos del semestre, cuando no hay
+           horario del día que dar.
+
+        Devuelve ``None`` si este despliegue no tiene ninguna configurada, para
+        que el flujo siga por donde iba.
         """
-        if self._agenda is None:
+        if self._directorio is None and self._horario is None and self._agenda is None:
             return None
 
         correo = request.identidad_verificada
@@ -614,14 +634,16 @@ class ChatService:
                 cached=False,
             )
 
-        # El correo de la sesión es el ÚNICO identificador que se manda. El
-        # texto de la consulta no interviene: si alguien escribe el correo de
-        # otra persona, se ignora, porque no llega hasta aquí.
-        agenda = await asyncio.to_thread(
-            self._agenda.de_quien_ha_iniciado_sesion, correo
-        )
+        # El correo de la sesión es el ÚNICO identificador que entra. El texto
+        # de la consulta no interviene: si alguien escribe el correo o el
+        # código de otra persona, se ignora, porque no llega hasta aquí.
+        identidad = None
+        if self._directorio is not None:
+            identidad = await asyncio.to_thread(
+                self._directorio.de_quien_ha_iniciado_sesion, correo
+            )
 
-        nombre = request.nombre_verificado
+        nombre = (identidad.nombre_completo if identidad else None) or request.nombre_verificado
         pregunta_por_identidad = any(
             marca in request.query.lower()
             for marca in ("sabes de m", "quién soy", "quien soy", "mis datos",
@@ -629,21 +651,48 @@ class ChatService:
         )
 
         if pregunta_por_identidad:
-            texto = redactar_identidad(agenda, correo=correo, nombre=nombre)
-        elif agenda is None:
-            texto = (
-                f"{nombre + ', n' if nombre else 'N'}o encuentro clases tuyas en Indico. "
-                "Si deberías tener alguna, revisa tu inscripción en "
-                "https://indico.upeu.edu.pe/"
+            agenda = await self._agenda_de(correo)
+            texto = redactar_identidad(
+                agenda, correo=correo, nombre=nombre, identidad=identidad
             )
-        else:
-            texto = redactar(agenda, nombre=nombre)
+            return self._respuesta_personal(texto, "midpoint")
 
+        # "¿Qué clases tengo hoy?" — el horario del día, si se puede.
+        if self._horario is not None and identidad is not None and identidad.codigo:
+            horario = await asyncio.to_thread(
+                self._horario.del_dia, identidad.codigo, datetime.now().date()
+            )
+            if horario is not None:
+                return self._respuesta_personal(
+                    redactar_horario(horario, nombre=nombre), "horarios"
+                )
+
+        # Sin horario del día, los cursos del semestre siguen sirviendo.
+        agenda = await self._agenda_de(correo)
+        if agenda is not None:
+            return self._respuesta_personal(redactar(agenda, nombre=nombre), "indico")
+
+        return self._respuesta_personal(
+            f"{nombre.split()[0] + ', n' if nombre else 'N'}o encuentro clases tuyas. "
+            "Si ya te matriculaste, puede que el horario aún no esté publicado — "
+            "revísalo en https://indico.upeu.edu.pe/student/",
+            "none",
+        )
+
+    async def _agenda_de(self, correo: str) -> "Agenda | None":
+        """Los cursos del semestre en Indico, si ese servicio está puesto."""
+        if self._agenda is None:
+            return None
+        return await asyncio.to_thread(self._agenda.de_quien_ha_iniciado_sesion, correo)
+
+    @staticmethod
+    def _respuesta_personal(texto: str, fuente: str) -> ChatResponse:
+        """Envoltorio común. Nunca se cachea: ver el paso 1c de ``answer``."""
         return ChatResponse(
             answer=texto,
             intent=Intent.CAMPUS,
             sources=[],
-            model_used="indico",
+            model_used=fuente,
             cached=False,
         )
 

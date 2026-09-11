@@ -109,6 +109,19 @@ class GUIASettings(BaseSettings):
     # consultar la agenda de nadie, ni siquiera la del que ha iniciado sesión,
     # y esas consultas caen al mensaje de "servicios de campus no disponibles".
     academic_identity_token: str = ""
+
+    # MidPoint — la fuente canónica de identidad. Sin esto GUIA solo conoce a
+    # las 298 personas que tiene el plugin de Indico, de 8.364 usuarios.
+    # La cuenta es svc-ai-identity: solo lectura y con allow-list de campos,
+    # así que no puede leer DNI, fecha de nacimiento ni foto.
+    midpoint_url: str = ""  # https://identity.upeu.edu.pe/midpoint
+    midpoint_svc_user: str = ""
+    midpoint_svc_pass: str = ""
+
+    # Portal de horarios (student-api). Es lo único que sabe qué clase toca
+    # hoy, en qué aula y a qué hora; los eventos de Indico son cursos de un
+    # semestre entero. Si está vacío, se usa indico_base_url.
+    horarios_base_url: str = ""
     # Si dspace/alicia están "pendientes" en este despliegue (no indexados aún),
     # los exponemos como links de exploración externa, no como fuente consultada.
     dspace_indexed: bool = False

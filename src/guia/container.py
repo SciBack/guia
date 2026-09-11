@@ -23,6 +23,8 @@ from guia.routing import (
 )
 from guia.search.backend import SearchAdapter, get_search_adapter
 from guia.services.agenda_academica import AgendaAcademica
+from guia.services.horario_de_clases import HorarioDeClases
+from guia.services.identidad_institucional import DirectorioInstitucional
 from guia.services.lector_de_peticion import LectorDePeticion
 from guia.services.agent_orchestrator import AgentOrchestrator
 from guia.services.cache import SemanticCache
@@ -369,6 +371,21 @@ class GUIAContainer:
         # que sí lo decían, que es el error caro.
         self.lector_de_peticion = LectorDePeticion(self.synthesis_llm)
 
+        # MidPoint: quién es quien pregunta (código, nombre, rol, nivel).
+        self.directorio: DirectorioInstitucional | None = None
+        if self.settings.midpoint_url and self.settings.midpoint_svc_user:
+            self.directorio = DirectorioInstitucional(
+                self.settings.midpoint_url,
+                self.settings.midpoint_svc_user,
+                self.settings.midpoint_svc_pass,
+            )
+
+        # Portal de horarios: qué clase tiene hoy, dónde y a qué hora.
+        base_horarios = self.settings.horarios_base_url or self.settings.indico_base_url
+        self.horario: HorarioDeClases | None = (
+            HorarioDeClases(base_horarios) if base_horarios else None
+        )
+
         self.chat_service = ChatService(
             synthesis_llm=self.synthesis_llm,
             store=self.store,
@@ -388,6 +405,8 @@ class GUIAContainer:
             settings=self.settings,
             agent_orchestrator=self.agent_orchestrator,
             agenda=self.agenda,
+            directorio=self.directorio,
+            horario=self.horario,
             lector_de_peticion=self.lector_de_peticion,
         )
 

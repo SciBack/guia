@@ -250,6 +250,7 @@ def redactar_identidad(
     *,
     correo: str,
     nombre: str | None = None,
+    identidad: object | None = None,
 ) -> str:
     """Responde a "¿qué sabes de mí?" con los datos del propio titular.
 
@@ -261,6 +262,19 @@ def redactar_identidad(
     lineas = [f"- **Correo institucional:** {correo}"]
     if nombre:
         lineas.insert(0, f"- **Nombre:** {nombre}")
+
+    # Lo que sabe MidPoint, que es la fuente canónica y cubre a todo el mundo.
+    # La allow-list de su cuenta de servicio deja fuera DNI, fecha de
+    # nacimiento y foto, así que aquí no puede aparecer nada de eso.
+    if identidad is not None:
+        for etiqueta, atributo in (
+            ("Código universitario", "codigo"),
+            ("Condición", "rol"),
+            ("Nivel", "nivel"),
+        ):
+            valor = getattr(identidad, atributo, None)
+            if valor:
+                lineas.append(f"- **{etiqueta}:** {valor}")
 
     if agenda is not None:
         if agenda.id_persona:
