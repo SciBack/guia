@@ -1,0 +1,50 @@
+# Medir la recuperación antes de tocar un peso
+
+`banco_de_consultas.py` son 14 consultas con **respuesta conocida**, cada una
+verificada contra su fuente. Cubren los tres tipos que se comportan distinto:
+
+- **léxico** — el usuario escribe palabras literales del título
+- **semántico** — describe el tema con otras palabras
+- **agregado** — pregunta por el conjunto, no por un documento
+
+La mezcla importa: BM25 gana en los léxicos y la rama vectorial en los
+semánticos, así que un peso medido solo con unos u otros miente.
+
+```bash
+docker exec guia-api-1 sh -c "cd /app && python /ruta/medir_pesos.py"
+```
+
+## Lo medido el 11-sep-2026
+
+| pesos (bm25/knn) | MRR fusión | MRR final | R@5 final | léxico | semántico | agregado |
+|---|---|---|---|---|---|---|
+| 0,3 / 0,7 *(anterior)* | 0,506 | 0,583 | 71% | 0,64 | 0,33 | 0,78 |
+| 0,4 / 0,6 | 0,510 | 0,583 | 71% | 0,64 | 0,33 | 0,78 |
+| **0,5 / 0,5** | 0,546 | **0,786** | **86%** | 0,79 | 0,83 | 0,72 |
+| 0,6 / 0,4 | 0,543 | 0,702 | 79% | 0,79 | 0,83 | 0,33 |
+| 0,7 / 0,3 | 0,597 | 0,702 | 79% | 0,79 | 0,83 | 0,33 |
+
+**La trampa está en la primera columna.** El MRR de la fusión sube
+monótonamente con el peso léxico —0,506 → 0,597— y aun así el resultado final
+empeora a partir de 0,5: las preguntas agregadas se desploman de 0,78 a 0,33.
+Quien optimice la fusión sin mirar lo que queda tras el reranking elegirá 0,7
+y empeorará el producto.
+
+Detalle del cambio 0,3/0,7 → 0,5/0,5, caso por caso: **cuatro documentos que
+no aparecían en absoluto pasan al primer puesto** (un proceso del SGC, una
+tesis de lixiviados, un evento y el organigrama) y **uno baja del 1 al 6**
+(«cómo está organizada la UPeU»), sin salirse de la vista.
+
+## Dos cosas que este banco no mide
+
+- **Es pequeño.** 14 casos dan señal, no precisión estadística. Un cambio de
+  dos o tres centésimas en el MRR no significa nada aquí.
+- **Mide recuperación, no redacción.** Que el documento salga primero no
+  garantiza que la respuesta lo use bien.
+
+## Hallazgo aparte
+
+`koha:28277` se indexa como «Contabilidad de costos» cuando el OPAC dice
+«Contabilidad de costos : un enfoque gerencial». **El subtítulo de Koha no se
+cosecha**, así que buscarlo por el título completo no lo encuentra. No afecta
+a esta comparación —falla igual con todos los pesos— pero es real.

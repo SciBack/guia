@@ -168,6 +168,21 @@ class GUIASettings(BaseSettings):
     # al límite final, o la fusión no tiene material que reordenar.
     search_candidates: int = 50
 
+    # Cuánto pesa la rama léxica (BM25) frente a la vectorial al fusionar. La
+    # vectorial se lleva el resto, así que 0.5 es el reparto a partes iguales.
+    #
+    # Estaba en 0.3 y se subió a 0.5 el 11-sep-2026 **midiendo**, no a ojo:
+    # sobre un banco de 14 consultas con respuesta conocida —léxicas,
+    # semánticas y agregadas— el MRR final pasó de 0,583 a 0,786 y el
+    # recall@5 del 71% al 86%. Cuatro documentos que no aparecían en absoluto
+    # pasaron al primer puesto; uno bajó del 1 al 6, sin salirse de la vista.
+    #
+    # Con 0.6 y 0.7 el MRR de la FUSIÓN sigue subiendo, pero el final baja:
+    # las preguntas agregadas ("¿qué áreas tiene la universidad?") se hunden
+    # de 0,78 a 0,33. Optimizar la fusión sola engaña — hay que mirar lo que
+    # queda después del reranking, que es lo que ve el usuario.
+    search_peso_lexico: float = 0.5
+
     # Reranking (cross-encoder) sobre el resultado de la fusión.
     rerank_enabled: bool = False
     # El sidecar de embeddings sirve también el reranker (una copia en RAM).

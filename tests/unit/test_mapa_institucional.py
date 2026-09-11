@@ -11,6 +11,8 @@ bien, y que una pregunta por un área no acabe ni en Koha ni en el limbo.
 
 from __future__ import annotations
 
+import pytest
+
 from guia.routing import category_to_intent
 from guia.routing.cascade import _category_to_tier_privacy
 from guia.routing.decision import IntentCategory, PrivacyLevel
@@ -327,3 +329,33 @@ class TestElTextoQueSeEmbebe:
         s04 = next(p for p in mapa.procesos if p.codigo == "S04")
 
         assert "Dirección de Tecnologías de Información" in s04.texto_para_buscar()
+
+
+class TestPesosDeLaFusion:
+    """El reparto entre la rama léxica y la vectorial se configura y se mide.
+
+    Estaba cableado en 0,3/0,7 como default de tres firmas distintas, así que
+    no había forma de cambiarlo sin tocar código. El 11-sep-2026 se midió
+    sobre un banco de 14 consultas con respuesta conocida y se movió a
+    0,5/0,5: MRR final de 0,583 a 0,786, recall@5 del 71% al 86%.
+    """
+
+    def test_el_reparto_suma_uno(self) -> None:
+        from guia.search.backend import SearchAdapter
+
+        sa = SearchAdapter(object(), peso_lexico=0.5)
+
+        assert sa._weights == (0.5, 0.5)
+
+    def test_el_peso_configurado_se_respeta(self) -> None:
+        from guia.search.backend import SearchAdapter
+
+        sa = SearchAdapter(object(), peso_lexico=0.7)
+
+        assert sa._weights == (0.7, pytest.approx(0.3))
+
+    def test_el_default_es_el_medido(self) -> None:
+        """Si alguien lo cambia sin medir, que al menos rompa un test."""
+        from guia.config import GUIASettings
+
+        assert GUIASettings.model_fields["search_peso_lexico"].default == 0.5

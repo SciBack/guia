@@ -81,6 +81,7 @@ class SearchAdapter:
         fusion: str = "rrf",
         rrf_k: int = 60,
         candidates: int = 50,
+        peso_lexico: float = 0.5,
         reranker: RerankClient | None = None,
     ) -> None:
         self._os = opensearch_port
@@ -88,6 +89,9 @@ class SearchAdapter:
         self._fusion = fusion
         self._rrf_k = rrf_k
         self._candidates = candidates
+        # (BM25, kNN). Se guarda ya repartido para que quien llame no tenga
+        # que acordarse de que suman uno.
+        self._weights = (peso_lexico, 1.0 - peso_lexico)
         self._reranker = reranker
 
     # ── M4: métodos async nativos ──────────────────────────────────────────────
@@ -96,7 +100,7 @@ class SearchAdapter:
         self,
         text: str,
         vector: list[float],
-        weights: tuple[float, float] = (0.3, 0.7),
+        weights: tuple[float, float] | None = None,
         filters: SearchFilters | None = None,
         limit: int = 5,
     ) -> list[dict[str, Any]]:
@@ -106,7 +110,9 @@ class SearchAdapter:
         ``limit``. Fallback a pgvector si OpenSearch falla.
         """
         try:
-            result: SearchResponse = await self._fused(text, vector, weights, filters)
+            result: SearchResponse = await self._fused(
+                text, vector, weights or self._weights, filters
+            )
         except Exception as exc:
             logger.warning("opensearch_hybrid_failed", extra={"exc": str(exc)})
             return await self._pgvector_fallback(vector, limit)
@@ -178,14 +184,14 @@ class SearchAdapter:
         self,
         text: str,
         vector: list[float],
-        weights: tuple[float, float] = (0.3, 0.7),
+        weights: tuple[float, float] | None = None,
         filters: SearchFilters | None = None,
     ) -> SearchResponse:
         """Retorna SearchResponse crudo — para casos donde se necesita el objeto completo."""
         return await self._os.hybrid(  # type: ignore[union-attr]
             text=text,
             vector=vector,
-            weights=weights,
+            weights=weights or self._weights,
             filters=filters,
         )
 
@@ -199,7 +205,7 @@ class SearchAdapter:
         self,
         text: str,
         vector: list[float],
-        weights: tuple[float, float] = (0.3, 0.7),
+        weights: tuple[float, float] | None = None,
         filters: SearchFilters | None = None,
         limit: int = 5,
     ) -> list[dict[str, Any]]:
@@ -209,7 +215,7 @@ class SearchAdapter:
         """
         try:
             result: SearchResponse = asyncio.run(
-                self._fused(text, vector, weights, filters)
+                self._fused(text, vector, weights or self._weights, filters)
             )
             hits = [_hit_to_dict(h) for h in result.hits]
             if self._reranker is not None:
@@ -262,6 +268,7 @@ def get_search_adapter(
         fusion = getattr(settings, "search_fusion", "rrf")
         rrf_k = getattr(settings, "search_rrf_k", 60)
         candidates = getattr(settings, "search_candidates", 50)
+        peso_lexico = getattr(settings, "search_peso_lexico", 0.5)
 
         reranker: RerankClient | None = None
         if getattr(settings, "rerank_enabled", False):
@@ -288,6 +295,7 @@ def get_search_adapter(
             fusion=fusion,
             rrf_k=rrf_k,
             candidates=candidates,
+            peso_lexico=peso_lexico,
             reranker=reranker,
         )
     except Exception as exc:
