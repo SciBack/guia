@@ -608,7 +608,7 @@ class HarvesterService:
         for aviso in getattr(mapa, "avisos", ()):
             logger.info("sgc_aviso: %s", aviso)
 
-        items: list[tuple[str, dict[str, object]]] = []
+        items: list[tuple[str, dict[str, object], str]] = []
 
         # El mapa entero como un documento: es lo único que puede responder
         # "¿qué áreas tiene la universidad?", que no se contesta buscando
@@ -623,24 +623,31 @@ class HarvesterService:
                         "kind": "mapa_institucional",
                         "source_type": "sgc",
                     },
+                    mapa.texto_para_buscar(),
                 )
             )
 
         items += [
-            (f"sgc:area:{a.codigo}", _area_a_metadata(a)) for a in mapa.areas
+            (f"sgc:area:{a.codigo}", _area_a_metadata(a), a.texto_para_buscar())
+            for a in mapa.areas
         ]
         items += [
-            (f"sgc:proceso:{p.codigo}", _proceso_a_metadata(p)) for p in mapa.procesos
+            (f"sgc:proceso:{p.codigo}", _proceso_a_metadata(p), p.texto_para_buscar())
+            for p in mapa.procesos
         ]
 
         total = ok = error = 0
         for inicio in range(0, len(items), batch_size):
             lote = items[inicio : inicio + batch_size]
             total += len(lote)
-            textos = [str(m.get("abstract") or m.get("title") or "") for _, m in lote]
+            # El texto que se embebe NO es el que se lee: va aparte, corto y
+            # en los términos en que la gente pregunta. Usar el contenido
+            # entero dejó el mapa —2.701 caracteres— con un vector diluido,
+            # el puesto 51 de 98 y sin salir en ninguna respuesta.
+            textos = [t[:_MAX_EMBEDDING_CHARS] for _, _, t in lote]
             try:
                 respuesta = self._embedder.embed_passages(textos)
-                for (doc_id, meta), vector in zip(
+                for (doc_id, meta, _texto), vector in zip(
                     lote, respuesta.embeddings, strict=False
                 ):
                     meta["source"] = "sgc"

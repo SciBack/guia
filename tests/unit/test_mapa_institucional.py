@@ -276,3 +276,54 @@ class TestResumenDelMapa:
 
         assert "Soporte: Gestión tecnológica" in resumen
         assert "Clave: Matrícula" in resumen
+
+
+class TestElTextoQueSeEmbebe:
+    """El vector se hace con la pregunta que el documento contesta.
+
+    El resumen del mapa son 2.701 caracteres de nombres de direcciones y E5
+    admite unos 1.500. Usándolo también como texto de embedding, la frase que
+    responde a "¿qué áreas tiene la universidad?" quedaba ahogada: BM25 lo
+    ponía **primero** y, tras fusionarlo con la rama vectorial —que pesa 0,7
+    frente a 0,3—, caía al puesto 51 de 98. No lo hundía el reranker: entraba
+    hundido.
+    """
+
+    def test_el_texto_de_busqueda_no_es_el_contenido(self) -> None:
+        mapa = _cliente(_AREAS, _PROCESOS).mapa()
+
+        assert mapa.texto_para_buscar() != mapa.resumen()
+
+    def test_el_texto_de_busqueda_cabe_en_el_embedder(self) -> None:
+        from guia.services.harvester import _MAX_EMBEDDING_CHARS
+
+        mapa = _cliente(_AREAS, _PROCESOS).mapa()
+
+        assert len(mapa.texto_para_buscar()) <= _MAX_EMBEDDING_CHARS
+
+    def test_lleva_las_palabras_con_las_que_se_pregunta(self) -> None:
+        mapa = _cliente(_AREAS, _PROCESOS).mapa()
+
+        texto = mapa.texto_para_buscar().lower()
+
+        assert "qué áreas tiene la universidad" in texto
+        assert "organigrama" in texto
+
+    def test_el_contenido_completo_sigue_en_el_resumen(self) -> None:
+        """La metadata es lossless: el modelo tiene que poder leerlo entero."""
+        mapa = _cliente(_AREAS, _PROCESOS).mapa()
+
+        assert "Dirección de Tecnologías de Información (DTI)" in mapa.resumen()
+
+    def test_un_area_tambien_separa_los_dos_textos(self) -> None:
+        mapa = _cliente(_AREAS, _PROCESOS).mapa()
+        dti = next(a for a in mapa.areas if a.codigo == "DTI")
+
+        assert dti.texto_para_buscar() != dti.como_texto()
+        assert "de qué se encarga" in dti.texto_para_buscar()
+
+    def test_un_proceso_nombra_a_su_area_en_el_texto_de_busqueda(self) -> None:
+        mapa = _cliente(_AREAS, _PROCESOS).mapa()
+        s04 = next(p for p in mapa.procesos if p.codigo == "S04")
+
+        assert "Dirección de Tecnologías de Información" in s04.texto_para_buscar()

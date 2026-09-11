@@ -77,6 +77,20 @@ class AreaInstitucional:
             partes.append(f"Responde de estos procesos institucionales: {nombres}.")
         return " ".join(partes)
 
+    def texto_para_buscar(self) -> str:
+        """Lo que se embebe, que no es lo mismo que lo que se lee.
+
+        La separación es la de siempre (ADR-037): el vector se hace con un
+        texto corto y centrado en **cómo se pregunta**, y el texto completo
+        vive en la metadata para que lo lea el modelo. Mezclarlas fue lo que
+        hundió el mapa — ver ``MapaInstitucional.texto_para_buscar``.
+        """
+        return (
+            f"{self.nombre} ({self.codigo}). Qué es, de qué se encarga, "
+            "qué servicios presta y qué procesos tiene a su cargo esta área "
+            "de la Universidad Peruana Unión."
+        )
+
 
 @dataclass(frozen=True)
 class ProcesoInstitucional:
@@ -110,6 +124,15 @@ class ProcesoInstitucional:
                 "ficha detallada aún no está aprobada."
             )
         return " ".join(partes)
+
+    def texto_para_buscar(self) -> str:
+        """Ídem: corto y en los términos en que se pregunta por un proceso."""
+        de_quien = f" Lo lleva {self.area}." if self.area else ""
+        return (
+            f"{self.nombre} ({self.codigo}). Proceso institucional de la "
+            f"Universidad Peruana Unión: en qué consiste y quién responde de "
+            f"él.{de_quien}"
+        )
 
 
 @dataclass(frozen=True)
@@ -158,6 +181,27 @@ class MapaInstitucional:
             for nivel, nombres in por_nivel.items():
                 lineas.append(f"- {nivel}: {', '.join(nombres[:12])}")
         return "\n".join(lineas)
+
+    def texto_para_buscar(self) -> str:
+        """El vector de este documento, que NO es su contenido.
+
+        Aquí estaba el fallo. El resumen entero —2.701 caracteres de nombres
+        de direcciones y procesos— se usaba también como texto de embedding,
+        y E5 admite unos 1.500: la frase que de verdad responde a "¿qué áreas
+        tiene la universidad?" quedaba ahogada entre cincuenta nombres
+        propios. Medido el 11-sep-2026: BM25 lo ponía **primero**, y tras
+        fusionarlo con la rama vectorial —que pesa 0,7 frente a 0,3— caía al
+        puesto 51 de 98. No lo hundía el reranker: entraba hundido.
+
+        Así que el vector se hace con la pregunta que el documento contesta,
+        y el contenido se queda en la metadata, donde el modelo lo lee entero.
+        """
+        return (
+            "Áreas y estructura de la Universidad Peruana Unión. "
+            "Qué áreas tiene la universidad, qué direcciones, oficinas y "
+            "unidades existen, cómo está organizada, organigrama, "
+            "estructura orgánica, mapa de procesos institucionales."
+        )
 
 
 def _texto(valor: object) -> str | None:
