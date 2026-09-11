@@ -107,3 +107,41 @@ escapado y OAI lo volvió a escapar al serializar. Mostrado tal cual, el usuario
 lee las entidades en medio de la frase. El adaptador lo desescapa hasta punto
 fijo y quita las etiquetas de énfasis. Es una limpieza defensiva: el dato sucio
 sigue estando en el CRIS.
+
+## Cosechar no es publicar: el reindex es obligatorio
+
+`harvest` escribe **solo en pgvector**. El buscador lee de **OpenSearch**, y
+OpenSearch se llena con un paso aparte:
+
+```bash
+python -m guia reindex --target opensearch --source cris
+```
+
+Es fácil no darse cuenta, porque la cosecha termina diciendo «Cosecha
+completada» con 0 errores y todo parece hecho. El 11-sep-2026 una recosecha
+entera de Koha —46.778 registros, 0 errores— dejó el índice de búsqueda
+exactamente igual que antes: los usuarios habrían seguido viendo los mismos
+enlaces rotos.
+
+**Regla: después de cada `harvest`, un `reindex --source <fuente>`.** Y si la
+cosecha reemplaza documentos en vez de añadirlos, hay que borrar los viejos en
+las dos capas, porque el reindex añade pero no retira lo que sobra.
+
+### Cómo se separan los documentos viejos de los nuevos
+
+`sciback_vectors` tiene `updated_at`, y un upsert lo actualiza. Eso basta: lo
+que la cosecha tocó lleva la fecha de hoy, y lo que no tocó es lo que quedó
+huérfano.
+
+```sql
+DELETE FROM sciback_vectors
+WHERE metadata->>'source' = 'koha' AND updated_at < '2026-09-11';
+```
+
+Es más fiable que marcar los documentos antes de cosechar, que fue el primer
+intento: la marca se puso en OpenSearch y allí no sirve para limpiar pgvector.
+
+Y es seguro por construcción: si un documento viejo tenía ya el identificador
+correcto, la cosecha lo actualizó —fecha de hoy— y no entra en el borrado.
+Comprobado antes de ejecutarlo: de los 12.369 que iban a caer, ninguno de la
+muestra existía en el OPAC. Eran posiciones de cosecha, no `biblionumber`.
