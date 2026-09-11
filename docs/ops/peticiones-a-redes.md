@@ -29,53 +29,49 @@ es una Elastic IP y no baila, pero es un dato duplicado que envejece solo.
 
 ---
 
-## 2. Puerto 3306/TCP hacia la base de datos de Koha
+## 2. Puerto 3306 hacia la base de Koha — EN ESPERA, el host estaba mal
 
-**Qué pedir:** permitir `192.168.15.167 → 192.168.12.130 : 3306/TCP`.
+**No pedir todavía.** La petición decía `192.168.12.130:3306`, y ese host
+**no es la base del Koha que GUIA cosecha**. Comprobado el 11-sep-2026:
 
-**Lo importante: la ruta entre las dos subredes ya existe.** No hay que abrir
-un camino nuevo, solo un puerto en uno que ya funciona. Medido desde el .167:
-
-| destino | estado |
-|---|---|
-| `192.168.12.130:80` | **abierto** |
-| `192.168.12.130:3306` | cerrado / timeout |
-| `192.168.12.130:443` | cerrado / timeout |
-| `192.168.12.135:22` | cerrado / timeout |
-
-Las credenciales ya existen y funcionan (usuario `ticrai`, probado desde la
-VPN): no hay que crear nada en el gestor de base de datos.
-
-### Qué se gana, medido sobre 1.500 registros
-
-GUIA cosecha hoy el catálogo por la **REST API**, que no expone parte de los
-metadatos. La vía de base de datos da:
-
-| campo | REST (hoy) | base de datos |
+| evidencia | `koha_bul` en 192.168.12.130 | lo que sirve la REST / el OPAC |
 |---|---|---|
-| tabla de contenidos (MARC 505) | **0%** | **99%** |
-| materias (MARC 650) | **0%** | **72%** |
-| resumen | 3% | 99% |
-| año de publicación | 98% *(ya arreglado)* | 97% |
-| editorial | 95% | 99% |
+| registros | 34.944, ids dispersos hasta 63.370 | ~46.681, ids densos desde 1 |
+| biblionumber 12987 | «Diagnóstico normativo de los derechos sexuales» | «Introducción a la seguridad y salud en el trabajo» |
+| biblionumber 28277 | no existe | «Contabilidad de costos : un enfoque gerencial» |
 
-Lo que de verdad justifica la petición es el **TOC y las materias**: son texto
-descriptivo del contenido, que es lo que alimenta la búsqueda semántica. Año y
-subtítulo ya se resolvieron por REST el 11-sep, así que la urgencia bajó.
+Son **catálogos distintos**. El secreto `koha-prod.env` tiene
+`KOHA_PROD_DB_HOST=192.168.12.130` junto a
+`KOHA_PROD_URL=https://biblioteca-staff.upeu.edu.pe`, y esas dos líneas no
+apuntan al mismo sistema.
 
-### Y algo que hay que hacer de nuestro lado antes
+**Dónde está el Koha de producción:** `biblioteca-staff.upeu.edu.pe` y
+`biblioteca.upeu.edu.pe` resuelven a **190.239.28.82** desde fuera y a
+**192.168.12.199** por la VPN — el balanceador. Ahí están abiertos 22, 80 y
+443, pero **no el 3306**, así que su base vive en otra máquina, detrás. Las
+credenciales SSH del secreto (las del `.135`) no sirven en el `.199`.
 
-**Hay cuatro bibliotecas, no una**, y el adaptador solo sabe leer una base:
+### Antes de pedir nada hay que aclarar
 
-| base | registros |
-|---|---|
-| `koha_bul` (Lima) | 34.944 |
-| `koha_buj` (Juliaca) | 9.512 |
-| `koha_but` (Tarapoto) | 3.117 |
-| `koha_cia` | 2.417 |
-| **total** | **49.990** |
+1. **Qué es el Koha del `.130`**, con sus cuatro bases por campus
+   (`koha_bul` 34.944, `koha_buj` 9.512, `koha_but` 3.117, `koha_cia` 2.417).
+   ¿El sistema anterior a unificar el catálogo? ¿Otra unidad?
+2. **Dónde está la base del Koha que sirve `biblioteca-staff`**, que es el que
+   GUIA cosecha y el que ve el usuario en el OPAC.
 
-La REST las sirve todas (46.778 cosechados). Cambiar a la vía de base de datos
-tal como está **perdería tres campus**. Así que el puerto no basta: hace falta
-además que `sciback-adapter-koha` coseche varias bases. Pedir el puerto sin
-ese trabajo no sirve de nada.
+Solo entonces tiene sentido pedir un puerto — y saber hacia dónde.
+
+### Lo que ya sabemos que hará falta de nuestro lado
+
+Si la base de producción resulta tener **varias bases por campus**, el
+adaptador necesita dos cosas, no una:
+
+- **Cosechar varias bases**, que hoy no sabe: `KohaSettings.db_name` es una.
+- **Identificadores con la biblioteca dentro.** Los `biblionumber` se repiten
+  entre campus: medido, **5.204 existen a la vez en Lima y Juliaca**, y son
+  libros distintos. Con el id actual (`koha:28277`) se pisarían miles de
+  registros y se mezclarían catálogos. Tendría que ser `koha:bul:28277`, lo
+  que además cambia el enlace al OPAC de cada campus.
+
+Ese cambio de identificador no es menor: reindexa el catálogo entero y rompe
+los ids ya guardados.
