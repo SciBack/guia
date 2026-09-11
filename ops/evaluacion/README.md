@@ -48,3 +48,28 @@ tesis de lixiviados, un evento y el organigrama) y **uno baja del 1 al 6**
 «Contabilidad de costos : un enfoque gerencial». **El subtítulo de Koha no se
 cosecha**, así que buscarlo por el título completo no lo encuentra. No afecta
 a esta comparación —falla igual con todos los pesos— pero es real.
+
+## Segunda medición, 11-sep-2026 — tras arreglar Koha
+
+Repetida después de recosechar el catálogo con el **título compuesto** (con su
+subtítulo) y el **año real** en vez de la fecha de catalogación:
+
+| pesos (bm25/knn) | MRR fusión | MRR final | R@5 final | léxico | semántico | agregado |
+|---|---|---|---|---|---|---|
+| 0,3 / 0,7 | 0,519 | 0,583 | 71% | 0,69 | 0,58 | 0,33 |
+| 0,4 / 0,6 | 0,357 | 0,464 | 64% | 0,40 | 0,33 | 0,78 |
+| **0,5 / 0,5** *(configurado)* | 0,483 | **0,772** | **93%** | 0,83 | 0,83 | 0,55 |
+| 0,6 / 0,4 | 0,473 | 0,738 | 86% | 0,86 | 0,83 | 0,33 |
+| 0,7 / 0,3 | 0,529 | 0,738 | 86% | 0,86 | 0,83 | 0,33 |
+
+**El recall sube del 86% al 93%**: 13 de los 14 casos tienen su documento en
+los cinco primeros. Lo gana «Contabilidad de costos un enfoque gerencial», que
+**no aparecía con ninguna configuración** —su título estaba indexado sin el
+subtítulo— y ahora sale en el puesto 2. El único que se queda fuera es «cómo
+está organizada la UPeU», en el 7.
+
+El MRR final baja tres milésimas (0,786 → 0,772). **Eso no significa nada
+aquí**: con 14 casos, cada uno pesa 0,07, y los tres agregados hacen saltar su
+columna entre 0,33 y 0,78 según qué posición cambie. La conclusión firme es la
+que se repite en las dos medidas: 0,5/0,5 gana, y las dos columnas de la
+izquierda siguen sin predecir la de la derecha.

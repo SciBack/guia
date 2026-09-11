@@ -19,6 +19,7 @@ c = GUIAContainer(GUIASettings())
 sa = c.search_adapter
 
 PESOS = [(0.3, 0.7), (0.4, 0.6), (0.5, 0.5), (0.6, 0.4), (0.7, 0.3)]
+_PESO_CONFIGURADO = getattr(GUIASettings(), "search_peso_lexico", 0.5)
 
 def ident(x):
     if isinstance(x, dict):
@@ -61,7 +62,10 @@ async def main():
         filas = await medir(pesos)
         (mrr_f, _), (mrr_r, r5_r), por_tipo = resumen(filas)
         detalle = "  ".join(f"{t[:3]}={por_tipo[t][0]:.2f}" for t in por_tipo)
-        marca = "  ← actual" if pesos == (0.3, 0.7) else ""
+        # El configurado sale de settings, no de una constante aquí: si se
+        # cambia search_peso_lexico y esta marca se queda fija, la tabla
+        # señala como "actual" lo que ya no lo es.
+        marca = "  ← actual" if abs(pesos[0] - _PESO_CONFIGURADO) < 1e-9 else ""
         print(f"  bm25={pesos[0]} knn={pesos[1]}  {mrr_f:>10.3f} {mrr_r:>10.3f} {r5_r:>10.0%}   {detalle}{marca}")
 
 asyncio.run(main())
