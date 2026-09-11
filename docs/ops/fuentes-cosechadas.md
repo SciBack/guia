@@ -246,3 +246,48 @@ registro traía TOC o abstract — sin ellos el subtítulo se perdía igual.
 > Los identificadores son estables (`koha:<biblionumber>`), así que la
 > recosecha **actualiza** los registros existentes. No hay que borrar nada
 > después, a diferencia de la recosecha del 11-sep que arregló los ids.
+
+## Koha: el índice de capítulos y las materias, por la misma REST
+
+El JSON de conveniencia de `/api/v1/biblios` **no** expone MARC 505 (tabla de
+contenidos) ni 650 (materias). El **mismo endpoint paginado** sí, con
+`Accept: application/marc-in-json`. Dos peticiones por página —no por
+registro—: 936 en total sobre el catálogo.
+
+Medido contra el Koha real, sobre 300 registros: **98% con TOC, 82% con
+materias**, donde antes se indexaba el 0% de ambas. De *Redacción en
+relaciones públicas* se indexaba solo el título; ahora también «Las relaciones
+públicas. Conceptos y funciones — La redacción — Herramientas para la
+planificación y gestión de las organizaciones — …», que es el texto que de
+verdad describe el libro.
+
+El TOC entra como **respaldo del resumen** (solo el 3% del catálogo tiene
+resumen real) y las materias van también a `keywords`, que es lo que lee el
+embedding: las puso un bibliotecario y describen el contenido mejor que el
+título.
+
+### Dos trampas, las dos descubiertas contra datos reales
+
+**No emparejar por `999$c`.** Es donde Koha guarda el biblionumber, pero en
+este catálogo el `999` lleva además los datos del ejemplar y algunos registros
+traen **dos**: el segundo pisa la clave del primero. Con eso, «Redacción en
+relaciones públicas» acabó indexado con el índice de capítulos de «The nature
+and destiny of man». Los tests pasaban; solo apareció al cosechar de verdad.
+
+Ahora se empareja **por posición** —Koha devuelve las dos listas en el mismo
+orden, comprobado con `per_page` 5 y 100— y se **valida contra el título**
+antes de usar el MARC. Ante la duda, ninguno: un registro sin TOC es
+incompleto, uno con el TOC de otro libro es incorrecto.
+
+**La cosecha se vuelve ~3,7 veces más lenta**: de 16 a 4,3 registros por
+segundo, unas 3 horas para el catálogo entero. Es el precio de la petición
+extra y del texto añadido a embeber. No afecta al cron diario, que solo
+refresca el mapa institucional; Koha se cosecha a mano.
+
+### Dónde está Koha de verdad
+
+`192.168.12.136` (`koha-plus-prod.upeu`), con MariaDB en la misma máquina,
+base `koha_upeu`, 46.678 registros. El `192.168.12.130` / `koha_bul` que
+figuraba en `koha-prod.env` es **otro Koha**, con cuatro bases por campus y
+un catálogo distinto: allí el biblionumber 12987 es otro libro y el 28277 no
+existe.
