@@ -7,6 +7,7 @@ Estado al **11-sep-2026**, medido sobre el índice de producción.
 | Catálogo de la biblioteca | `koha` | 34.971 | REST API de Koha |
 | Repositorio institucional (tesis) | `dspace` | 10.443 | OAI-PMH |
 | **Producción científica (CRIS)** | **`cris`** | **1.996** | **OAI-PMH** |
+| **Mapa institucional (SGC)** | **`sgc`** | **148** | **REST de Frappe** |
 | Revistas | `ojs` | 744 | OAI-PMH |
 | Eventos | `indico` | 102 | Export API |
 
@@ -145,3 +146,53 @@ Y es seguro por construcción: si un documento viejo tenía ya el identificador
 correcto, la cosecha lo actualizó —fecha de hoy— y no entra en el borrado.
 Comprobado antes de ejecutarlo: de los 12.369 que iban a caer, ninguno de la
 muestra existía en el OPAC. Eran posiciones de cosecha, no `biblionumber`.
+
+## El mapa institucional, y lo que todavía no recupera bien
+
+Desde el 11-sep-2026 GUIA indexa el mapa de procesos del SGC: **51 áreas y 96
+procesos**, más un documento con el mapa entero. Con eso responde bien "¿qué
+servicios ofrece la DTI?" y "¿quién responde del proceso de matrícula?" —
+antes las clasificaba como *fuera de alcance*.
+
+**Lo que la fuente no da todavía**, y conviene no prometerlo: 70 de los 96
+procesos no tienen área propietaria asignada, ninguno tiene responsable, y los
+96 están en `Borrador` porque las fichas SIPOC no se han entregado. Sirve para
+"de qué responde un área", no para "dónde tramito mi constancia". Cada
+documento viaja con su estado y el prompt obliga a decirlo.
+
+### Pendiente: la pregunta agregada no se recupera
+
+`¿qué áreas tiene la universidad?` **todavía falla**. El diagnóstico está
+hecho y el fallo no está donde parecía:
+
+- el documento `sgc:mapa` existe en el índice y lo dice todo;
+- **BM25 lo ranquea primero**, con 10,2 frente a 7,3 del segundo;
+- pero tras la fusión híbrida y el reranking **no aparece en el top-8**: salen
+  libros de Koha sobre universidades en general.
+
+O sea: no es indexación ni redacción del documento, es recuperación — la rama
+vectorial o el cross-encoder lo hunden. Mirar ahí, no en la cosecha.
+
+### DNS: `calidad.upeu.edu.pe` no resuelve dentro
+
+El `.167` resuelve contra los DNS internos `192.168.13.96/.97`, autoritativos
+para `upeu.edu.pe`, y **no tienen el registro `calidad`** — el DNS público sí
+(3.18.90.66), y el servidor alcanza esa IP sin problema. Mientras Redes no lo
+publique, el `docker-compose.upeu.yml` lleva un `extra_hosts`. Es una Elastic
+IP, así que no baila; quitarlo cuando el registro exista.
+
+## La actualización diaria
+
+`ops/cron/actualizacion-diaria.sh`, a las 03:40 (`/etc/cron.d/guia-diario`):
+cosecha el SGC, **lo publica en OpenSearch** y recuenta el índice. Los tres
+pasos, en ese orden. Las fuentes grandes no se tocan ahí: son horas y cambian
+despacio.
+
+El recuento va por `POST /api/transparency/recalcular`, cerrado a `127.0.0.1`
+— y el `curl` corre **dentro del contenedor**, porque desde el host la
+petición llega con la IP de la gateway de Docker y responde 404.
+
+> Al escribir el `/etc/cron.d`: una asignación vacía (`VAR=`) hace que cron
+> **descarte el archivo entero**, en silencio y sin dejar nada en syslog. Eso
+> tuvo al CRIS dos meses y medio sin ejecutar ni el mantenimiento ni los
+> backups. Si una variable va vacía, entrecomíllala: `VAR=""`.
