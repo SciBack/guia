@@ -67,6 +67,28 @@ _GREETING_PATTERNS = [
 ]
 
 
+# ── Preguntas por el propio sitio en la institución ──────────────────────
+
+# "De qué responde mi área" empieza por un posesivo, pero no pide datos de
+# nadie: pide el mapa de procesos, resuelto con la unidad que el IGA ya
+# conoce. Sin esta regla el "mi" arrastraba la consulta a campus_personal, y
+# CAMPUS busca en el catálogo de Koha — así que la respuesta acababa siendo
+# "los servicios de campus aún no están disponibles". Comprobado en
+# producción el 11-sep-2026.
+#
+# Va ANTES que campus_personal a propósito: es la excepción más específica.
+# Se comparte con ``acceso_iga.aporta_contexto``, que decide con la misma
+# señal si la respuesta puede cachearse.
+_LO_MIO_INSTITUCIONAL_PATTERNS = [
+    re.compile(
+        r"\b(mi|mis)\s+(area|areas|unidad|unidades|oficina|direccion"
+        r"|departamento|facultad|escuela|jefatura|equipo)\b"
+    ),
+    re.compile(r"\b(a\s+quien|con\s+quien)\s+(le\s+)?(pido|solicito|acudo|hablo)\b"),
+    re.compile(r"\bde\s+que\s+(responde|se\s+encarga)\s+mi\b"),
+]
+
+
 # ── Patrones inequívocos de campus_personal (ALWAYS_LOCAL) ────────────────
 
 # Posesivos en primera persona referidos a datos académico-administrativos.
@@ -136,6 +158,18 @@ class RuleBasedRouter:
                 t0,
                 f"command: {normalized.split()[0]}",
             )
+
+        # 1b. El propio sitio en la institución. Antes que campus_personal:
+        # lleva posesivo pero no pide datos personales, y CAMPUS iría a Koha.
+        for pat in _LO_MIO_INSTITUCIONAL_PATTERNS:
+            if pat.search(normalized):
+                return self._decision(
+                    IntentCategory.INSTITUCIONAL,
+                    Tier.T1_STD,
+                    PrivacyLevel.CLOUD_OK,
+                    t0,
+                    f"institucional_propio: {pat.pattern[:40]}",
+                )
 
         # 2. Campus personal (ALWAYS_LOCAL — no se negocia)
         for pat in _CAMPUS_PERSONAL_PATTERNS:

@@ -203,3 +203,41 @@ class TestUnaSolaConsultaAlIga:
 
         assert "9610165" not in repr(quien).replace("codigo='9610165'", "")
         assert "ficha=" not in repr(quien)
+
+
+class TestEnrutadoDeLoMioInstitucional:
+    """"Mi área" lleva posesivo pero no pide datos de nadie.
+
+    Sin regla propia, el "mi" arrastraba la consulta a campus_personal — y
+    CAMPUS busca en el catálogo de Koha, así que la respuesta en producción
+    era "los servicios de campus aún no están disponibles".
+    """
+
+    def test_mi_area_se_enruta_como_institucional(self) -> None:
+        from guia.routing.decision import IntentCategory
+        from guia.routing.rules import RuleBasedRouter
+
+        d = RuleBasedRouter().decide("de que responde mi area")
+
+        assert d is not None
+        assert d.intent is IntentCategory.INSTITUCIONAL
+
+    def test_mis_notas_sigue_siendo_personal_y_local(self) -> None:
+        """La excepción no puede llevarse por delante lo que sí es privado."""
+        from guia.routing.decision import IntentCategory, PrivacyLevel
+        from guia.routing.rules import RuleBasedRouter
+
+        d = RuleBasedRouter().decide("mis notas del semestre")
+
+        assert d is not None
+        assert d.intent is IntentCategory.CAMPUS_PERSONAL
+        assert d.privacy is PrivacyLevel.ALWAYS_LOCAL
+
+    def test_mi_horario_sigue_siendo_personal(self) -> None:
+        from guia.routing.decision import IntentCategory
+        from guia.routing.rules import RuleBasedRouter
+
+        d = RuleBasedRouter().decide("cual es mi horario")
+
+        assert d is not None
+        assert d.intent is IntentCategory.CAMPUS_PERSONAL
