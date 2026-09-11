@@ -160,18 +160,39 @@ procesos no tienen área propietaria asignada, ninguno tiene responsable, y los
 "de qué responde un área", no para "dónde tramito mi constancia". Cada
 documento viaja con su estado y el prompt obliga a decirlo.
 
-### Pendiente: la pregunta agregada no se recupera
+### La pregunta agregada: por qué fallaba, y no era el reranker
 
-`¿qué áreas tiene la universidad?` **todavía falla**. El diagnóstico está
-hecho y el fallo no está donde parecía:
+`¿qué áreas tiene la universidad?` no recuperaba el mapa. La sospecha inicial
+—que lo hundía el reranking— **era falsa**, y medirlo lo dejó claro:
 
-- el documento `sgc:mapa` existe en el índice y lo dice todo;
-- **BM25 lo ranquea primero**, con 10,2 frente a 7,3 del segundo;
-- pero tras la fusión híbrida y el reranking **no aparece en el top-8**: salen
-  libros de Koha sobre universidades en general.
+| | posición de `sgc:mapa` |
+|---|---|
+| BM25 puro | **1** |
+| tras la fusión híbrida | **51 de 98** |
 
-O sea: no es indexación ni redacción del documento, es recuperación — la rama
-vectorial o el cross-encoder lo hunden. Mirar ahí, no en la cosecha.
+Entraba hundido. La causa estaba en la cosecha: el resumen del mapa son
+**2.701 caracteres** y se usaba *también* como texto de embedding, cuando E5
+admite unos 1.500. La frase que responde a la pregunta quedaba ahogada entre
+cincuenta nombres de direcciones, y con la rama vectorial pesando 0,7 frente
+a 0,3 del léxico, ganar en BM25 no bastaba.
+
+Es la separación que el harvester ya tenía y que `harvest_sgc` se saltó
+(ADR-037: capa A *lossy* para el vector, capa B *lossless* para leer). Ahora
+cada objeto tiene `texto_para_buscar()` —corto y en los términos en que la
+gente pregunta— aparte de `como_texto()` / `resumen()`, que siguen completos
+en la metadata.
+
+**El reranker, medido después, juega a favor en los tres casos:**
+
+| consulta | tras la fusión | tras el reranker |
+|---|---|---|
+| «qué áreas tiene la universidad» | 1 | **1** |
+| «cómo está organizada la UPeU» | 6 | **1** |
+| «organigrama de la universidad» | 12 | **3** |
+
+Un apunte para no confundirse al mirar una respuesta: el listado que ve el
+usuario **agrupa por fuente**, no por score. Que un libro de Koha aparezca
+arriba del listado no significa que haya ganado el ranking.
 
 ### DNS: `calidad.upeu.edu.pe` no resuelve dentro
 
