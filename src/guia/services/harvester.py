@@ -608,7 +608,25 @@ class HarvesterService:
         for aviso in getattr(mapa, "avisos", ()):
             logger.info("sgc_aviso: %s", aviso)
 
-        items: list[tuple[str, dict[str, object]]] = [
+        items: list[tuple[str, dict[str, object]]] = []
+
+        # El mapa entero como un documento: es lo único que puede responder
+        # "¿qué áreas tiene la universidad?", que no se contesta buscando
+        # documento a documento porque ninguno contiene la lista.
+        if not mapa.esta_vacio:
+            items.append(
+                (
+                    "sgc:mapa",
+                    {
+                        "title": "Áreas y estructura de la Universidad Peruana Unión",
+                        "abstract": mapa.resumen(),
+                        "kind": "mapa_institucional",
+                        "source_type": "sgc",
+                    },
+                )
+            )
+
+        items += [
             (f"sgc:area:{a.codigo}", _area_a_metadata(a)) for a in mapa.areas
         ]
         items += [

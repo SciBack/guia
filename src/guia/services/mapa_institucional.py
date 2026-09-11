@@ -124,6 +124,41 @@ class MapaInstitucional:
     def esta_vacio(self) -> bool:
         return not self.areas and not self.procesos
 
+    def resumen(self) -> str:
+        """Un solo texto con el mapa entero, para las preguntas agregadas.
+
+        "¿Qué áreas tiene la universidad?" no se responde buscando documento a
+        documento: cada área es un documento suyo y ninguno contiene la lista.
+        Comprobado el 11-sep-2026 — con las 51 áreas indexadas, esa pregunta
+        devolvía documentos sobre universidades en general.
+
+        Así que el mapa se indexa también entero, como un documento más. Es la
+        respuesta a la pregunta que la gente hace primero.
+        """
+        direcciones = [a for a in self.areas if not a.padre]
+        lineas = [
+            "Áreas y estructura de la Universidad Peruana Unión. "
+            f"La universidad tiene {len(self.areas)} unidades orgánicas "
+            f"—direcciones, oficinas y unidades— y {len(self.procesos)} "
+            "procesos en su mapa de procesos institucional.",
+            "",
+            "Unidades principales:",
+        ]
+        lineas += [
+            f"- {a.nombre} ({a.codigo})" + (f", {a.tipo}" if a.tipo else "")
+            for a in direcciones
+        ]
+
+        por_nivel: dict[str, list[str]] = {}
+        for pr in self.procesos:
+            if pr.nivel:
+                por_nivel.setdefault(pr.nivel, []).append(pr.nombre)
+        if por_nivel:
+            lineas += ["", "Procesos por nivel:"]
+            for nivel, nombres in por_nivel.items():
+                lineas.append(f"- {nivel}: {', '.join(nombres[:12])}")
+        return "\n".join(lineas)
+
 
 def _texto(valor: object) -> str | None:
     return valor.strip() if isinstance(valor, str) and valor.strip() else None

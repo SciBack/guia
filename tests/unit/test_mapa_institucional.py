@@ -247,3 +247,32 @@ class TestDsnDeLaAnalitica:
             _dsn_para_psycopg("postgresql://u:p@host/db")
             == "postgresql://u:p@host/db"
         )
+
+
+class TestResumenDelMapa:
+    """La pregunta que la gente hace primero es agregada, no puntual."""
+
+    def test_el_resumen_cuenta_areas_y_procesos(self) -> None:
+        mapa = _cliente(_AREAS, _PROCESOS).mapa()
+
+        resumen = mapa.resumen()
+
+        assert "2 unidades orgánicas" in resumen
+        assert "2 procesos" in resumen
+
+    def test_el_resumen_lista_las_unidades_de_primer_nivel(self) -> None:
+        """DTI-INFRA cuelga de DTI: en el listado de cabecera sobra."""
+        mapa = _cliente(_AREAS, _PROCESOS).mapa()
+
+        resumen = mapa.resumen()
+
+        assert "Dirección de Tecnologías de Información (DTI)" in resumen
+        assert "DTI-INFRA" not in resumen
+
+    def test_el_resumen_agrupa_los_procesos_por_nivel(self) -> None:
+        mapa = _cliente(_AREAS, _PROCESOS).mapa()
+
+        resumen = mapa.resumen()
+
+        assert "Soporte: Gestión tecnológica" in resumen
+        assert "Clave: Matrícula" in resumen
