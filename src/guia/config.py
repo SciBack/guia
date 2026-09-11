@@ -112,6 +112,14 @@ class GUIASettings(BaseSettings):
     # Si queda vacío se deriva de dspace_cris_base_url + /server/oai/request,
     # que es donde lo pone DSpace 7 y donde está en UPeU (comprobado).
     dspace_cris_oai_url: str = ""
+
+    # SGC — el sistema de gestión de la calidad, que es donde vive el mapa de
+    # procesos aprobado por la DPGC. De ahí sale lo que GUIA sabe de la
+    # estructura de la universidad: qué áreas hay y de qué responde cada una.
+    # Sin esto GUIA vuelve a ser solo un buscador de documentos.
+    sgc_base_url: str = ""  # ej. https://calidad.upeu.edu.pe
+    sgc_api_key: str = ""
+    sgc_api_secret: str = ""
     alicia_base_url: str = "https://alicia.concytec.gob.pe"
     indico_base_url: str = ""  # ej. https://indico.upeu.edu.pe
     # Token de servicio de la ruta /academic-identity/ de Indico — el mismo

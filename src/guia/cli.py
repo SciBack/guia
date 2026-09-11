@@ -67,7 +67,7 @@ def serve(
 @app.command()
 def harvest(
     source: str = typer.Option(
-        "all", help="Fuente: dspace | cris | ojs | alicia | koha | indico | all"
+        "all", help="Fuente: dspace | cris | ojs | alicia | koha | indico | sgc | all"
     ),
     from_date: str | None = typer.Option(None, help="Fecha inicio ISO 8601 (ej: 2024-01-01)"),
     indico_anio: int | None = typer.Option(
@@ -99,6 +99,12 @@ def harvest(
     # también "dspace-cris" porque es como se le llama fuera de aquí.
     if source in ("cris", "dspace-cris", "all"):
         results["cris"] = harvester.harvest_dspace_cris(from_date=from_date)
+
+    # El mapa institucional: areas y procesos. No son documentos publicados
+    # sino la estructura de la universidad, pero la pregunta llega por el
+    # mismo cuadro de texto, asi que se indexa igual.
+    if source in ("sgc", "all"):
+        results["sgc"] = harvester.harvest_sgc()
 
     if source in ("ojs", "all"):
         results["ojs"] = harvester.harvest_ojs()
@@ -179,7 +185,7 @@ def reindex(
     source: str | None = typer.Option(
         None,
         "--source",
-        help="Reindexar solo una fuente (dspace, cris, ojs, koha, indico). "
+        help="Reindexar solo una fuente (dspace, cris, ojs, koha, indico, sgc). "
         "Default: todas. Útil tras harvestear una fuente nueva.",
     ),
 ) -> None:

@@ -20,6 +20,7 @@ class IntentCategory(StrEnum):
     COMMAND = "command"  # comandos directos (/help, /reset, /lang)
     CAMPUS_PERSONAL = "campus_personal"  # mis notas, mi deuda, mi perfil
     CAMPUS_GENERICO = "campus_generico"  # horarios, calendario, eventos públicos
+    INSTITUCIONAL = "institucional"  # qué áreas hay y de qué responde cada una
     RESEARCH_SIMPLE = "research_simple"  # catálogo, "¿hay X?", lookup directo
     RESEARCH_DEEP = "research_deep"  # síntesis multi-doc, comparativas, marcos
     OUT_OF_SCOPE = "out_of_scope"  # fuera del alcance institucional

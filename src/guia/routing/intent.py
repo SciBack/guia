@@ -61,6 +61,11 @@ Clasifica en UNA categoría exacta:
 - research_deep: análisis profundo o síntesis explícita de múltiples
     documentos (comparar metodologías, análisis bibliométrico, marco teórico,
     estado del arte, evolución temporal, redes de colaboración).
+- institucional: cómo está organizada la universidad y quién hace qué.
+    Qué áreas, direcciones u oficinas existen; de qué se encarga un área;
+    qué procesos tiene la universidad y quién es su dueño; a qué área
+    corresponde un asunto. Incluye siglas internas (DTI, DPGC, VRAC) y
+    preguntas del tipo "¿a quién le pido...?", "¿quién ve lo de...?".
 - out_of_scope: SOLO cosas claramente NO académicas y NO institucionales:
     chistes, deportes, farándula, política diaria, tareas personales sin
     contexto educativo, contenido inapropiado.
@@ -90,6 +95,11 @@ EJEMPLOS CON CONTEXTO (el último mensaje es el que se clasifica):
   → greeting (despedida, no una búsqueda)
 - "mis notas del semestre" → campus_personal
 - "calendario de matrícula" → campus_generico
+- "qué servicios ofrece la DTI" → institucional
+- "de qué se encarga la Dirección de Investigación" → institucional
+- "qué áreas tiene la universidad" → institucional
+- "quién es el dueño del proceso de matrícula" → institucional
+- "a qué área le pido acceso a un sistema" → institucional
 
 Responde SOLO con el código exacto de la categoría en minúsculas, sin
 puntuación ni explicación.
@@ -102,6 +112,7 @@ _CATEGORY_MAP: dict[str, IntentCategory] = {
     "campus_personal": IntentCategory.CAMPUS_PERSONAL,
     "campus_generico": IntentCategory.CAMPUS_GENERICO,
     "campus_genérico": IntentCategory.CAMPUS_GENERICO,  # tolerancia tilde
+    "institucional": IntentCategory.INSTITUCIONAL,
     "research_simple": IntentCategory.RESEARCH_SIMPLE,
     "research_deep": IntentCategory.RESEARCH_DEEP,
     "out_of_scope": IntentCategory.OUT_OF_SCOPE,

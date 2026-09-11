@@ -416,6 +416,40 @@ def _event_to_metadata(event: object) -> dict[str, object]:
     return meta
 
 
+def _area_a_metadata(area: object) -> dict[str, object]:
+    """Un área de la universidad, como documento del índice."""
+    meta: dict[str, object] = {
+        "title": f"{getattr(area, 'nombre', '')} ({getattr(area, 'codigo', '')})",
+        "abstract": area.como_texto(),  # type: ignore[union-attr]
+        "kind": "area_institucional",
+        "source_type": "sgc",
+    }
+    for campo in ("codigo", "tipo", "sede", "padre"):
+        valor = getattr(area, campo, None)
+        if valor:
+            meta[campo] = str(valor)
+    return meta
+
+
+def _proceso_a_metadata(proceso: object) -> dict[str, object]:
+    """Un proceso del mapa, como documento del índice."""
+    meta: dict[str, object] = {
+        "title": f"{getattr(proceso, 'nombre', '')} ({getattr(proceso, 'codigo', '')})",
+        "abstract": proceso.como_texto(),  # type: ignore[union-attr]
+        "kind": "proceso_institucional",
+        "source_type": "sgc",
+        # Se indexa aunque esté en borrador, pero el estado viaja con el
+        # documento para que la respuesta pueda decirlo. Ocultarlos dejaría a
+        # GUIA sin mapa: hoy los 96 están en borrador.
+        "aprobado": bool(getattr(proceso, "aprobado", False)),
+    }
+    for campo in ("codigo", "nivel", "nivel_bpm", "area", "padre", "estado"):
+        valor = getattr(proceso, campo, None)
+        if valor:
+            meta[campo] = str(valor)
+    return meta
+
+
 class HarvesterService:
     """Servicio de cosecha de publicaciones académicas.
 
@@ -429,6 +463,8 @@ class HarvesterService:
         alicia: Harvester ALICIA/CONCYTEC (opcional).
         koha: Adapter Koha (opcional).
         indico: Adapter Indico (opcional).
+        sgc: Cliente del SGC, de donde sale el mapa institucional
+            (áreas y procesos). Opcional.
     """
 
     def __init__(
@@ -442,6 +478,7 @@ class HarvesterService:
         alicia: AliciaHarvester | None = None,
         koha: KohaAdapter | None = None,
         indico: IndicoAdapter | None = None,
+        sgc: object | None = None,
     ) -> None:
         self._store = store
         self._embedder = embedder
@@ -451,6 +488,7 @@ class HarvesterService:
         self._alicia = alicia
         self._koha = koha
         self._indico = indico
+        self._sgc = sgc
 
     def harvest_dspace(
         self,
@@ -547,6 +585,55 @@ class HarvesterService:
             iterator=self._koha.harvest(),
             batch_size=batch_size,
         )
+
+    def harvest_sgc(self, *, batch_size: int = 50) -> dict[str, int]:
+        """Cosecha el mapa institucional: áreas y procesos.
+
+        Es una fuente distinta en naturaleza a las demás: no son documentos
+        que alguien publicó, sino la estructura de la propia universidad. Se
+        indexa igual porque la pregunta llega por el mismo sitio — alguien
+        escribe "¿de qué se encarga la DTI?" en el mismo cuadro donde escribe
+        "tesis sobre estrés académico"— y porque así la respuesta puede
+        mezclar ambas cosas cuando toca.
+
+        Los identificadores son ``sgc:area:<codigo>`` y ``sgc:proceso:<codigo>``:
+        estables por construcción, que es lo que permite recosechar todos los
+        días sin duplicar. El código lo asigna el SGC y no cambia.
+        """
+        if self._sgc is None:
+            logger.warning("SGC client not configured — skipping")
+            return {"total": 0, "ok": 0, "error": 0}
+
+        mapa = self._sgc.mapa()
+        for aviso in getattr(mapa, "avisos", ()):
+            logger.info("sgc_aviso", detalle=aviso)
+
+        items: list[tuple[str, dict[str, object]]] = [
+            (f"sgc:area:{a.codigo}", _area_a_metadata(a)) for a in mapa.areas
+        ]
+        items += [
+            (f"sgc:proceso:{p.codigo}", _proceso_a_metadata(p)) for p in mapa.procesos
+        ]
+
+        total = ok = error = 0
+        for inicio in range(0, len(items), batch_size):
+            lote = items[inicio : inicio + batch_size]
+            total += len(lote)
+            textos = [str(m.get("abstract") or m.get("title") or "") for _, m in lote]
+            try:
+                respuesta = self._embedder.embed_passages(textos)
+                for (doc_id, meta), vector in zip(
+                    lote, respuesta.embeddings, strict=False
+                ):
+                    meta["source"] = "sgc"
+                    self._store.upsert(doc_id, vector, metadata=meta)
+                ok += len(lote)
+            except Exception:
+                logger.exception("batch_error", extra={"source": "sgc"})
+                error += len(lote)
+
+        logger.info("harvest_sgc_fin", total=total, ok=ok, error=error)
+        return {"total": total, "ok": ok, "error": error}
 
     def harvest_indico(
         self, *, batch_size: int = 50, solo_anio: int | None = None
@@ -668,6 +755,7 @@ class HarvesterService:
         return {
             "dspace": self.harvest_dspace(from_date=from_date),
             "cris": self.harvest_dspace_cris(from_date=from_date),
+            "sgc": self.harvest_sgc(),
             "ojs": self.harvest_ojs(),
             "alicia": self.harvest_alicia(from_date=from_date),
             "koha": self.harvest_koha(),

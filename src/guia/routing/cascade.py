@@ -171,6 +171,9 @@ _CATEGORY_TO_TIER_PRIVACY: dict[IntentCategory, tuple[Tier, PrivacyLevel]] = {
     IntentCategory.COMMAND: (Tier.T0_FAST, PrivacyLevel.CLOUD_OK),
     IntentCategory.CAMPUS_PERSONAL: (Tier.T1_STD, PrivacyLevel.ALWAYS_LOCAL),
     IntentCategory.CAMPUS_GENERICO: (Tier.T0_FAST, PrivacyLevel.CLOUD_OK),
+    # CLOUD_OK: el mapa de procesos es información pública de la
+    # organización, no datos de nadie.
+    IntentCategory.INSTITUCIONAL: (Tier.T1_STD, PrivacyLevel.CLOUD_OK),
     IntentCategory.RESEARCH_SIMPLE: (Tier.T1_STD, PrivacyLevel.CLOUD_OK),
     IntentCategory.RESEARCH_DEEP: (Tier.T2_DEEP, PrivacyLevel.CLOUD_OK),
     IntentCategory.OUT_OF_SCOPE: (Tier.T0_FAST, PrivacyLevel.CLOUD_OK),

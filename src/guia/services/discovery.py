@@ -32,6 +32,7 @@ _SOURCE_LABELS = {
     "ojs": "Revistas UPeU (OJS)",
     "dspace": "Repositorio institucional (DSpace)",
     "cris": "Producción científica UPeU (CRIS)",
+    "sgc": "Áreas y procesos de la UPeU",
     "alicia": "ALICIA — producción científica nacional",
     "indico": "Eventos UPeU (Indico)",
 }

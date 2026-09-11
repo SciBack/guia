@@ -22,6 +22,25 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+async def _calcular_analitica(app: FastAPI, settings: GUIASettings) -> None:
+    """Cuenta el índice sin bloquear el arranque.
+
+    Va en una tarea aparte porque es una agregación sobre toda la tabla de
+    vectores: en frío tarda, y un endpoint de transparencia lento no puede ser
+    la razón de que la API no levante. Hasta que termina, el inventario sale
+    vacío en vez de salir viejo.
+    """
+    from guia.services.analitica_del_indice import CalculadoraDeAnalitica
+
+    try:
+        calculadora = CalculadoraDeAnalitica(settings.pgvector_database_url)
+        app.state.analitica_del_indice = await asyncio.to_thread(calculadora.calcular)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # el inventario no puede tumbar la API
+        logger.warning("analitica_fallo_al_arrancar", error=str(exc))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Lifespan: construye el container al inicio y libera recursos al cierre."""
@@ -43,13 +62,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     warmup_task = asyncio.create_task(warmup_models(container))
 
+    # Inventario del índice: qué hay y de qué fuentes. Lo publica el endpoint
+    # de transparencia y lo usa GUIA para poder responder qué información
+    # maneja. Se calcula al arrancar y lo refresca el cron diario; es una
+    # consulta de agregación, no algo que valga la pena hacer por petición.
+    app.state.analitica_del_indice = None
+    analitica_task = asyncio.create_task(_calcular_analitica(app, settings))
+
     logger.info("guia_ready")
     yield
 
     logger.info("guia_shutting_down")
     warmup_task.cancel()
+    analitica_task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await warmup_task
+    with contextlib.suppress(asyncio.CancelledError):
+        await analitica_task
     await container.aclose()
 
 

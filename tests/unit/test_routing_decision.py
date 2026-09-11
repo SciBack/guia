@@ -89,12 +89,13 @@ def test_latency_ms_non_negative() -> None:
 
 
 def test_intent_category_covers_all_buckets() -> None:
-    """Las 8 categorías esperadas están definidas."""
+    """Las 9 categorías esperadas están definidas."""
     expected = {
         "greeting",
         "command",
         "campus_personal",
         "campus_generico",
+        "institucional",
         "research_simple",
         "research_deep",
         "out_of_scope",

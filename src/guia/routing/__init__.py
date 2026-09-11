@@ -34,6 +34,10 @@ _CATEGORY_TO_INTENT: dict[IntentCategory, Intent] = {
     IntentCategory.COMMAND: Intent.GENERAL,
     IntentCategory.CAMPUS_PERSONAL: Intent.CAMPUS,
     IntentCategory.CAMPUS_GENERICO: Intent.CAMPUS,
+    # A GENERAL y no a CAMPUS a propósito: CAMPUS va al catálogo de Koha,
+    # y preguntar de qué se encarga un área no es buscar un libro. GENERAL
+    # es el camino que pasa por el índice, donde está el mapa del SGC.
+    IntentCategory.INSTITUCIONAL: Intent.GENERAL,
     IntentCategory.RESEARCH_SIMPLE: Intent.RESEARCH,
     IntentCategory.RESEARCH_DEEP: Intent.RESEARCH,
     IntentCategory.OUT_OF_SCOPE: Intent.OUT_OF_SCOPE,

@@ -92,6 +92,7 @@ class GUIAContainer:
         self.alicia_harvester = self._try_build_alicia()
         self.koha_adapter = self._try_build_koha()
         self.indico_adapter = self._try_build_indico()
+        self.sgc_client = self._try_build_sgc()
         self.grobid_client = self._try_build_grobid()
 
         # M4: SearchAdapter async (ADR-029) — None si backend=pgvector
@@ -216,6 +217,17 @@ class GUIAContainer:
         try:
             from sciback_adapter_koha import KohaAdapter, KohaSettings
             return KohaAdapter(KohaSettings(_env_file=None))
+        except Exception:
+            return None
+
+    def _try_build_sgc(self) -> object:
+        """El cliente del mapa institucional, si este despliegue tiene SGC."""
+        s = self.settings
+        if not (s.sgc_base_url and s.sgc_api_key and s.sgc_api_secret):
+            return None
+        try:
+            from guia.services.mapa_institucional import ClienteDelSGC
+            return ClienteDelSGC(s.sgc_base_url, s.sgc_api_key, s.sgc_api_secret)
         except Exception:
             return None
 
@@ -441,6 +453,7 @@ class GUIAContainer:
             alicia=self.alicia_harvester,  # type: ignore[arg-type]
             koha=self.koha_adapter,  # type: ignore[arg-type]
             indico=self.indico_adapter,  # type: ignore[arg-type]
+            sgc=self.sgc_client,
         )
 
         # M4: UserProfileRepository — perfiles persistentes en Postgres (ADR-034)

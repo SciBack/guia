@@ -59,6 +59,17 @@ _CAMPUS_GENERICO_EXAMPLES: list[str] = [
     "fecha de feria de investigación",
 ]
 
+_INSTITUCIONAL_EXAMPLES: list[str] = [
+    "¿qué servicios ofrece la DTI?",
+    "¿de qué se encarga la Dirección de Investigación e Innovación?",
+    "¿qué áreas tiene la universidad?",
+    "¿quién es responsable del proceso de matrícula?",
+    "¿a qué área le pido acceso a un sistema?",
+    "¿qué hace la Dirección de Talento Humano?",
+    "organigrama de la universidad",
+    "¿qué procesos tiene la UPeU?",
+]
+
 _RESEARCH_SIMPLE_EXAMPLES: list[str] = [
     "¿hay tesis sobre machine learning?",
     "¿está disponible Cálculo de Stewart en biblioteca?",
@@ -89,6 +100,7 @@ _RESEARCH_DEEP_EXAMPLES: list[str] = [
 _CATEGORY_SPEC: dict[IntentCategory, tuple[list[str], Tier, PrivacyLevel]] = {
     IntentCategory.CAMPUS_PERSONAL: (_CAMPUS_PERSONAL_EXAMPLES, Tier.T1_STD, PrivacyLevel.ALWAYS_LOCAL),
     IntentCategory.CAMPUS_GENERICO: (_CAMPUS_GENERICO_EXAMPLES, Tier.T0_FAST, PrivacyLevel.CLOUD_OK),
+    IntentCategory.INSTITUCIONAL: (_INSTITUCIONAL_EXAMPLES, Tier.T1_STD, PrivacyLevel.CLOUD_OK),
     IntentCategory.RESEARCH_SIMPLE: (_RESEARCH_SIMPLE_EXAMPLES, Tier.T1_STD, PrivacyLevel.CLOUD_OK),
     IntentCategory.RESEARCH_DEEP: (_RESEARCH_DEEP_EXAMPLES, Tier.T2_DEEP, PrivacyLevel.CLOUD_OK),
 }

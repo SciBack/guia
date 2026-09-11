@@ -8,6 +8,18 @@ from guia.config import GUIASettings
 router = APIRouter(prefix="/api/transparency", tags=["transparency"])
 
 
+def _inventario(request: Request) -> list[dict]:
+    """El inventario real del índice.
+
+    Si el cálculo falla se devuelve una lista vacía y se dice por qué: es
+    preferible a servir cifras viejas, que es justo lo que se está corrigiendo.
+    """
+    analitica = getattr(request.app.state, "analitica_del_indice", None)
+    if analitica is None:
+        return []
+    return analitica.para_transparencia()
+
+
 @router.get("")
 async def transparency(request: Request) -> dict:
     """Endpoint de transparencia y model card pública (DS 115-2025-PCM)."""
@@ -28,12 +40,12 @@ async def transparency(request: Request) -> dict:
             "embeddings": "intfloat/multilingual-e5-large",
             "cloud_fallback": "claude-sonnet-4-6 (solo queries no sensibles)",
         },
-        "data_sources": [
-            {"name": "Koha UPeU", "type": "biblioteca", "records_approx": 34900},
-            {"name": "DSpace repositorio.upeu.edu.pe", "type": "repositorio_institucional", "records_approx": 10000},
-            {"name": "OJS revistas.upeu.edu.pe", "type": "revistas_academicas", "records_approx": 12500},
-            {"name": "Indico UPeU", "type": "eventos_academicos", "records_approx": 550},
-        ],
+        # Contado del índice, no escrito a mano. La lista anterior estaba
+        # fija en el código y el 11-sep-2026 tres de sus cuatro cifras eran
+        # falsas —12.500 artículos de OJS cuando hay 744, 550 eventos cuando
+        # hay 102, y el CRIS sin mencionar—. Un dato de transparencia que hay
+        # que acordarse de actualizar no es transparencia.
+        "data_sources": _inventario(request),
         "privacy": {
             "regulation": "Ley 29733 + DS 016-2024-JUS",
             "pii_redaction": "DataLevel L2/L3 procesado solo en local",

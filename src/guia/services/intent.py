@@ -21,7 +21,9 @@ investigación, tesis, artículos, publicaciones, repositorio, revistas académi
 autores, ISBN, referencias bibliográficas.
 - campus: notas, calificaciones, matrícula, pagos, horarios, aulas, servicios administrativos, \
 trámites, constancias, carnet, servicios de campus NO relacionados con libros.
-- general: consultas generales sobre la universidad, facultades, procesos académicos.
+- general: cómo está organizada la universidad y quién hace qué — áreas, direcciones, oficinas, \
+de qué se encarga cada una, procesos institucionales y su dueño, siglas internas (DTI, DPGC, VRAC), \
+facultades y consultas generales sobre la institución.
 - out_of_scope: consultas fuera del ámbito universitario institucional.
 
 Responde solo la palabra, sin puntuación ni explicación."""
