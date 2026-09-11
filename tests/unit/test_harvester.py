@@ -168,3 +168,57 @@ def test_embedding_text_truncated_but_metadata_complete() -> None:
     assert len(embedding_text) <= _MAX_EMBEDDING_CHARS
     assert meta["abstract"] == full_abstract
     assert len(meta["abstract"]) == 5000
+
+
+# ─── DSpace-CRIS — es un segundo DSpace, con su propia etiqueta de fuente ──
+
+
+class _AdaptadorFalso:
+    """Un DSpaceAdapter mínimo: solo hace falta que sepa cosechar."""
+
+    def __init__(self, publicaciones: list[object]) -> None:
+        self._publicaciones = publicaciones
+        self.llamadas: list[dict[str, object]] = []
+
+    def harvest(self, *, set_spec: object = None, from_date: object = None):
+        self.llamadas.append({"set_spec": set_spec, "from_date": from_date})
+        yield from self._publicaciones
+
+
+def _servicio_con(cris: object | None, registro: list[str]) -> object:
+    """HarvesterService con _harvest_source espiado: el pipeline real no es
+    lo que se prueba aquí, sino con qué etiqueta de fuente se le llama."""
+    from guia.services.harvester import HarvesterService
+
+    svc = HarvesterService(store=None, embedder=None, dspace_cris=cris)  # type: ignore[arg-type]
+    svc._harvest_source = lambda *, source_name, iterator, batch_size: (  # type: ignore[method-assign]
+        registro.append(source_name),
+        list(iterator),
+        {"total": 1, "ok": 1, "error": 0},
+    )[-1]
+    return svc
+
+
+def test_cris_se_cosecha_como_fuente_propia() -> None:
+    """La etiqueta es "cris", no "dspace": son dos repositorios distintos y el
+    enlace de cada resultado depende de cuál sea."""
+    registro: list[str] = []
+    adaptador = _AdaptadorFalso([_make_pub(title="Un artículo")])
+
+    svc = _servicio_con(adaptador, registro)
+    resultado = svc.harvest_dspace_cris(from_date="2026-01-01")  # type: ignore[attr-defined]
+
+    assert registro == ["cris"]
+    assert resultado["ok"] == 1
+    assert adaptador.llamadas == [{"set_spec": None, "from_date": "2026-01-01"}]
+
+
+def test_sin_cris_configurado_no_falla() -> None:
+    """Un despliegue sin CRIS —la mayoría— no puede romperse por esto."""
+    registro: list[str] = []
+
+    svc = _servicio_con(None, registro)
+    resultado = svc.harvest_dspace_cris()  # type: ignore[attr-defined]
+
+    assert registro == []
+    assert resultado == {"total": 0, "ok": 0, "error": 0}

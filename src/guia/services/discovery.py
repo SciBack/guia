@@ -31,6 +31,7 @@ _SOURCE_LABELS = {
     "koha": "Biblioteca UPeU (catálogo Koha)",
     "ojs": "Revistas UPeU (OJS)",
     "dspace": "Repositorio institucional (DSpace)",
+    "cris": "Producción científica UPeU (CRIS)",
     "alicia": "ALICIA — producción científica nacional",
     "indico": "Eventos UPeU (Indico)",
 }
@@ -87,6 +88,8 @@ def build_source_buckets(
                 st = "ojs"
             elif hit_id.startswith("dspace:"):
                 st = "dspace"
+            elif hit_id.startswith("cris:"):
+                st = "cris"
             elif hit_id.startswith("indico:"):
                 st = "indico"
         if st:
@@ -101,6 +104,8 @@ def build_source_buckets(
             url = _ojs_search_url(settings.ojs_base_url, query)
         elif source_type == "dspace" and settings.dspace_base_url:
             url = _dspace_search_url(settings.dspace_base_url, query)
+        elif source_type == "cris" and settings.dspace_cris_base_url:
+            url = _dspace_search_url(settings.dspace_cris_base_url, query)
         elif source_type == "alicia" and settings.alicia_base_url:
             url = _alicia_search_url(settings.alicia_base_url, query)
         elif source_type == "indico" and settings.indico_base_url:

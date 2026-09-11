@@ -87,6 +87,7 @@ class GUIAContainer:
 
         # Adapters de fuentes (opcionales)
         self.dspace_adapter = self._try_build_dspace()
+        self.dspace_cris_adapter = self._try_build_dspace_cris()
         self.ojs_adapter = self._try_build_ojs()
         self.alicia_harvester = self._try_build_alicia()
         self.koha_adapter = self._try_build_koha()
@@ -171,6 +172,27 @@ class GUIAContainer:
             from sciback_adapter_dspace import DSpaceAdapter
             from sciback_adapter_dspace.settings import DSpaceSettings
             return DSpaceAdapter(DSpaceSettings())
+        except Exception:
+            return None
+
+    def _try_build_dspace_cris(self) -> object:
+        """El CRIS, que es otro DSpace con otra URL.
+
+        Se construye con los valores explícitos en vez de leerlos del entorno
+        porque ``DSpaceSettings`` toma el prefijo ``DSPACE_``, que ya lo ocupa
+        el repositorio institucional. Pasarlos como argumentos es lo que evita
+        que las dos instancias se pisen.
+        """
+        base = (self.settings.dspace_cris_base_url or "").rstrip("/")
+        if not base:
+            return None
+        try:
+            from sciback_adapter_dspace import DSpaceAdapter
+            from sciback_adapter_dspace.settings import DSpaceSettings
+            oai = self.settings.dspace_cris_oai_url or f"{base}/server/oai/request"
+            return DSpaceAdapter(
+                DSpaceSettings(_env_file=None, base_url=base, oai_pmh_url=oai)
+            )
         except Exception:
             return None
 
@@ -414,6 +436,7 @@ class GUIAContainer:
             store=self.store,
             embedder=self.embedder,
             dspace=self.dspace_adapter,  # type: ignore[arg-type]
+            dspace_cris=self.dspace_cris_adapter,  # type: ignore[arg-type]
             ojs=self.ojs_adapter,  # type: ignore[arg-type]
             alicia=self.alicia_harvester,  # type: ignore[arg-type]
             koha=self.koha_adapter,  # type: ignore[arg-type]

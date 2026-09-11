@@ -102,6 +102,16 @@ class GUIASettings(BaseSettings):
     # se omite silenciosamente.
     ojs_base_url: str = ""  # ej. https://revistas.upeu.edu.pe
     dspace_base_url: str = ""  # ej. https://repositorio.upeu.edu.pe
+    # DSpace-CRIS — es un repositorio aparte del institucional: aquí vive la
+    # producción científica (artículos, investigadores, proyectos), no las
+    # tesis. Se cosecha por el mismo OAI-PMH que el DSpace normal, así que el
+    # adaptador es el mismo con otra URL base; lo único que cambia es la
+    # etiqueta de fuente ("cris"), para que un resultado del CRIS no enlace al
+    # buscador del repositorio y viceversa.
+    dspace_cris_base_url: str = ""  # ej. https://cris.upeu.edu.pe
+    # Si queda vacío se deriva de dspace_cris_base_url + /server/oai/request,
+    # que es donde lo pone DSpace 7 y donde está en UPeU (comprobado).
+    dspace_cris_oai_url: str = ""
     alicia_base_url: str = "https://alicia.concytec.gob.pe"
     indico_base_url: str = ""  # ej. https://indico.upeu.edu.pe
     # Token de servicio de la ruta /academic-identity/ de Indico — el mismo
@@ -126,6 +136,7 @@ class GUIASettings(BaseSettings):
     # los exponemos como links de exploración externa, no como fuente consultada.
     dspace_indexed: bool = False
     alicia_indexed: bool = False
+    cris_indexed: bool = False
 
     # M3: Search backend (ADR-029)
     # "pgvector" | "opensearch" | "dual"

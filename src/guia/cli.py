@@ -67,7 +67,7 @@ def serve(
 @app.command()
 def harvest(
     source: str = typer.Option(
-        "all", help="Fuente: dspace | ojs | alicia | koha | indico | all"
+        "all", help="Fuente: dspace | cris | ojs | alicia | koha | indico | all"
     ),
     from_date: str | None = typer.Option(None, help="Fecha inicio ISO 8601 (ej: 2024-01-01)"),
     indico_anio: int | None = typer.Option(
@@ -94,6 +94,11 @@ def harvest(
 
     if source in ("dspace", "all"):
         results["dspace"] = harvester.harvest_dspace(from_date=from_date)
+
+    # El CRIS es un segundo DSpace: producción científica, no tesis. Acepta
+    # también "dspace-cris" porque es como se le llama fuera de aquí.
+    if source in ("cris", "dspace-cris", "all"):
+        results["cris"] = harvester.harvest_dspace_cris(from_date=from_date)
 
     if source in ("ojs", "all"):
         results["ojs"] = harvester.harvest_ojs()

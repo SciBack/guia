@@ -1,4 +1,4 @@
-"""HarvesterService — cosecha publicaciones de DSpace, OJS, ALICIA e Indico."""
+"""HarvesterService — cosecha publicaciones de DSpace, DSpace-CRIS, OJS, ALICIA, Koha e Indico."""
 
 from __future__ import annotations
 
@@ -423,6 +423,8 @@ class HarvesterService:
         store: Vector store donde persistir los embeddings.
         embedder: E5EmbeddingAdapter para generar embeddings de pasajes.
         dspace: Adapter DSpace 7.x (opcional).
+        dspace_cris: Adapter del DSpace-CRIS, si el despliegue tiene uno
+            aparte del repositorio institucional (opcional).
         ojs: Adapter OJS 3.x (opcional).
         alicia: Harvester ALICIA/CONCYTEC (opcional).
         koha: Adapter Koha (opcional).
@@ -435,6 +437,7 @@ class HarvesterService:
         embedder: E5EmbeddingAdapter,
         *,
         dspace: DSpaceAdapter | None = None,
+        dspace_cris: DSpaceAdapter | None = None,
         ojs: OjsAdapter | None = None,
         alicia: AliciaHarvester | None = None,
         koha: KohaAdapter | None = None,
@@ -443,6 +446,7 @@ class HarvesterService:
         self._store = store
         self._embedder = embedder
         self._dspace = dspace
+        self._dspace_cris = dspace_cris
         self._ojs = ojs
         self._alicia = alicia
         self._koha = koha
@@ -463,6 +467,31 @@ class HarvesterService:
         return self._harvest_source(
             source_name="dspace",
             iterator=self._dspace.harvest(set_spec=set_spec, from_date=from_date),
+            batch_size=batch_size,
+        )
+
+    def harvest_dspace_cris(
+        self,
+        *,
+        set_spec: str | None = None,
+        from_date: str | None = None,
+        batch_size: int = 50,
+    ) -> dict[str, int]:
+        """Cosecha el DSpace-CRIS vía OAI-PMH.
+
+        Es el mismo adaptador que ``harvest_dspace`` con otra URL base, pero la
+        fuente se etiqueta ``cris`` y no ``dspace``: son dos repositorios
+        distintos —uno guarda tesis, el otro producción científica— y quien
+        pregunta necesita saber a cuál de los dos le estamos mandando. La
+        etiqueta es además lo que decide a qué buscador enlaza el resultado.
+        """
+        if self._dspace_cris is None:
+            logger.warning("DSpace-CRIS adapter not configured — skipping")
+            return {"total": 0, "ok": 0, "error": 0}
+
+        return self._harvest_source(
+            source_name="cris",
+            iterator=self._dspace_cris.harvest(set_spec=set_spec, from_date=from_date),
             batch_size=batch_size,
         )
 
@@ -638,6 +667,7 @@ class HarvesterService:
         """Cosecha todas las fuentes configuradas."""
         return {
             "dspace": self.harvest_dspace(from_date=from_date),
+            "cris": self.harvest_dspace_cris(from_date=from_date),
             "ojs": self.harvest_ojs(),
             "alicia": self.harvest_alicia(from_date=from_date),
             "koha": self.harvest_koha(),
