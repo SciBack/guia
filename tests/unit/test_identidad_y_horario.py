@@ -333,7 +333,10 @@ class TestElAreaDeTrabajo:
       "parentOrgRef": {"oid": "00000000-0000-0000-0000-953119566392", "type": "OrgType"}}]}
     }"""
 
-    ORG = '{"org": {"name": "DTI", "displayName": "Dirección de Tecnologías de Información", "identifier": "18"}}'
+    ORG = (
+        '{"org": {"name": "DTI", "displayName": "Dirección de Tecnologías '
+        'de Información", "identifier": "18"}}'
+    )
 
     def _directorio_con_org(self) -> DirectorioInstitucional:
         def responder(request: httpx.Request) -> httpx.Response:
@@ -345,7 +348,7 @@ class TestElAreaDeTrabajo:
         d._http = httpx.Client(transport=httpx.MockTransport(responder))
         return d
 
-    def test_resuelve_el_area_desde_parentOrgRef(self) -> None:
+    def test_resuelve_el_area_desde_la_referencia_a_la_org(self) -> None:
         ficha = self._directorio_con_org().de_quien_ha_iniciado_sesion("jsanchez@upeu.edu.pe")
 
         assert ficha is not None
