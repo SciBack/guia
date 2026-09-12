@@ -169,19 +169,27 @@ class GUIASettings(BaseSettings):
     search_candidates: int = 50
 
     # Cuánto pesa la rama léxica (BM25) frente a la vectorial al fusionar. La
-    # vectorial se lleva el resto, así que 0.5 es el reparto a partes iguales.
+    # vectorial se lleva el resto.
     #
-    # Estaba en 0.3 y se subió a 0.5 el 11-sep-2026 **midiendo**, no a ojo:
-    # sobre un banco de 14 consultas con respuesta conocida —léxicas,
-    # semánticas y agregadas— el MRR final pasó de 0,583 a 0,786 y el
-    # recall@5 del 71% al 86%. Cuatro documentos que no aparecían en absoluto
-    # pasaron al primer puesto; uno bajó del 1 al 6, sin salirse de la vista.
+    # Historia corta, porque es una lección cara: el 11-sep-2026 se subió de
+    # 0,3 a 0,5 midiendo sobre un banco de 14 consultas, y **se revirtió el
+    # mismo día** al ampliarlo a 40. El banco pequeño tenía solo 4 consultas
+    # semánticas de 14; con 19 de 40, el resultado se da la vuelta:
     #
-    # Con 0.6 y 0.7 el MRR de la FUSIÓN sigue subiendo, pero el final baja:
-    # las preguntas agregadas ("¿qué áreas tiene la universidad?") se hunden
-    # de 0,78 a 0,33. Optimizar la fusión sola engaña — hay que mirar lo que
-    # queda después del reranking, que es lo que ve el usuario.
-    search_peso_lexico: float = 0.5
+    #   pesos      MRR final   recall@5   semánticas
+    #   0,3/0,7      0,792        88%        0,70     ← este
+    #   0,5/0,5      0,749        82%        0,65
+    #   0,6/0,4      0,613        68%        0,39
+    #
+    # Con 0,5 había dos consultas descritas con palabras propias —"cómo
+    # perciben los vecinos la atención que reciben en su municipio", "relación
+    # entre el agobio de los estudios y la confianza del alumno"— que no
+    # aparecían **en absoluto**, y con 0,3 salen las primeras.
+    #
+    # La moraleja no es el número, es el método: un banco que no cubre bien
+    # los tipos de consulta da una señal con el signo cambiado, y parecía
+    # convincente —la diferencia medida era grande, no marginal—.
+    search_peso_lexico: float = 0.3
 
     # Reranking (cross-encoder) sobre el resultado de la fusión.
     rerank_enabled: bool = False

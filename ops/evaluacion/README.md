@@ -109,3 +109,52 @@ Lo honesto es anotar la tendencia —en las tres medidas del día, más peso
 léxico ha ido saliendo mejor a medida que el índice ganaba texto— y **ampliar
 el banco antes de decidir**. Treinta o cuarenta casos darían una señal que
 14 no dan.
+
+---
+
+## Cuarta medición, 11-sep-2026 — con el banco ampliado a 40 casos
+
+**Y aquí el banco de 14 resultó estar mintiendo.** Tenía 7 consultas léxicas y
+solo 4 semánticas; el de 40 tiene 18 y 19. Con esa mezcla, el resultado se da
+la vuelta:
+
+| pesos (bm25/knn) | MRR fusión | MRR final | R@5 | léxico | semántico | agregado |
+|---|---|---|---|---|---|---|
+| **0,3 / 0,7** *(revertido a esto)* | 0,562 | **0,792** | **88%** | 0,89 | **0,70** | 0,78 |
+| 0,4 / 0,6 | 0,561 | 0,792 | 88% | 0,89 | 0,70 | 0,78 |
+| 0,5 / 0,5 | 0,559 | 0,749 | 82% | 0,89 | 0,65 | 0,54 |
+| 0,6 / 0,4 | 0,536 | 0,613 | 68% | 0,90 | 0,39 | 0,33 |
+| 0,7 / 0,3 | 0,539 | 0,613 | 68% | 0,90 | 0,39 | 0,33 |
+
+Las consultas léxicas puntúan **0,89–0,90 con cualquier peso**: entre el
+título con subtítulo y el índice de capítulos, ya no discriminan nada. Quien
+decide son las semánticas, y ahí la rama vectorial manda — 0,70 con 0,3
+frente a 0,39 con 0,6.
+
+Solo **5 de los 40 casos** cambian de resultado entre 0,3/0,7 y 0,5/0,5, pero
+el balance es claro: con 0,5 había dos consultas descritas con palabras
+propias que **no aparecían en absoluto** y con 0,3 salen las primeras.
+
+| consulta | tipo | 0,3/0,7 | 0,5/0,5 |
+|---|---|---|---|
+| cómo perciben los vecinos la atención que reciben en su municipio | semántico | **1** | — |
+| relación entre el agobio de los estudios y la confianza del alumno | semántico | **1** | — |
+| cómo está organizada la UPeU | agregado | **1** | 9 |
+| organigrama de la universidad | agregado | 3 | **2** |
+| cultura de prevención frente a fenómenos naturales | semántico | — | **1** |
+
+### La lección, que no es el número
+
+`search_peso_lexico` volvió a **0,3**, donde estaba. El cambio a 0,5 duró unas
+horas y se hizo *midiendo* — no a ojo—, con una diferencia que parecía
+holgada (0,583 → 0,786), no marginal. El error no fue confiar en la medida:
+fue **medir con un banco que no representaba las consultas reales**.
+
+Al ampliarlo, dos cosas que conviene recordar antes de la próxima:
+
+- **La composición importa más que el tamaño.** Lo que rompió la medición no
+  fue tener 14 casos, fue tener 4 semánticas de 14 cuando la mitad de lo que
+  la gente pregunta se describe con palabras propias.
+- **Al redactar los casos semánticos, no reusar palabras del título.** Si no,
+  se mide recuperación léxica disfrazada, que es justo lo que hace que el peso
+  léxico parezca mejor de lo que es.

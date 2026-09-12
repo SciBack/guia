@@ -343,9 +343,9 @@ class TestPesosDeLaFusion:
     def test_el_reparto_suma_uno(self) -> None:
         from guia.search.backend import SearchAdapter
 
-        sa = SearchAdapter(object(), peso_lexico=0.5)
+        sa = SearchAdapter(object(), peso_lexico=0.3)
 
-        assert sa._weights == (0.5, 0.5)
+        assert sa._weights == (0.3, pytest.approx(0.7))
 
     def test_el_peso_configurado_se_respeta(self) -> None:
         from guia.search.backend import SearchAdapter
@@ -355,7 +355,12 @@ class TestPesosDeLaFusion:
         assert sa._weights == (0.7, pytest.approx(0.3))
 
     def test_el_default_es_el_medido(self) -> None:
-        """Si alguien lo cambia sin medir, que al menos rompa un test."""
+        """Si alguien lo cambia sin medir, que al menos rompa un test.
+
+        0,3 tras medir sobre 40 consultas. Estuvo en 0,5 unas horas, con un
+        banco de 14 que solo tenía 4 semánticas: al ampliarlo, el resultado se
+        dio la vuelta.
+        """
         from guia.config import GUIASettings
 
-        assert GUIASettings.model_fields["search_peso_lexico"].default == 0.5
+        assert GUIASettings.model_fields["search_peso_lexico"].default == 0.3
