@@ -222,3 +222,55 @@ def test_sin_cris_configurado_no_falla() -> None:
 
     assert registro == []
     assert resultado == {"total": 0, "ok": 0, "error": 0}
+
+
+# ─── Los eventos de Indico necesitan un id estable, como las publicaciones ──
+
+
+class TestIdEstableDeEvento:
+    """El mismo evento, dos cosechas, un solo documento.
+
+    Se usaba ``event.id``, un UUIDv7 que el dominio genera **en el
+    constructor**: cada cosecha fabricaba un Event nuevo, luego un id nuevo,
+    luego una fila nueva. Medido el 11-sep-2026: **50 de los 102 documentos de
+    Indico eran duplicados**, con dos ids apuntando a la misma URL.
+
+    No era solo desperdicio: las copias compiten entre sí. El evento "Cultura
+    de prevención y resiliencia" era el primero en BM25 —26,9 frente a 11,1—
+    y no salía en el top-5 porque sus dos copias se repartían la señal.
+    """
+
+    def test_el_id_sale_del_numero_de_evento(self) -> None:
+        from guia.services.harvester import _id_estable_de_evento
+
+        meta = {"url": "https://indico.upeu.edu.pe/event/359/", "title": "Charla"}
+
+        assert _id_estable_de_evento(object(), meta) == "indico:event:359"
+
+    def test_dos_cosechas_del_mismo_evento_dan_el_mismo_id(self) -> None:
+        from guia.services.harvester import _id_estable_de_evento
+
+        meta = {"url": "https://indico.upeu.edu.pe/event/359/", "title": "Charla"}
+
+        # Objetos distintos, como los que fabrica cada cosecha.
+        assert _id_estable_de_evento(object(), dict(meta)) == _id_estable_de_evento(
+            object(), dict(meta)
+        )
+
+    def test_sin_url_se_usa_una_huella_del_titulo(self) -> None:
+        """Peor que la URL, pero al menos no cambia en cada pasada."""
+        from guia.services.harvester import _id_estable_de_evento
+
+        meta = {"title": "Jornada de investigación"}
+        primero = _id_estable_de_evento(object(), meta)
+
+        assert primero.startswith("indico:event:sha1:")
+        assert primero == _id_estable_de_evento(object(), dict(meta))
+
+    def test_eventos_distintos_no_colisionan(self) -> None:
+        from guia.services.harvester import _id_estable_de_evento
+
+        a = _id_estable_de_evento(object(), {"url": ".../event/359/"})
+        b = _id_estable_de_evento(object(), {"url": ".../event/360/"})
+
+        assert a != b

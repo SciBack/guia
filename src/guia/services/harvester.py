@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import re
 from typing import TYPE_CHECKING
 
 from guia.services.chunking import iter_chunks_for_publication
@@ -361,6 +363,37 @@ def _event_to_embedding_text(event: object) -> str:
         parts.append(str(kind))
     text = " ".join(parts)
     return text[:_MAX_EMBEDDING_CHARS] if len(text) > _MAX_EMBEDDING_CHARS else text
+
+
+def _id_estable_de_evento(event: object, meta: dict[str, object]) -> str:
+    """Identificador de un evento que NO cambia entre cosechas.
+
+    Aquí estaba el mismo fallo que ``_stable_pub_id`` arregló para las
+    publicaciones, y que quedó vivo para los eventos: se usaba ``event.id``,
+    un UUIDv7 que ``SciBackBaseEntity`` genera **en el constructor**. Cada
+    cosecha fabricaba un Event nuevo, luego un id nuevo, luego una fila nueva.
+    Medido el 11-sep-2026: **50 de los 102 documentos de Indico eran
+    duplicados**, con dos ids distintos apuntando a la misma URL.
+
+    Y no es solo desperdicio: los duplicados **compiten entre sí** en la
+    búsqueda. El evento "Cultura de prevención y resiliencia" era el primero
+    en BM25 con 26,9 frente a 11,1 del siguiente, y no salía en el top-5
+    porque sus dos copias se repartían la señal.
+
+    La URL del evento es su identidad estable: ``/event/359/`` es el 359 hoy y
+    mañana. Si faltara, se cae a una huella del título, que al menos no
+    inventa un id distinto en cada pasada.
+    """
+    url = str(meta.get("url") or "")
+    numero = re.search(r"/event/(\d+)", url)
+    if numero:
+        return f"indico:event:{numero.group(1)}"
+
+    titulo = str(meta.get("title") or "").strip()
+    if titulo:
+        huella = hashlib.sha1(titulo.encode("utf-8")).hexdigest()[:16]
+        return f"indico:event:sha1:{huella}"
+    return f"indico:event:{getattr(event, 'id', '')}"
 
 
 def _event_to_metadata(event: object) -> dict[str, object]:
@@ -736,7 +769,7 @@ class HarvesterService:
                     continue
                 meta = _event_to_metadata(item)
                 meta["source"] = "indico"
-                doc_id = f"indico:event:{item.id}"
+                doc_id = _id_estable_de_evento(item, meta)
                 batch_texts.append(embedding_text)
                 batch_ids.append(doc_id)
                 batch_metas.append(meta)
