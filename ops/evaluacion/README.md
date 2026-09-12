@@ -158,3 +158,53 @@ Al ampliarlo, dos cosas que conviene recordar antes de la próxima:
 - **Al redactar los casos semánticos, no reusar palabras del título.** Si no,
   se mide recuperación léxica disfrazada, que es justo lo que hace que el peso
   léxico parezca mejor de lo que es.
+
+---
+
+## Lo que el banco NO mide, y por qué el 88% es un suelo
+
+Al investigar los 5 casos que quedaban fuera del top-5 —todos semánticos— se
+probaron dos hipótesis y **las dos resultaron falsas**. Merece la pena dejar
+escrito el recorrido, porque el final cambia cómo hay que leer la métrica.
+
+**Hipótesis 1: el índice de capítulos desplaza a las materias del embedding.**
+Falsa por dos motivos, medidos: reordenar el texto (materias antes del TOC) no
+mejora la similitud —0,8134 → 0,8132— y, sobre todo, **las materias nunca se
+truncaban**: los textos caben de sobra en los 1.500 caracteres.
+
+**Hipótesis 2: el documento entra en la ventana de candidatos pero el
+reranking lo hunde.** Falsa: ampliando la ventana de 50 a 150 y a 300
+candidatos, ninguno de los cinco aparece.
+
+**Lo que pasa de verdad.** Para «cómo trabajar el movimiento corporal con
+chicos de secundaria», el documento marcado como correcto puntúa 0,81 y los
+que salen puntúan 0,92:
+
+```
+0,9232  Cómo integrar a niños con necesidades especiales al salón
+0,9171  Actividades Psicomotrices Básicas y Trabajos con Elementos
+0,9156  Fantasía en movimiento : cuaderno de trabajo
+```
+
+Y esos libros **son buenas respuestas a esa pregunta**. El banco los cuenta
+como fallo porque exige *un documento concreto*, cuando la pregunta real que
+hace un usuario admite varios. La métrica está midiendo «¿sale el que yo
+elegí?» en lugar de «¿sale algo útil?».
+
+### Consecuencias prácticas
+
+- **El 88% es un suelo, no el techo.** Parte de los fallos son aciertos que la
+  métrica no reconoce.
+- **Los casos léxicos siguen siendo fiables**: ahí solo hay un documento
+  correcto y el título lo identifica sin ambigüedad.
+- Para medir bien lo semántico haría falta que cada caso acepte **un conjunto**
+  de documentos válidos, no uno solo. Eso es rehacer el banco con criterio de
+  relevancia, no de identidad — más trabajo, y con un punto de juicio que
+  conviene que revise una persona.
+
+### Y una advertencia de método
+
+Antes de cambiar nada por una hipótesis, **medirla**. Las dos de arriba
+parecían razonables y habrían costado tres horas de recosecha cada una para
+descubrir que no servían. Comprobarlas costó dos consultas de similitud y una
+tabla de posiciones.
