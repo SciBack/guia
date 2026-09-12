@@ -2,7 +2,7 @@
 #
 # Lo que GUIA tiene que revisar cada día para no quedarse desfasada.
 #
-# Son dos cosas distintas y las dos hacen falta:
+# Son dos clases de cosa y las dos hacen falta:
 #
 #   1. El mapa institucional (SGC). Las áreas y los procesos cambian —se crean
 #      unidades, se asignan dueños, se aprueban fichas— y GUIA responde con lo
@@ -43,24 +43,50 @@ fi
 
 fallos=0
 
-decir "1/3 cosechando el mapa institucional del SGC"
-if en_guia "python -m guia harvest --source sgc"; then
-    decir "    ok"
-else
-    decir "    ✗ falló la cosecha del SGC"
-    fallos=$((fallos + 1))
-fi
+# Las fuentes que se refrescan a diario, y por qué solo estas dos:
+#
+#   sgc     — el mapa institucional. Las áreas y los procesos cambian —se
+#             crean unidades, se asignan dueños, se aprueban fichas— y GUIA
+#             responde con lo que cosechó la última vez. Son ~190 documentos.
+#
+#   indico  — los eventos. Cambian todos los días por definición: se publican
+#             charlas, se cargan las clases del ciclo. Son ~330 documentos y
+#             la cosecha se queda con el año vigente.
+#
+# Las grandes (koha, dspace, cris, ojs) NO están aquí: son horas de cosecha
+# —Koha sola tarda tres— y cambian despacio. Van a mano, cuando toque.
+#
+# Que Indico pueda recosecharse a diario es reciente: hasta el 11-sep-2026 sus
+# eventos llevaban un id que cambiaba en cada pasada, así que cada cosecha
+# duplicaba el índice en vez de actualizarlo. 50 de 102 documentos eran copias.
+FUENTES="sgc indico"
 
-# Sin esto la cosecha no llega al buscador. No es opcional.
-decir "2/3 publicando en OpenSearch"
-if en_guia "python -m guia reindex --target opensearch --source sgc"; then
-    decir "    ok"
-else
-    decir "    ✗ falló el reindex — lo cosechado NO está en el buscador"
-    fallos=$((fallos + 1))
-fi
+paso=0
+total_pasos=$(( $(printf '%s' "$FUENTES" | wc -w) * 2 + 1 ))
 
-decir "3/3 recontando el índice"
+for fuente in $FUENTES; do
+    paso=$((paso + 1))
+    decir "$paso/$total_pasos cosechando $fuente"
+    if en_guia "python -m guia harvest --source $fuente"; then
+        decir "    ok"
+    else
+        decir "    ✗ falló la cosecha de $fuente"
+        fallos=$((fallos + 1))
+    fi
+
+    # Sin esto la cosecha no llega al buscador. No es opcional.
+    paso=$((paso + 1))
+    decir "$paso/$total_pasos publicando $fuente en OpenSearch"
+    if en_guia "python -m guia reindex --target opensearch --source $fuente"; then
+        decir "    ok"
+    else
+        decir "    ✗ falló el reindex de $fuente — lo cosechado NO está en el buscador"
+        fallos=$((fallos + 1))
+    fi
+done
+
+paso=$((paso + 1))
+decir "$paso/$total_pasos recontando el índice"
 # El curl va DENTRO del contenedor a propósito: el endpoint solo atiende a
 # 127.0.0.1, y desde el host la petición llega con la IP de la gateway de
 # Docker, así que responde 404. Comprobado el 11-sep-2026.
