@@ -208,3 +208,51 @@ Antes de cambiar nada por una hipótesis, **medirla**. Las dos de arriba
 parecían razonables y habrían costado tres horas de recosecha cada una para
 descubrir que no servían. Comprobarlas costó dos consultas de similitud y una
 tabla de posiciones.
+
+---
+
+## Revisión de los 19 casos semánticos, 12-sep-2026
+
+Se examinó qué devuelve GUIA en cada uno de los 5 que quedaban fuera del
+top-5, para separar el fallo de recuperación del defecto de la métrica.
+**De los cinco, uno era un bug del índice y tres son aciertos.**
+
+| caso | veredicto | por qué |
+|---|---|---|
+| movimiento corporal en secundaria | **acierto parcial** | salen *Desarrollo de habilidades sociales en el curso de educación física* y *Ejercicios de educación física*: sirven |
+| letras de cambio y pagarés | **fallo real** | sale contabilidad general; ningún libro de títulos valores |
+| valoración de empresas | **acierto** | los cuatro son de finanzas — *la decisión de inversión*, *Finanzas para directivos*, *Principios de finanzas corporativas*— y algunos mejores que el marcado |
+| SUNAT y bienes no declarados | **acierto** | el tercero es *Análisis de criterios de detección del incremento patrimonial no justificado*: el mismo tema que el marcado |
+| cultura de prevención | **bug, ya corregido** | el evento estaba **duplicado**; ver abajo |
+
+### El bug que apareció revisando
+
+El evento «Cultura de prevención y resiliencia» era **el primero en BM25 con
+26,9 frente a 11,1 del siguiente** y no salía en el top-5. La causa no era el
+ranking: el evento estaba indexado **dos veces**, con dos ids distintos
+apuntando a la misma URL, y las dos copias se repartían la señal.
+
+Origen: los eventos usaban `event.id`, un UUIDv7 que el dominio genera **en el
+constructor**, así que cada cosecha creaba un documento nuevo. Es el mismo
+fallo que `_stable_pub_id` arregló para las publicaciones y que había quedado
+vivo aquí. **50 de los 102 documentos de Indico eran duplicados.**
+
+Corregido: el id sale del número de evento de la URL (`/event/359/` →
+`indico:event:359`). Duplicados por URL tras la limpieza: **0**.
+
+### Dónde queda la medición
+
+| | R@5 | semánticas |
+|---|---|---|
+| antes de la revisión | 88% | 0,70 |
+| con los ids de Indico estables | **90%** | **0,72** |
+| contando los tres aciertos que la métrica no reconoce | **~97%** | — |
+
+Por fuente: CRIS 6/6 · OJS 6/6 · SGC 8/8 · Indico 3/3 · DSpace 6/7 · **Koha
+7/10**.
+
+**Queda un fallo genuino**: «letras de cambio, pagarés y documentos
+bancarios» no encuentra *Documentación Mercantil*. Es vocabulario
+especializado —títulos valores— donde ni el título ni el índice de capítulos
+del libro usan esas palabras, y las materias del registro son genéricas
+(«Documentos comerciales»). No tiene arreglo por configuración.

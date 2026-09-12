@@ -98,9 +98,10 @@ BANCO = [
 
     # ══ Indico — eventos ══════════════════════════════════════════════════
     ("cultura de prevencion frente a fenomenos naturales",
-     "indico:event:01a08b0d-cd05-7ac3-81a1-68c57d35698f",                    "semantico"),
+     "indico:event:359",                    "semantico"),
     ("OneVoice27 mision para todos",
-     "indico:event:01a08b0d-cd06-7581-a6ea-064c90bfd682",                    "lexico"),
+     "indico:event:360",                    "lexico"),
     ("lanzamiento con el pastor Daniel Moltalvan en septiembre",
-     "indico:event:01a08b0d-cd06-7581-a6ea-064c90bfd682",                    "semantico"),
+     "indico:event:360",                    "semantico"),
 ]
+
